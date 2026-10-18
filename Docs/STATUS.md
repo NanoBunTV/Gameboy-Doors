@@ -78,7 +78,8 @@
     sheets loaded per room or per event.
 - **Dupe rooms are common**: 5 of the 14 normal templates have 2–3 doors, so about a third of rooms are
   multi-door rooms (with Dupe in 35% of those from room 6). Seed 0x1331's first 30 rooms have 8 (3 with Dupe). More
-  single-door templates would thin them out; or a weight per template.
+  single-door templates would thin them out; or a weight per template. The owner will rebalance this after
+  authoring their own rooms (2026-10-18).
 - **Halt's numbers are scaled to the screen**, not the Minecraft distances (ARCHITECTURE.md): he walks
   1.4 px/frame (1.12 × yours), you have 2/3 s to react, and each leg starts him 73–82 px away, at the screen's
   edge. A player who turns at once never gets touched; one who hesitates ~1 s is. Worth a play to judge.
