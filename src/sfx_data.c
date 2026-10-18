@@ -104,9 +104,25 @@ static const step_t s_timothy[] = {
     { 4, 0, 0, ENV(6, 1), 0x24, 0x80 },
     END };
 
+// Figure: a heavy footstep (its volume set by distance, figure.c); a low roar when he hears you
+static const step_t s_figure_step[] = {
+    { 6, 0, 0, ENV(12, 1), 0x72, 0x80 },
+    END };
+static const step_t s_figure_hear[] = {
+    { 36, 0x17, DUTY(3), ENV(15, 4), LO(180), HI(180) },
+    END };
+// The padlock's wheel clicking round; a page turned
+static const step_t s_wheel[] = {
+    { 3, 0, DUTY(1), ENV(7, 1), LO(2400), HI(2400) },
+    END };
+static const step_t s_book[] = {
+    { 6, 0, 0, ENV(6, 1), 0x14, 0x80 },
+    { 6, 0, 0, ENV(4, 1), 0x24, 0x80 },
+    END };
+
 const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
     s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
-    s_halt, s_timothy,
+    s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book,
 };
-const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3 };
+const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3 };

@@ -42,6 +42,11 @@
 #define TIMOTHY_ODDS 200
 #define TIMOTHY_DAMAGE 10
 
+// The Library (Minecraft docs 07, owner 2026-10-18): always room 50. Room 49 has one door, on the top wall,
+// into it. Nothing from the corridor follows you in: no Rush or Ambush (a queued one waits), Eyes, darkness,
+// Dupe or Halt there, nor Halt on door 50.
+#define RUN_LIBRARY_ROOM 50
+
 #define MAX_HP 100
 
 // run_flags[n]

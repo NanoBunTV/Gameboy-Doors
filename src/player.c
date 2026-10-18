@@ -11,6 +11,9 @@
 // Diagonals move 1/sqrt(2) as fast on each axis, so the speed is the same in every direction.
 #define WALK_SPEED      0x0140
 #define WALK_SPEED_DIAG 0x00E2
+// Sneaking (B held where Figure is, game.c): half speed, and Figure doesn't hear it
+#define SNEAK_SPEED      0x00A0
+#define SNEAK_SPEED_DIAG 0x0071
 
 // Walk cycle: idle, step A, idle, step B; each for 8 frames
 #define ANIM_SHIFT 3
@@ -19,7 +22,8 @@ int16_t player_x, player_y;
 uint8_t player_facing;
 static uint8_t sub_x, sub_y;
 static uint8_t anim_timer;
-static uint8_t moving;
+uint8_t player_moving;
+uint8_t player_sneak;
 
 static spr_sheet_t sheet;
 static uint8_t frame_buf[SPR_PLAYER_FRAME_COUNT * 4];
@@ -37,7 +41,7 @@ void player_place(int16_t x, int16_t y, uint8_t facing) BANKED {
     sub_x = sub_y = 0x80;
     player_facing = facing;
     anim_timer = 0;
-    moving = 0;
+    player_moving = 0;
 }
 
 static uint8_t blocked(int16_t x, int16_t y) {
@@ -135,9 +139,10 @@ void player_update(void) BANKED {
     if (f != 0xFF)
         player_facing = f;
 
-    moving = dx || dy;
-    if (moving) {
-        uint16_t speed = (dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED;
+    player_moving = dx || dy;
+    if (player_moving) {
+        uint16_t speed = player_sneak ? ((dx && dy) ? SNEAK_SPEED_DIAG : SNEAK_SPEED)
+                                      : ((dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED);
         if (dx && move_x(dx, speed) && !dy)
             nudge_sideways_for_x(dx);
         if (dy && move_y(dy, speed) && !dx)
@@ -150,7 +155,7 @@ void player_update(void) BANKED {
 
 void player_draw(void) BANKED {
     static const uint8_t step[4] = { 0, 1, 0, 2 };  // idle, a, idle, b
-    uint8_t s = moving ? step[(anim_timer >> ANIM_SHIFT) & 3] : 0;
+    uint8_t s = player_moving ? step[(anim_timer >> (ANIM_SHIFT + player_sneak)) & 3] : 0;
     uint8_t frame, flags = 0;
     switch (player_facing) {
     case DIR_UP:

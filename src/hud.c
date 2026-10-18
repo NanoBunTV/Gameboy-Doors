@@ -15,6 +15,7 @@ uint8_t hud_ascii[96];
 char hud_shown[21];
 char hud_want[21];
 uint8_t hud_timer, hud_msg_timer, hud_msg_new;
+uint8_t hud_panel;
 
 uint8_t hud_tile_for(char c) {
     uint8_t code = (uint8_t)c;
@@ -31,17 +32,18 @@ void hud_init(void) {
 #endif
     SWITCH_ROM(saved);
 
-    // Window map: row 0 a border line, row 1 the text
+    // Window map: row 0 a border line, row 1 the text, rows 2 and down the Library's panel (hud_panel_set)
     uint8_t row[20];
-    memset(row, hud_tile_for('='), 20);
+    memset(row, hud_tile_for('_'), 20);
     set_win_tiles(0, 0, 20, 1, row);
     memset(row, hud_tile_for(' '), 20);
-    set_win_tiles(0, 1, 20, 1, row);
+    for (uint8_t y = 1; y < HUD_ROWS + HUD_PANEL_MAX; y++)
+        set_win_tiles(0, y, 20, 1, row);
 #ifdef CGB
     VBK_REG = VBK_ATTRIBUTES;
     memset(row, PAL_TEXT, 20);
-    set_win_tiles(0, 0, 20, 1, row);
-    set_win_tiles(0, 1, 20, 1, row);
+    for (uint8_t y = 0; y < HUD_ROWS + HUD_PANEL_MAX; y++)
+        set_win_tiles(0, y, 20, 1, row);
     VBK_REG = VBK_TILES;
 #endif
     memset(hud_shown, ' ', 20);
@@ -67,14 +69,14 @@ void text_queue(uint16_t addr, const char *text) {
         bg_queue_tile(addr++, hud_tile_for(*text++), PAL_TEXT);
 }
 
-void text_print_bg(uint8_t x, uint8_t y, const char *text) {
+static void print_at(uint16_t map, uint8_t x, uint8_t y, const char *text) {
     uint8_t row[20];
     uint8_t n = 0;
     while (text[n] && x + n < 20) {
         row[n] = hud_tile_for(text[n]);
         n++;
     }
-    uint16_t addr = 0x9800u + ((uint16_t)y << 5) + x;
+    uint16_t addr = map + ((uint16_t)y << 5) + x;
     vram_write(addr, row, n);
 #ifdef CGB
     VBK_REG = VBK_ATTRIBUTES;
@@ -82,6 +84,14 @@ void text_print_bg(uint8_t x, uint8_t y, const char *text) {
     vram_write(addr, row, n);
     VBK_REG = VBK_TILES;
 #endif
+}
+
+void text_print_bg(uint8_t x, uint8_t y, const char *text) {
+    print_at(0x9800u, x, y, text);
+}
+
+void text_print_win(uint8_t x, uint8_t y, const char *text) {
+    print_at(WIN_MAP, x, y, text);
 }
 
 void hud_font_palette(void) {

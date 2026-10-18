@@ -45,6 +45,7 @@ Metatile properties, set in Tiled (select the tile in the tileset, Properties pa
 |---|---|---|
 | `name` | string | Becomes a constant in code, e.g. `MT_HOTEL_DOOR_TOP`. **The game uses the door, dresser and doorway names below by name**, so don't rename those |
 | `solid` | bool | The player can't walk into it |
+| `bookcase` | bool | A bookcase's bottom half: one of the Library's books can be here if there's floor below it |
 
 Metatile 0 must stay the **void** (solid black). It's used outside the room and for empty cells.
 
@@ -59,18 +60,22 @@ The hotel metatiles:
 | doorway_s | An open doorway in the bottom wall (entries only) |
 | closet_top, closet_bottom, dresser, dresser_open, table, desk_l/m/r | Furniture. dresser_open is a dresser after its drawer was searched |
 | bed_top, bed_bottom | A bed, headboard and pillow above the blanket (Phase 3; metatiles 29 and 30) |
+| shelf_top_a/b/c, shelf_bottom_a/b/c | The Library's bookcases (Phase 6), 1×2: a top above a bottom, three mixes of spine colours each (two new palettes: red and cream, green and blue; the door palette's brown and gold). The bottoms are `bookcase`. All solid |
+| desk_paper | The desk's middle with the paper on it (the Library's `paper` object sits on it) |
+| door_bottom_padlock | A top-wall door's bottom half with the combination padlock (the Library's exit while it's locked; the game swaps it in) |
 
 ## Rooms (`assets/rooms/`)
 
 A room is a Tiled map (`.tmx`) using one tileset:
 
 - One tile layer, saved as **CSV** (Map → Map Properties → Tile Layer Format). Don't flip or rotate tiles.
-- Size: up to 127 metatiles per side and 3,072 in total (WRAM limit, `ROOM_MAX` in `src/room.h`).
+- Size: up to 127 metatiles per side and 2,816 in total (WRAM limit, `ROOM_MAX` in `src/room.h`; 3,072 until
+  Phase 6 needed the WRAM).
 - **Map properties** (Map → Map Properties → Custom Properties):
 
   | Property | Type | Meaning |
   |---|---|---|
-  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run) or `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right) |
+  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right) or `library` (always room 50; at most one; below) |
   | `allow_lock` | bool | The room may lock its exit (18% chance) and hide the key inside it. Needs at least one drawer or key spot |
 
 - **Objects** on an object layer, named:
@@ -84,6 +89,8 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `spawn` | point | Start and test rooms: where the player starts (top left of the 16×16 sprite) |
   | `closet` | 1×2 rectangle on `closet_top` + `closet_bottom` | A hiding spot (A to get in, A or B to get out) |
   | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
+  | `paper` | 1×1 rectangle on `desk_paper` | The Library: the paper (A reads it) |
+  | `figure` | point | The Library: where Figure starts |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
@@ -119,6 +126,14 @@ far side), each with a closet or beds, two drawers and a key spot; and `halt` (k
 36 metatiles of empty floor between a left door and a right one. A Dupe room's doors are on different walls,
 so each has its own plate (exits use plate slots 0–2 in object order).
 
+Phase 6: `library` (kind `library`, 30×27): entry at the bottom middle, the padlocked exit at the top
+middle, six rows of bookcases either side of a carpet (120 bookcase bottoms with an aisle below: where books
+can be), the desk with the paper, three closets, Figure on the carpet. The converter checks a library has
+one bottom entry, one top exit, a `paper` and a `figure`, 8–255 places for books, a solid edge (Figure's
+route search relies on it), and at most 1,152 metatiles (`(ROOM_MAX - 512) / 2`: the search uses the rest
+of the room map). It also checks that every wall a room can be entered by has a normal room with only a
+top door, for room 49.
+
 To preview a room as an image: `F:\Programs\Tiled\tmxrasterizer.exe --scale 2 assets\rooms\lounge.tmx build\preview\lounge.png`.
 
 ## Sprites (`assets/sprites/`)
@@ -148,7 +163,12 @@ its smoky edge jittered). Phase 5 (owner's picks from mock-ups, 2026-10-18): `ha
 pack's `halt.png` to navy, cyan and white, the eyes painted back in (they vanish in a straight reduction);
 `timothy` (an 8×8 spider in the top left of a 16×16 frame) from the pack's `timothypet.png`, legs drawn
 back in; `letters` (16×16 frames `tu`, `rn`, `ar`, `ou`, `nd`: TURN AROUND as 8×16 letters, white with a
-navy outline). They were made by a script from the pack textures; to change them, edit the PNGs. Rush and
+navy outline). They were made by a script from the pack textures; to change them, edit the PNGs. Phase 6 (owner's picks from mock-ups): `figure` (32×48 frames
+`f0`/`f1`, the left leg lifted in the second), drawn by hand after the DOORS wiki render the owner pointed
+to (`static.wikitide.net/doorswiki/thumb/6/67/Figure_render.png/939px-Figure_render.png`): red-orange body,
+navy outline, a pale ring of teeth for a head and his hand over his ribs; `marks` (16×16 frames, the art in
+the top-left 8×8: `glint`, the book's sparkle; `arrow_l`, `arrow_u`, `arrow_d`, the edge arrow; right is
+`arrow_l` mirrored). Rush and
 Ambush were pixelated (2026-10-17) from the DOORS wiki pictures the owner
 pointed to (`static.wikitide.net/doorswiki/3/36/Rushvnew.webp`, `.../1/1a/Ambush_sprite.png`): Rush black
 smoke with a grey face and white teeth, Ambush green and white. `eyes` (32×32, `f0`/`f1`, the aura jittered)
@@ -162,8 +182,10 @@ body (invisible in the dark, as it should be), white eyes, a white-and-pink grin
 `font.gbc.png`, `font.dmg.png`: 8×8 characters in a grid, 8 per row, in the order of `chars` in
 `font.json`. One palette for the whole font (light text on black). Lower case is shown as upper case; any
 character not in the font shows as a space. Special characters: `=` the HUD's top border, `~` the key icon,
-`@` the heart, `*` `+` `{` `}` `#` the health bar's tiles (empty, 2, 4, 6, 8 px filled), `>` the menu cursor.
-At most 64 characters (54 used).
+`@` the heart, `*` `+` `{` `}` `#` the health bar's tiles (empty, 2, 4, 6, 8 px filled), `>` the menu cursor,
+`_` the HUD's top border (it was `=` until Phase 6), `=` an equals sign, and the Library's shapes: `%` circle,
+`[` square, `&` heart, `$` star, `(` X, `)` cross, `^` triangle (also the padlock's cursor), `]` diamond.
+At most 64 characters (63 used).
 
 ## Title picture (`assets/title/`)
 
@@ -174,10 +196,11 @@ colours with a 1 px outline. The logo is LSPLASH's; this is a fan project.
 
 ## Jumpscares (`assets/scares/`)
 
-`scare_rush`, `scare_ambush`, `scare_screech` and `scare_dupe` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2×
+`scare_rush`, `scare_ambush`, `scare_screech`, `scare_dupe` and `scare_figure` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2×
 (each art pixel is 2×2) in 4 shades, from the same pictures as the sprites. Same rules as the title picture:
 4 colours per 8×8 tile on GBC and at most 184 different tiles (Rush uses 115, Ambush 171, Dupe 94 (his red
-grin and eyes on black, from the pack's `dupe.png`), Screech 155: his
+grin and eyes on black, from the pack's `dupe.png`), Figure 178 (his round head and a ring of uneven pale teeth round a dark throat, his hand over his ribs below;
+drawn from the owner's reference frame, `s6.ezgif.com/tmp/ezgif-68ca71228858ff9d-gif-png/frame_12_delay-0.07s.png`), Screech 155: his
 first version had 188, from speckle in the dark outline, and was simplified), since they're loaded over the
 tileset while shown.
 
@@ -190,12 +213,13 @@ rebuild. The build converts each with `uge2source` into `music_<name>`. Songs mu
 | Song | Plays | Made from |
 |---|---|---|
 | `title.uge` | Title screen | The owner's `midi/Lobby Theme (Title Screen).mid`, arranged by hand: CH1 the Scifi lead, CH2 the jazz guitar stabs (and before they start, the cello chords) as arpeggios, CH3 the cello's bass notes, CH4 the drums. 72 bpm: rows alternate 13 and 12 ticks (F0D/F0C on CH4) |
+| `library.uge` | The Library (room 50), from entering until you walk out | The owner's `midi/Unhinged (Library Theme).mid`: CH1 the muted guitar's ostinato, CH2 the strings' upper three voices as an arpeggio, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
 | `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
 
 In both a row is a 16th note and a pattern is 4 bars. The rooms have no music: the hotel ambience
 (`hotel.uge`) was removed at the owner's request (2026-10-18). Sound effects borrow CH1, CH2 and CH4 (CH4 for
 the whole of a Rush or Ambush pass), so any song that plays during a run must leave them light. The other MIDI files (Elevator
-Jam, Jeff's Shop Jingle, Here I Come, Ending Theme) are for later phases and get arranged when those come.
+Jam, Jeff's Shop Jingle, Here I Come, Ending Theme, Unhinged II for Room 100) are for later phases and get arranged when those come.
 
 Sound effects aren't files: they're register scripts in `src/sfx_data.c` (`s_door`, `s_flicker`, …), one table
 of steps each.

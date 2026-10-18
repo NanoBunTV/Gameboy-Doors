@@ -12,6 +12,7 @@
 #define MUSIC_NONE    0
 #define MUSIC_TITLE   1   // the owner's Lobby Theme
 #define MUSIC_GUIDING 3   // the Guiding Light (death screen)
+#define MUSIC_LIBRARY 4   // the owner's Unhinged (Library Theme), in room 50 until you walk out
 
 #define SFX_DOOR       1
 #define SFX_DRAWER     2
@@ -34,7 +35,11 @@
 #define SFX_EYES_HIT   19  // Eyes hurts you (about once a second)
 #define SFX_HALT       20  // TURN AROUND
 #define SFX_TIMOTHY    21  // the spider's hiss
-#define SFX_COUNT      22
+#define SFX_FIGURE_STEP 22 // Figure's footstep (sfx_play_vol: louder as he gets closer)
+#define SFX_FIGURE_HEAR 23 // he heard you
+#define SFX_WHEEL      24  // a padlock wheel turns
+#define SFX_BOOK       25  // a book or the paper read
+#define SFX_COUNT      26
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1
@@ -49,6 +54,9 @@ void music_play(uint8_t id);
 void audio_frame(void);
 
 void sfx_play(uint8_t id);
+
+// The same with the first step's volume replaced (1-15)
+void sfx_play_vol(uint8_t id, uint8_t volume);
 
 // Continuous noise on CH4, volume 0 (off) - 15; retriggered only when the volume changes
 void sfx_rumble(uint8_t volume, uint8_t kind);

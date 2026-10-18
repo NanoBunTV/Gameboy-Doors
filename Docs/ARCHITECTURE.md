@@ -35,6 +35,8 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `eyes.c/.h` | *Banked.* Eyes: where he hangs, his glow, the looking test and the drain |
 | `halt.c/.h` | *Banked.* Halt's hallway: its own loop from the armed door to the far end (legs, TURN AROUND, contact) |
 | `timothy.c/.h` | *Banked.* Timothy: the spider's jump out of a drawer and his scuttle away |
+| `library.c/.h` | *Banked.* The Library (room 50): the books and paper planned from the seed, reading them, the notes and padlock panels, the entry hint, the music |
+| `figure.c/.h` | *Banked.* Figure: hearing, the route search (a flood fill in the room map's spare tail), wandering and hunting, footsteps, contact, the edge arrow |
 | `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
 | `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
@@ -70,15 +72,15 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB). **88% full on GBC, 76% on DMG** after Phase 5 (84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out) |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 64 KB. Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
-| VRAM 0x8000–0x8FFF | Sprite tiles: player 0–35, key 36–39, Rush 40–71, Ambush 72–103 (`entity_load`), Eyes 104–133, Screech 134–141, Timothy 142–143. In Halt's hallway Halt (18 tiles) and the TURN AROUND letters (14) borrow Rush's and Ambush's tiles from 40 (no other entity runs there; `game_init` puts them back on the way out). Tiles 128 and up are the same memory as background tiles 128 and up, which a jumpscare picture of more than 128 tiles overwrites, so `game_start` (and the room after Screech's bite) reloads every sheet (`game_init`, STAT-safe). Sprites must stay below 184 (the door numbers and the font) |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB). **90% full on GBC, 77% on DMG** after Phase 6 (88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out) |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| VRAM 0x8000–0x8FFF | Sprite tiles: player 0–35, key 36–39, Rush 40–71, Ambush 72–103 (`entity_load`), Eyes 104–133, Screech 134–141, Timothy 142–143. In Halt's hallway Halt (18 tiles) and the TURN AROUND letters (14) borrow Rush's and Ambush's tiles from 40 (no other entity runs there; `game_init` puts them back on the way out). In the Library Figure (28 tiles) and the marks (glint, arrows: 8) do the same, from 40 (`library_load_sprites`; `game_init` on the way out to room 51). Tiles 128 and up are the same memory as background tiles 128 and up, which a jumpscare picture of more than 128 tiles overwrites, so `game_start` (and the room after Screech's bite) reloads every sheet (`game_init`, STAT-safe). Sprites must stay below 184 (the door numbers and the font) |
 | VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 the hallway's shut door), **font 192–255** (its space, all black, is darkness's tile) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
-| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text). GBC: attributes all palette 7 |
+| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock). GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
-| GBC sprite palettes | 0 player, 1 key, 2 Rush, 3 Ambush, 4 Eyes, 5 Screech, 6 Timothy (in Halt's hallway: 2 Halt, 3 the letters) |
-| WRAM | Room map (`room_map`, up to 3,072 metatiles; `room_row`, each row's offset) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.4 of 8 KB; on GBC, WRAM bank 1 has ~170 bytes left after Phase 5 (STATUS.md) |
+| GBC sprite palettes | 0 player, 1 key, 2 Rush, 3 Ambush, 4 Eyes, 5 Screech, 6 Timothy (in Halt's hallway: 2 Halt, 3 the letters; in the Library: 2 Figure, 3 the marks) |
+| WRAM | Room map (`room_map`, up to 2,816 metatiles (3,072 until Phase 6: the 256 bytes went to the Library on GBC); `room_row`, each row's offset; in the Library its unused tail holds Figure's route search) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.4 of 8 KB (1.6 KB left under the stack); on GBC, WRAM bank 1 has about 237 bytes left under the stack after Phase 6 (STATUS.md) |
 | SRAM | **Planned**: the save |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
@@ -236,6 +238,33 @@ a slot per exit). Only those two tiles are copied, so
   (never the last: at 10 or less you're left on 1), then runs off along the floor toward the room's wider
   side for 50 frames. The drawer counts as searched. DEBUG and AUTOTEST builds: poke `run_force_timothy` to 1
   and the next drawer holds him.
+- **The Library** (Phase 6, `library.c`, `figure.c`): `run_plan` gives room 50 the `library` template and
+  its exit `RF_LOCKED` (the padlock: no key), skips every roll there (spawns, dark, Eyes, Dupe, Halt) and
+  Halt on room 49, whose template must have one exit, on the top wall. `entity_room_entered` doesn't fire a
+  queued Rush or Ambush in the Library (the spawn waits, with no patience lost). In the room, `door_set` draws
+  the locked exit with `door_bottom_padlock` and a blank plate; `apply_room_state` turns the entry doorway
+  into wall (door 50 seals). `library_enter()` (from `enter_room`, before the room is shown) plans the books
+  the first time from the seed: the bookcase metatiles (`MTF_BOOKCASE`) with floor below, in map order, eight
+  of them picked; a shuffle of the eight shapes; a digit each; a second shuffle's first five for the paper.
+  Then it loads Figure's sheets over Rush's tiles, starts him (deaf for 3 s the first time) and the music.
+  Each frame `library_frame()` runs first (Start toggles the notes; the open padlock takes every button, the
+  player standing still), then `library_update()` (the entry hint's two lines; Figure). A at a book cell or
+  the `paper` object reads it into the HUD. The panels are window rows 2–8 under the status line
+  (`hud_panel_set`, `text_print_win`); while one is open, sprites with their middle below its top
+  (`spr_clip_y`) aren't drawn. Leaving for room 51: `library_exit()` (Figure stopped, `library_left`, the
+  music off) and `game_init()` for the sprite VRAM.
+- **Figure** (`figure.c`): his feet move along the middles of metatiles, downhill on a distance map: a flood
+  fill from his goal over the floor (four neighbours, one byte a cell, 255 unreached) in the room map's tail
+  (`room_map + w·h`), its queue (256 cells as x, y) after it. The converter allows a library of at most
+  (ROOM_MAX − 512) / 2 metatiles and requires a solid edge (the fill doesn't check bounds). The fill runs 32
+  cells a frame while he stands (about half a second for the Library; 40 a frame lagged the DMG). A walking,
+  unhidden, not-sneaking player makes a noise at their feet at once and every 8 frames: wandering or pausing,
+  he takes it (hunting, 1.44 px/frame); hunting, only a noise in his goal's own cell moves the goal (he
+  finishes what he started, *MC 10*); his roar plays at most every 3 s either way. Arriving ends a hunt (40
+  frames' pause); wandering, he picks a random floor cell more than 4 away (0.75 px/frame). Footsteps on CH4
+  every 28 frames wandering, 14 hunting, volume 15 − distance/32 px (`sfx_play_vol`). Contact (feet within 10
+  across and 8 up and down, player not hidden): `DEATH_FIGURE`, his face, the Guiding Light. Off screen, an
+  arrow sprite on the edge nearest him.
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
   through the exit, just inside that. The doorway cells are the trigger, so arriving never re-triggers.
 - **Using things** (A): the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
@@ -310,7 +339,7 @@ fade in. The LCD stays on throughout: turning it off would flash white on a DMG.
 
 ## HUD (`hud.c`)
 
-The window layer at 0x9C00, 2 rows: a border line and 20 characters of text, sliding up 2 px a frame from
+The window layer at 0x9C00, 2 rows (and, in the Library, a 7-row panel under them: above): a border line and 20 characters of text, sliding up 2 px a frame from
 WY 144 to 128 while shown. It shows the status line (`DOOR 012`, a heart and an 8-tile health bar in 2 px
 steps from font glyphs, the key icon) on entering a room, when health changes and while Select is held, or a
 centred message ("IT'S LOCKED.", "GOT KEY FOR DOOR 012", "GET OUT!"). Changed characters
@@ -324,7 +353,7 @@ which then calls `room_forget_tileset()` so the next room reloads the tileset (S
 At boot the LCD is still off; coming back from a run the title is drawn behind a fade to black instead,
 because turning the LCD off would flash white on a DMG.
 
-`death_run()`: Rush, Ambush, Screech or Dupe → the screen goes black, the jumpscare image loads behind it, then
+`death_run()`: Rush, Ambush, Screech, Dupe or Figure → the screen goes black, the jumpscare image loads behind it, then
 shows at once with a scream and 60 frames of screen shake, and fades out (`death_jumpscare`). Hide, Eyes and
 Halt → straight to the fade. Then the
 Guiding Light: the screen cleared to the font's space, GBC palette 7 made blue, the Guiding Light song, the
@@ -347,8 +376,9 @@ columns itself (one row check, no `put()` call per column: five stack arguments 
 sprite ~3 scanlines).
 
 Frames bigger than 16×16 (Rush, Ambush and Eyes, 32×32) are stored as 16×16 parts, left to right, top to bottom,
-and drawn with `spr_draw_big()`: 8 hardware sprites, 4 on a line, 6 with the player. Planned: when more
-than 10 would share a line (Figure, Seek), sprites will be cycled between frames in a fixed order.
+and drawn with `spr_draw_big()`: 8 hardware sprites, 4 on a line, 6 with the player. Figure (32×48) is 12 hardware
+sprites, 4 on a line; with the player, a glint and the arrow, 8. Planned: when more than 10 would share a
+line (Seek), sprites will be cycled between frames in a fixed order.
 
 ## Player (`player.c`, banked)
 
@@ -359,7 +389,9 @@ than 10 would share a line (Figure, Seek), sprites will be cycled between frames
   into a wall slides along it.
 - Facing: 8 directions from the D-pad (`DIR_*`), kept when standing still. The sprite shows up, down or
   side; diagonals use the side frames.
-- Animation: idle, step A, idle, step B, 8 frames each while walking.
+- Animation: idle, step A, idle, step B, 8 frames each while walking (16 while sneaking).
+- **Sneaking** (Phase 6): `player_sneak`, set by `game_frame` while B is held in the Library, halves the speed
+  (0.63 px/frame). `player_moving` says whether a direction was held (Figure hears it).
 
 ## Asset pipeline (`scripts/assets.py`)
 
@@ -396,8 +428,8 @@ Rules for the art are in ASSETS.md; the converter stops with an error naming the
 
 hUGEDriver 6.1.3 (the release's prebuilt GBDK library) plays one song: `music_play()` calls `hUGE_init` with
 the song's bank switched in, `audio_frame()` calls `hUGE_dosound` once a frame the same way. Songs: the
-Lobby Theme on the title, the Guiding Light on the death screen. The rooms have no music (the owner took
-the ambience out, 2026-10-18). Starting a song, or silence, first silences what the music left sounding (a
+Lobby Theme on the title, the Guiding Light on the death screen, *Unhinged* in the Library (Phase 6). The
+other rooms have no music (the owner took the ambience out, 2026-10-18). Starting a song, or silence, first silences what the music left sounding (a
 held note rings on once `hUGE_dosound` stops being called), except channels a sound effect is using; Start
 on the title stops the Lobby Theme before the menu blip.
 
@@ -405,5 +437,6 @@ Sound effects are tables of steps (frames, then the channel's registers) on CH1,
 "mutes" that channel in hUGEDriver (it stops writing it); when it ends the channel is silenced and given back.
 CH3 (wave) is the music's only: changing wave RAM would need `hUGE_current_wave` reset. Rush and Ambush's
 rumble holds CH4 while they're out (`sfx_rumble`), retriggered only when its volume changes; a CH4 effect
-interrupts it and it comes back after. `music_play()` mutes the lent channels again after `hUGE_init`, in case
+interrupts it and it comes back after. `sfx_play_vol()` starts an effect with its first step's volume
+replaced (Figure's footsteps, louder as he nears). `music_play()` mutes the lent channels again after `hUGE_init`, in case
 that resets the driver's mute mask.

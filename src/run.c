@@ -85,6 +85,10 @@ static void plan_room(uint8_t n) {
         for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
             if (room_template_info[i][0] == ROOM_KIND_START)
                 t = i;
+    } else if (n == RUN_LIBRARY_ROOM) {
+        for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
+            if (room_template_info[i][0] == ROOM_KIND_LIBRARY)
+                t = i;
     } else {
         uint8_t need = opposite(room_template_exits[run_template[n - 1]][run_exit[n - 1]]);
         uint8_t candidates[ROOM_TEMPLATE_COUNT], count = 0;
@@ -92,6 +96,10 @@ static void plan_room(uint8_t n) {
         for (uint8_t pass = 0; pass < 2 && !count; pass++)
             for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++) {
                 if (room_template_info[i][0] != ROOM_KIND_NORMAL || room_template_info[i][1] != need)
+                    continue;
+                // The room before the Library: one door, on the top wall (scripts/assets.py checks one exists)
+                if (n == RUN_LIBRARY_ROOM - 1 &&
+                    (room_template_exits[i][0] != WALL_TOP || room_template_exits[i][1]))
                     continue;
                 uint8_t recent = 0;
                 for (uint8_t back = 1; pass == 0 && back <= NO_REPEAT_WINDOW && back <= n; back++)
@@ -110,6 +118,8 @@ static void plan_room(uint8_t n) {
         flags = RF_FINAL;
     } else if (info[0] == ROOM_KIND_START) {
         flags = RF_LOCKED | RF_KEY_FIXED;  // door 1 is always locked; the key hangs behind the desk
+    } else if (info[0] == ROOM_KIND_LIBRARY) {
+        flags = RF_LOCKED;                 // the padlock (library.c); no key
     } else if (info[3] && (info[4] || info[5]) && rnd_below(100) < LOCK_CHANCE_PERCENT) {
         flags = RF_LOCKED;
         uint8_t drawer = info[4] && (!info[5] || rnd_below(100) < KEY_IN_DRAWER_PERCENT);
@@ -120,8 +130,10 @@ static void plan_room(uint8_t n) {
             slot = rnd_below(info[5]);
         }
     }
-    // Drawn after everything above, so adding this roll didn't change any room's layout or lock
-    if (n >= ENTITY_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < SPAWN_CHANCE_PERCENT) {
+    // Drawn after everything above, so adding this roll didn't change any room's layout or lock. The
+    // Library's rolls are all skipped (nothing from the corridor follows you in).
+    uint8_t lib = n == RUN_LIBRARY_ROOM;
+    if (!lib && n >= ENTITY_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < SPAWN_CHANCE_PERCENT) {
         flags |= RF_SPAWN;
         if (rnd_below(100) < AMBUSH_SHARE_PERCENT)
             flags |= RF_AMBUSH;
@@ -129,9 +141,9 @@ static void plan_room(uint8_t n) {
     // Phase 4's rolls, again after everything before them (Minecraft docs 05: a seed's layouts and locks
     // stay the same). Not the reception or the last room.
     uint8_t flags2 = 0;
-    if (n >= DARK_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DARK_CHANCE_PERCENT)
+    if (!lib && n >= DARK_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DARK_CHANCE_PERCENT)
         flags2 |= RF2_DARK;
-    if (n >= EYES_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < EYES_CHANCE_PERCENT)
+    if (!lib && n >= EYES_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < EYES_CHANCE_PERCENT)
         flags2 |= RF2_EYES;
     // Phase 5's: which exit is real (rooms with more than one), Dupe behind the others, Halt
     uint8_t exits = 0;
@@ -142,8 +154,8 @@ static void plan_room(uint8_t n) {
         real = rnd_below(exits);
         if (n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DUPE_CHANCE_PERCENT)
             flags2 |= RF2_DUPE;
-    } else if (!halt_planned && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM && !(flags & RF_LOCKED) &&
-               rnd_below(100) < HALT_CHANCE_PERCENT) {
+    } else if (!halt_planned && !lib && n != RUN_LIBRARY_ROOM - 1 && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM &&
+               !(flags & RF_LOCKED) && rnd_below(100) < HALT_CHANCE_PERCENT) {
         flags2 |= RF2_HALT;   // only a plain door: not locked, not a Dupe room (owner)
         halt_planned = 1;
     }

@@ -10,6 +10,8 @@ enum { DIR_DOWN, DIR_DOWN_LEFT, DIR_LEFT, DIR_UP_LEFT, DIR_UP, DIR_UP_RIGHT, DIR
 
 extern int16_t player_x, player_y;   // top left of the 16x16 sprite, room pixels
 extern uint8_t player_facing;        // DIR_*
+extern uint8_t player_moving;        // a direction was held last update (Figure hears it, figure.c)
+extern uint8_t player_sneak;         // set by game.c: 1 = half speed, silent (B held in the Library)
 
 // Collision box (the feet), relative to the sprite's top left
 #define HB_L 3

@@ -19,7 +19,15 @@ void hud_show(uint8_t frames) BANKED {
 
 void hud_hide_now(void) BANKED {
     hud_timer = hud_msg_timer = 0;
+    hud_panel = 0;
     bg_wy = HUD_Y_HIDDEN;
+}
+
+void hud_panel_set(uint8_t rows) BANKED {
+    hud_panel = rows;
+    // At once both ways: the status line stays up a moment after a panel closes
+    bg_wy = rows ? HUD_PANEL_ROW_Y(rows) : HUD_Y_SHOWN;
+    hud_show(60);
 }
 
 void text_3digits(char *buf, uint8_t n) BANKED {
@@ -85,7 +93,7 @@ void hud_update(void) BANKED {
                 bg_queue_tile(WIN_MAP + 32 + i, hud_tile_for(hud_want[i]), PAL_TEXT);
             }
 
-    uint8_t target = hud_timer ? HUD_Y_SHOWN : HUD_Y_HIDDEN;
+    uint8_t target = hud_panel ? HUD_PANEL_ROW_Y(hud_panel) : hud_timer ? HUD_Y_SHOWN : HUD_Y_HIDDEN;
     if (bg_wy < target)
         bg_wy = (target - bg_wy > SLIDE_SPEED) ? bg_wy + SLIDE_SPEED : target;
     else if (bg_wy > target)

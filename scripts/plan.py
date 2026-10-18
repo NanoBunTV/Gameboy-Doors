@@ -18,6 +18,7 @@ exits = [list(map(int, m)) for m in re.findall(r'\{ (\d+), (\d+), (\d+) \}',
 TOP, BOTTOM, LEFT, RIGHT = 1, 2, 3, 4
 OPP = {TOP: BOTTOM, LEFT: RIGHT, RIGHT: LEFT, BOTTOM: TOP}
 M = 0xFFFF
+LIBRARY = 50   # run.h RUN_LIBRARY_ROOM
 
 
 class Plan:
@@ -49,12 +50,16 @@ class Plan:
         self.seed_rng(self.seed, n)
         if n == 0:
             t = next(i for i, x in enumerate(info) if x[0] == 1)
+        elif n == LIBRARY:
+            t = next(i for i, x in enumerate(info) if x[0] == 4)
         else:
             need = OPP[exits[self.t[n - 1]][self.exit[n - 1]]]
             cands = []
             for p in range(2):
                 for i, x in enumerate(info):
                     if x[0] != 0 or x[1] != need:
+                        continue
+                    if n == LIBRARY - 1 and (exits[i][0] != TOP or exits[i][1]):
                         continue
                     recent = p == 0 and any(self.t[n - b] == i for b in range(1, 4) if b <= n)
                     if not recent:
@@ -69,6 +74,8 @@ class Plan:
             flags = 0x10
         elif x[0] == 1:
             flags = 0x21
+        elif x[0] == 4:
+            flags = 1
         elif x[3] and (x[4] or x[5]) and self.below(100) < 18:
             flags = 1
             drawer = bool(x[4]) and (not x[5] or self.below(100) < 75)
@@ -77,14 +84,15 @@ class Plan:
                 slot = self.below(x[4])
             else:
                 slot = self.below(x[5])
-        if 3 <= n < 100 and self.below(100) < 18:
+        lib = n == LIBRARY
+        if not lib and 3 <= n < 100 and self.below(100) < 18:
             flags |= 0x40
             if self.below(100) < 10:
                 flags |= 0x80
         f2 = 0
-        if 15 <= n < 100 and self.below(100) < 10:
+        if not lib and 15 <= n < 100 and self.below(100) < 10:
             f2 |= 1
-        if 8 <= n < 100 and self.below(100) < 5:
+        if not lib and 8 <= n < 100 and self.below(100) < 5:
             f2 |= 2
         ne = sum(1 for w in exits[t] if w)
         real = 0
@@ -92,7 +100,8 @@ class Plan:
             real = self.below(ne)
             if 6 <= n < 100 and self.below(100) < 35:
                 f2 |= 8
-        elif not self.halt_planned and 10 <= n < 100 and not (flags & 1) and self.below(100) < 3:
+        elif (not self.halt_planned and not lib and n != LIBRARY - 1 and 10 <= n < 100 and not (flags & 1)
+              and self.below(100) < 3):
             f2 |= 0x40
             self.halt_planned = True
         self.flags.append(flags)

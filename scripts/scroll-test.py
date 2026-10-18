@@ -93,8 +93,9 @@ def main():
         if wy < 144 and mem[0xFF40] & 0x20:
             mask[wy:, :] = False
         state = u8("_game_state")
+        # Ambush's flicker tints the room green even on its undimmed steps (GBC: platform_tint 1)
         ok = (state in (GAME_PLAYING, GAME_HALT) and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
-              and u8("_platform_flash") == 0)
+              and u8("_platform_flash") == 0 and ("_platform_tint" not in sym or u8("_platform_tint") != 1))
         dark = u8("_light_dark")
         sources = [(u8("_light_src_shape", i), u8("_light_src_x", i), u8("_light_src_y", i)) for i in range(2)]
         pending = u8("_vq_head") != u8("_vq_tail") or u8("_bg_vq_n") != 0 or u8("_light_pending") != 0

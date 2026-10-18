@@ -18,6 +18,8 @@
 #include "eyes.h"
 #include "halt.h"
 #include "timothy.h"
+#include "library.h"
+#include "figure.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "sprite_key.h"
@@ -29,6 +31,8 @@
 #define VIA_START 0    // the run starts here (spawn object)
 #define VIA_ENTRY 1    // through the room's entry door, coming from the room before
 #define VIA_EXIT  2    // back through the room's exit door, from the room after
+
+#define IN_LIBRARY (run_room == RUN_LIBRARY_ROOM)
 
 #define FADE_STEP_FRAMES 3
 #define HUD_ENTER_FRAMES 120
@@ -69,9 +73,11 @@ void game_wait_frames(uint8_t n) BANKED {
 
 #if defined(AUTOTEST) || defined(DEBUG)
 // Debug builds only, until the items exist (Phase 9): B cycles the player's light between the glow, the
-// lighter and the flashlight (owner, 2026-10-18)
+// lighter and the flashlight (owner, 2026-10-18). Not in the Library, where B is sneaking.
 #define LIGHT_DEBUG
 uint8_t game_light_tool;
+// Scripts poke a room number: the next frame enters it through its entry door (scripts/bot.py --warp)
+uint8_t game_warp;
 #endif
 
 void game_init(void) BANKED {
@@ -179,6 +185,11 @@ static uint8_t exit_index(const room_obj_t *o) {
 // one per exit).
 static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
     uint8_t x = o->x, y = o->y, slot = exit_index(o);
+    uint8_t locked_mt = MT_HOTEL_DOOR_BOTTOM_LOCKED;
+    if (state == DOOR_LOCKED && IN_LIBRARY && o->type == OBJ_EXIT) {
+        locked_mt = MT_HOTEL_DOOR_BOTTOM_PADLOCK;   // the combination padlock, and no number (owner's mock-up)
+        number = PLATE_BLANK;
+    }
     switch (o->param) {
     case WALL_TOP:
         if (state == DOOR_OPEN) {   // the number stays on the header over the open doorway
@@ -186,7 +197,7 @@ static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
             room_set_metatile(x, y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
         } else {
             room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_TOP, number));
-            room_set_metatile(x, y + 1, state == DOOR_LOCKED ? MT_HOTEL_DOOR_BOTTOM_LOCKED : MT_HOTEL_DOOR_BOTTOM);
+            room_set_metatile(x, y + 1, state == DOOR_LOCKED ? locked_mt : MT_HOTEL_DOOR_BOTTOM);
         }
         break;
     case WALL_LEFT:
@@ -243,6 +254,9 @@ static void apply_room_state(void) {
         door_set(exit_door, exit_state(), run_room + 1);
     if (entry_door)
         door_set(entry_door, DOOR_OPEN, run_room);
+    // Door 50 seals behind you: the Library is entered, not opened into (Minecraft docs 07)
+    if (IN_LIBRARY && entry_door)
+        room_set_metatile(entry_door->x, entry_door->y, MT_HOTEL_WALL_TOP);
 
     uint8_t opened = run_drawers[run_room];
     for (uint8_t i = 0; opened; i++, opened >>= 1)
@@ -275,6 +289,8 @@ static void draw_sprites(void) {
     spr_begin();
     if (!hide_hidden)
         player_draw();
+    if (IN_LIBRARY)
+        library_draw();
     screech_draw();
     timothy_draw();
     entity_draw();
@@ -322,6 +338,10 @@ static void enter_room(uint8_t n, uint8_t via) {
     spr_end();
 
     run_plan(n + 1);
+    if (IN_LIBRARY && n != RUN_LIBRARY_ROOM) {
+        library_exit();   // through the padlocked door: Figure and the music stay behind
+        game_init();      // the sprite VRAM he borrowed
+    }
     run_room = n;
     uint8_t first_time = n > run_max_room;
     if (first_time)
@@ -333,6 +353,8 @@ static void enter_room(uint8_t n, uint8_t via) {
     else
         place_at_door(via == VIA_ENTRY ? entry_door : exit_door);
     screech_room_entered();
+    if (IN_LIBRARY)
+        library_enter();
     show_room();
     // The darkness cue marks the lights going out, so a run of dark rooms announces once (Minecraft docs 05)
     if (light_dark && !was_dark)
@@ -350,6 +372,8 @@ static void survived_scare(uint8_t cause) {
     game_state = GAME_TRANSITION;
     death_jumpscare(cause);
     game_init();
+    if (IN_LIBRARY && !library_left)
+        library_load_sprites();
     load_room();
     show_room();
     hud_show(150);
@@ -364,6 +388,8 @@ void game_start(uint16_t seed) BANKED {
     entity_reset();
     screech_reset();
     hide_reset();
+    library_reset();
+    figure_stop();
     light_room(0);
     music_play(MUSIC_NONE);   // no music in the rooms (owner, 2026-10-18: the ambience is gone)
     enter_room(0, VIA_START);
@@ -427,6 +453,10 @@ static void use_exit(void) {
         hud_message("TO BE CONTINUED...", HUD_MESSAGE_FRAMES);
         return;
     }
+    if (IN_LIBRARY && (*f & RF_LOCKED)) {
+        library_open_lock();   // no key turns in it: the code (library.c)
+        return;
+    }
     if (*f & RF_LOCKED) {
         if (run_key_door != run_room + 1) {
             hud_message("IT'S LOCKED.", HUD_MESSAGE_FRAMES);
@@ -446,6 +476,14 @@ static void use_exit(void) {
 
 // A wrong door in a Dupe room (Minecraft docs 06, "The refusal order"): checked before any lock, and it
 // spends no key
+// The Library's code was right
+static void open_padlock(void) {
+    run_flags[run_room] = (run_flags[run_room] & ~RF_LOCKED) | RF_EXIT_OPEN;
+    door_set(exit_door, DOOR_OPEN, run_room + 1);
+    sfx_play(SFX_UNLOCK);
+    hud_message("THE PADLOCK OPENS.", HUD_MESSAGE_FRAMES);
+}
+
 static void use_fake(const room_obj_t *o) {
     uint8_t *f2 = &run_flags2[run_room];
     uint8_t hit = RF2_DUPE_HIT << fake_index(o);
@@ -502,6 +540,8 @@ static uint8_t interact_at(int16_t px, int16_t py) {
     if (px < 0 || py < 0)
         return 0;
     uint8_t mx = (uint8_t)(px >> 4), my = (uint8_t)(py >> 4);
+    if (IN_LIBRARY && library_use_at(mx, my))
+        return 1;
     if (key_spot && inside(key_spot, mx, my)) {
         take_key();
         return 1;
@@ -523,6 +563,9 @@ static uint8_t interact_at(int16_t px, int16_t py) {
         case OBJ_CLOSET:
         case OBJ_BED:
             hide_try(o);
+            return 1;
+        case OBJ_PAPER:
+            library_read_paper();
             return 1;
         }
     }
@@ -546,10 +589,26 @@ static void interact(void) {
 void game_frame(void) BANKED {
     measure_flush();
     input_update();
+#if defined(AUTOTEST) || defined(DEBUG)
+    if (game_warp) {
+        uint8_t n = game_warp;
+        game_warp = 0;
+        enter_room(n, VIA_ENTRY);
+        return;
+    }
+#endif
     uint8_t death;
+    // The Library's padlock takes the buttons while its panel is open (Start opens the notes)
+    uint8_t lib = IN_LIBRARY ? library_frame() : LIB_FREE;
+    if (lib == LIB_SOLVED)
+        open_padlock();
     if (hide_hidden) {
         death = hide_update();
+    } else if (lib == LIB_HELD) {
+        player_moving = 0;   // standing at the lock: silent
+        death = DEATH_NONE;
     } else {
+        player_sneak = IN_LIBRARY && (input_held & J_B);   // owner: hold B to sneak (items don't need B there)
         player_update();
         // No door takes you anywhere while Rush or Ambush is out (the open ones too)
         if (!entity_active() && check_doors())
@@ -560,11 +619,13 @@ void game_frame(void) BANKED {
                 return;
         }
 #ifdef LIGHT_DEBUG
-        if (input_pressed & J_B)
+        if ((input_pressed & J_B) && !IN_LIBRARY)
             game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
 #endif
         death = DEATH_NONE;
     }
+    if (!death && IN_LIBRARY)
+        death = library_update();
     if (!death)
         death = entity_update();
     if (!death)

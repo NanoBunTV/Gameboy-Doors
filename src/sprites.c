@@ -7,6 +7,7 @@
 static uint8_t oam_next;   // next free shadow OAM entry this frame
 static uint8_t oam_used;   // entries used last frame
 static uint8_t *oam_ptr;   // its first byte (pointer writes: indexing the OAM structs cost ~9 DMG scanlines a sprite)
+uint8_t spr_clip_y = 255;
 
 uint8_t spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
                        uint8_t base_tile, uint8_t base_pal, uint8_t *frame_buf) {
@@ -37,7 +38,7 @@ void spr_begin(void) {
 void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, uint8_t flags) {
     // On screen: -16 < sy < 144 and, per column, -8 < x < 160, as one unsigned compare each
     uint16_t oy = (uint16_t)(sy + 16);
-    if (oy - 1 >= 159)
+    if (oy - 1 >= 159 || sy + 8 >= (int16_t)spr_clip_y)
         return;
     const uint8_t *f = sheet->frames + (frame << 2);
     uint8_t t0, a0, t1, a1;

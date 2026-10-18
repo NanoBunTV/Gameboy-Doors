@@ -52,6 +52,13 @@ if ($Test) {
         & .\tools\venv\Scripts\python.exe scripts\bot.py $r --check 30 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
     }
+    # The Library (room 50), which the recorded run doesn't reach: a DEBUG build warps there (game_warp)
+    & $make DEBUG=1 $Target
+    if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    foreach ($r in ($roms -replace '\\(gbc|dmg)\\', '\$1-debug\')) {
+        & .\tools\venv\Scripts\python.exe scripts\library-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
+    }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }
     Write-Host 'All tests passed'
 }

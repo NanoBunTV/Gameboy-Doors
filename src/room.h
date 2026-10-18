@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "assets.h"
 
-#define ROOM_MAX 3072           // metatiles (3 KB of the DMG's 8 KB WRAM); scripts/assets.py checks rooms against it
+#define ROOM_MAX 2816           // metatiles (2.75 KB of WRAM; 3,072 until Phase 6 needed the room); scripts/assets.py checks
 #define ROOM_OBJ_MAX 24
 #define ROOM_SIDE_MAX 127        // metatiles per side (scripts/assets.py checks)
 #define METATILE_MAX 128

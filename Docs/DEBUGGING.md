@@ -147,7 +147,24 @@ the bot needs an AUTOTEST ROM that reads the joypad.
 have the poke). Timothy (1 drawer in 200): set `run_force_timothy` to 1 (DEBUG and AUTOTEST builds) and the
 next drawer opened that doesn't hold the key holds him; checked 2026-10-18 on both consoles (100 → 90 HP, and
 5 → 1: he never takes the last). A dark room or Eyes: set `RF2_DARK` / `RF2_EYES` in `run_flags2[n]` before
-entering room n (Phase 4). Dupe and Halt come up in the recorded run's seed.
+entering room n (Phase 4). Dupe and Halt come up in the recorded run's seed. **Any room**: poke a room number
+into `game_warp` (DEBUG and AUTOTEST builds) and the next frame enters it through its entry door, with the
+rooms before it planned (how the Library is reached: the recorded run stops at room 30).
+
+### The Library: `scripts/library-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\library-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\library-test.py build\dmg-debug\doors.gb
+```
+
+Warps to room 50 in a DEBUG (or AUTOTEST) ROM three times. **puzzle**, with Figure switched off
+(`figure_state` poked to 0): reads the paper and all eight books and checks the HUD says what the plan
+(`lib_book_*`, `lib_paper` in WRAM) says, checks the notes count 8, tries a wrong code (the wheels reset),
+dials the right one, opens the door and walks into room 51 (Figure stays behind). **sneak**: 15 s of walking
+with B held after the grace; Figure must never hunt (`figure_hunting`). **figure**: walking without B; he
+must hear, hunt and kill (death cause 8). Screenshots go to `build/screens/lib-<console>-*.png` (the panels,
+Figure close, his scare). Takes about a minute a console.
 
 ### Background correctness: `scripts/scroll-test.py`
 
@@ -184,7 +201,10 @@ reference colour: on GBC the font's black isn't the same screen colour as the wa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.
+As of Phase 6: see STATUS.md's memory outlook. **GBC WRAM: read the map file, not only romusage**: Phase 6
+first pushed `_DATA` (0xC0A0 + `l__DATA`) past 0xE000, into the stack, while romusage only said "100%".
+`grep l__DATA build/gbc/doors.map`; what's left between the end and 0xE000 is the stack's room. ROOM_MAX went
+from 3,072 to 2,816 to make room. As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.
 Phase 4 ended at 90% / 79%, then 84% / 73% once the HUD's status line and the effect scripts moved into banks;
 Phase 5 added the per-exit route tables (bank 0) and `run_exit` (WRAM). Phase 3 was 84% / 75%; Phase 4's light code briefly overflowed GBC bank 0 until `player.c` and
 moving a light (`light_move.c`) went into banks. `romusage -g` prints the table; for what takes bank 0, sum

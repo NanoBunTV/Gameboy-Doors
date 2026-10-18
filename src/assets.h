@@ -13,6 +13,7 @@
 
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
 #define MTF_SOLID 0x01
+#define MTF_BOOKCASE 0x02   // a bookcase's bottom half: where the Library's books can be (library.c)
 
 // A tileset: 16x16 metatiles made of four 8x8 tiles (top left, top right, bottom left, bottom right)
 typedef struct {
@@ -36,6 +37,8 @@ typedef struct {
 #define OBJ_SPAWN   5   // start / test rooms: where the player starts
 #define OBJ_CLOSET  6   // a hiding spot (1x2, on closet_top/closet_bottom)
 #define OBJ_BED     7   // a hiding spot (1x2, on bed_top/bed_bottom)
+#define OBJ_PAPER   8   // the Library: the paper on the desk
+#define OBJ_FIGURE  9   // the Library: where Figure starts
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2
@@ -46,6 +49,7 @@ typedef struct {
 #define ROOM_KIND_START  1
 #define ROOM_KIND_TEST   2
 #define ROOM_KIND_HALT   3   // Halt's hallway: never planned, loaded by halt.c
+#define ROOM_KIND_LIBRARY 4  // the Library: always room RUN_LIBRARY_ROOM (run.c)
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

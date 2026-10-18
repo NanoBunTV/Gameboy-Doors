@@ -1,0 +1,10 @@
+{
+  "frame_width": 16,
+  "frame_height": 16,
+  "frames": [
+    "glint",
+    "arrow_l",
+    "arrow_u",
+    "arrow_d"
+  ]
+}

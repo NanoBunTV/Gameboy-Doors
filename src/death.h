@@ -14,6 +14,7 @@
 #define DEATH_EYES   5
 #define DEATH_DUPE   6
 #define DEATH_HALT   7
+#define DEATH_FIGURE 8
 
 #define DEATH_TRY_AGAIN 0
 #define DEATH_TITLE     1

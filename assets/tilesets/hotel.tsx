@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="31" columns="8">
- <image source="hotel.gbc.png" width="128" height="64"/>
+<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="39" columns="8">
+ <image source="hotel.gbc.png" width="128" height="80"/>
  <tile id="0">
   <properties>
    <property name="name" value="void"/>
@@ -174,6 +174,57 @@
  <tile id="30">
   <properties>
    <property name="name" value="bed_bottom"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="31">
+  <properties>
+   <property name="name" value="shelf_top_a"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="32">
+  <properties>
+   <property name="name" value="shelf_top_b"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="33">
+  <properties>
+   <property name="name" value="shelf_top_c"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="34">
+  <properties>
+   <property name="name" value="shelf_bottom_a"/>
+   <property name="solid" type="bool" value="true"/>
+   <property name="bookcase" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="35">
+  <properties>
+   <property name="name" value="shelf_bottom_b"/>
+   <property name="solid" type="bool" value="true"/>
+   <property name="bookcase" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="36">
+  <properties>
+   <property name="name" value="shelf_bottom_c"/>
+   <property name="solid" type="bool" value="true"/>
+   <property name="bookcase" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="37">
+  <properties>
+   <property name="name" value="desk_paper"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="38">
+  <properties>
+   <property name="name" value="door_bottom_padlock"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>

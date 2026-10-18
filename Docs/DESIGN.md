@@ -63,7 +63,8 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
   rooms entered from the opposite side. No template repeats within 3 rooms.
 - **Room 0 is the reception**: door 1 is always locked and its key hangs on the wall behind the desk (DOORS'
   tutorial). The elevator before it comes with the economy phase.
-- Fixed rooms still to come: the Library (50), **Jeff's Shop (55)**, the Courtyard and Greenhouse (89–99),
+- **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
+- Fixed rooms still to come: **Jeff's Shop (55)**, the Courtyard and Greenhouse (89–99),
   Room 100. Seek's chases (between roughly 30–45 and 80–89) and Halt's hallway are scripted sequences of rooms.
   Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
   door says "TO BE CONTINUED...".
@@ -73,6 +74,34 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
 - **Locked doors**: 18% of rooms that allow it lock their exit; the key is in that room, in a drawer (mostly)
   or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
   the key, unlocks and opens it and uses the key up. **Drawers** are searched with A: "NOTHING." or the key.
+
+## The Library (built in Phase 6)
+
+Owner's choices (2026-10-18), after the Minecraft version (*MC 07*, *MC 10*):
+
+- **Room 50**, about 3×3 screens (30×27 metatiles): six rows of bookcases either side of a red carpet, a
+  desk with the paper near the top, the padlocked exit (door 51) at the far end, **three closets**. Door 50
+  seals behind you. Nothing from the corridor follows you in: no Rush or Ambush (a queued one waits for the
+  next room), Eyes, darkness, Dupe or Halt, and no Halt on door 50.
+- **The puzzle (5 digits, 8 books, as in DOORS)**: eight books, each on a random bookcase, say "shape =
+  digit" (eight shapes, all different; digits may repeat). The paper on the desk gives the order of five
+  of the shapes (`1=▲ 2=✖ …`); together they give the code. A shelf with an unread book **glints when you're
+  within about 3 metatiles**. A on it reads it; empty shelves say nothing.
+- **Notes**: Start opens a panel over the bottom of the screen with the paper and every book read so far.
+  **The game doesn't pause** while it's open.
+- **The padlock**: A at the door opens its panel: Left/Right picks a wheel, Up/Down turns it, A tries the
+  code, B leaves. A wrong code resets all five wheels and says nothing about which was wrong (no noise).
+  The right one opens the door; walking out leaves Figure and the music behind.
+- **Figure**: a 32×48 sprite (owner's pick A), visible when on screen, an **arrow at the screen's edge**
+  points to him when he isn't, and his **footsteps** get louder as he nears and faster when he hunts. Blind:
+  **walking is heard anywhere in the room; holding B sneaks** (half speed, silent); standing still and
+  hiding are silent. He walks at a noise and finishes what he started (*MC 10*); **hunting he outruns you**
+  (wandering he's slower than walking, faster than sneaking), so once he's coming, a closet is the answer.
+  He never finds a hidden player (Hide's 12 s still applies). **Touching him is death**: his full-screen
+  face (from the owner's reference frame), then the Guiding Light.
+- The only tutorial in the game, as in *MC 07*: on entering, "IT CAN'T SEE YOU." then "HOLD B TO SNEAK.",
+  with 3 s before he can hear you.
+- **Music**: the owner's *Unhinged (Library Theme)*, arranged, from entering until you walk out.
 
 ## Hiding (built in Phase 3)
 
@@ -105,7 +134,7 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
 | Dupe | **Phase 5.** New rooms with 2–3 doors (top plus sides); which is real is picked per run. 35% per such room from room 6: the wrong doors show wrong numbers (one below or up to two above), and opening one is a full-screen jumpscare and 40 HP, then the door shows a garbled number. On a miss the wrong doors have no number and say "IT'S FAKE." | Ignores the lock, spends no key (*MC 06*) |
 | Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
 | Seek | Eyes appear on walls before the chase; then a scripted chase through several rooms with fallen furniture and hands from the side rooms to avoid | Speed boost during the chase (*MC 11*) |
-| Figure | The Library (50) and Room 100. Blind, hears footsteps: walking makes noise, hiding or standing still doesn't | Library: find the books, read the hints, solve the padlock |
+| Figure | **Phase 6 in the Library** (above); Room 100 in Phase 8. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
 | Timothy | **Phase 5.** 1 drawer in 200, once a run: a small spider jumps out of the drawer at you, 10 HP, and the drawer is empty after (owner) | Never lethal: leaves at least 1 HP (*MC 12*); never in a drawer holding the key |
 
 Left out (owner, 2026-10-17): **Jack**, **Dread** (modifier-only in DOORS), **Glitch** (catches players behind
@@ -144,9 +173,9 @@ sitting, as in DOORS.
 |---|---|
 | D-pad | Walk (8 directions); the facing direction is where you look |
 | A | Interact: open a door, drawer, closet; pick up |
-| B | Use the held item |
+| B | Use the held item. **In the Library, held: sneak** (owner: items aren't needed there) |
 | Select | Tap: cycle held item. The HUD shows while it's held |
-| Start | Pause / inventory grid |
+| Start | Pause / inventory grid. **In the Library: the notes** (no pause) |
 
 ## Menus and extras
 

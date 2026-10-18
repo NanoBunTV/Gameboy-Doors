@@ -5,9 +5,10 @@
 #include "sfx_data.h"
 
 // Songs: C written by hUGETracker's uge2source from assets/music/*.uge (Makefile)
-extern const hUGESong_t music_title, music_guiding_light;
+extern const hUGESong_t music_title, music_guiding_light, music_library;
 BANKREF_EXTERN(music_title)
 BANKREF_EXTERN(music_guiding_light)
+BANKREF_EXTERN(music_library)
 
 static uint8_t music_id, music_bank;
 
@@ -39,7 +40,7 @@ static void release(uint8_t ch) {
     hUGE_mute_channel(ch, HT_CH_PLAY);
 }
 
-void sfx_play(uint8_t id) {
+void sfx_play_vol(uint8_t id, uint8_t volume) {
     if (!id || id >= SFX_COUNT)
         return;
     uint8_t saved = CURRENT_BANK;
@@ -48,8 +49,15 @@ void sfx_play(uint8_t id) {
     hUGE_mute_channel(ch, HT_CH_MUTE);
     playing[ch] = sfx_steps[id];
     left[ch] = playing[ch]->frames;
-    write_step(ch, playing[ch]);
+    step_t s = *playing[ch];
+    if (volume)
+        s.r2 = (uint8_t)((volume << 4) | (s.r2 & 0x0F));
+    write_step(ch, &s);
     SWITCH_ROM(saved);
+}
+
+void sfx_play(uint8_t id) {
+    sfx_play_vol(id, 0);
 }
 
 void sfx_rumble(uint8_t volume, uint8_t kind) {
@@ -101,6 +109,7 @@ void music_play(uint8_t id) {
     switch (id) {
     case MUSIC_TITLE:   song = &music_title;         music_bank = BANK(music_title); break;
     case MUSIC_GUIDING: song = &music_guiding_light; music_bank = BANK(music_guiding_light); break;
+    case MUSIC_LIBRARY: song = &music_library;       music_bank = BANK(music_library); break;
     default:
         return;
     }

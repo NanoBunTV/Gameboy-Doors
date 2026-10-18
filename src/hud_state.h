@@ -9,6 +9,9 @@
 #define HUD_ROWS 2
 #define HUD_Y_SHOWN (144 - HUD_ROWS * 8)
 #define HUD_Y_HIDDEN 144
+#define HUD_PANEL_MAX 7          // rows the Library's panel can add under the status line
+
+extern uint8_t hud_panel;       // rows of panel shown under the status line (0: none)
 
 extern uint8_t hud_ascii[96];   // WRAM copy of the font's ASCII table
 extern char hud_shown[21];      // what the text row currently holds (or is queued to)

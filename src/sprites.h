@@ -20,6 +20,10 @@ typedef struct {
 uint8_t spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
                        uint8_t base_tile, uint8_t base_pal, uint8_t *frame_buf);
 
+// Screen line below which no sprite is drawn (one at least half below it is skipped): the Library's panel.
+// 255: none.
+extern uint8_t spr_clip_y;
+
 // Per frame: spr_begin(), any number of spr_draw(), spr_end()
 void spr_begin(void);
 void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, uint8_t flags);

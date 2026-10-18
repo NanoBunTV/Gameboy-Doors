@@ -105,8 +105,8 @@ void entity_room_entered(uint8_t first_time) BANKED {
         entity_queued = (run_flags[run_room] & RF_AMBUSH) ? ENTITY_AMBUSH : ENTITY_RUSH;
         patience = QUEUE_PATIENCE;
     }
-    if (!entity_queued)
-        return;
+    if (!entity_queued || run_room == RUN_LIBRARY_ROOM)
+        return;   // nothing follows you into the Library: the spawn waits for the next room (Minecraft docs 07)
     // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits.
     if (hide_free_spots() && !light_dark)
         fire();

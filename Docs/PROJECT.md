@@ -66,6 +66,14 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   resource pack (Halt 24×32, Timothy 8×8, Dupe's face). The test seed changed to 0x1331 (Dupe rooms, Halt's
   door) and the bot learned the hallway and the wrong doors. Halt's hallway dropped DMG frames: drawing a
   sprite was cheapened for every room.
+- **2026-10-18**: **Phase 6 done** (the Library): sixth round of questions and art mock-ups (answers below).
+  Room 50, 30×27 metatiles of bookcases with a carpet, the desk and paper, three closets, the padlocked door
+  51; eight books and a paper per run, the notes panel (Start), the five-wheel padlock; Figure, who hears
+  walking anywhere in the room and is fooled by sneaking (hold B), with his footsteps, an edge arrow, the entry
+  hint and his full-screen face, drawn from the two pictures the owner linked; the owner's *Unhinged (Library
+  Theme)* arranged. GBC's WRAM overflowed into the stack on the first build (romusage only said 100%): the
+  room map limit went from 3,072 to 2,816 metatiles. The ROM grew to 128 KB. A `game_warp` poke and
+  `scripts/library-test.py` test the room, since the recorded run stops at room 30.
 
 ## Decisions and why
 
@@ -129,6 +137,12 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Halt: a sideways, blue-lit hallway (grey on DMG); a flash and big "TURN AROUND" text; 60 HP a hit; 3% per room arms the next door, once a run; about 8 turn-arounds long; only ever a plain door (not locked, not a Dupe room) | Owner's choices (2026-10-18). Minecraft's spacing sum for where each leg starts; a hit puts him back at the leg's start; nothing else runs while he does |
 | Timothy: 1 drawer in 200, once a run; a small spider jumps out of the drawer at you, 10 HP, never lethal; the drawer is empty after | Owner's choices (2026-10-18) |
 | Dupe, Halt and Timothy art from the resource pack's item textures | Owner (2026-10-18): `dupe.png` (the jumpscare), `halt.png`, `timothypet.png` in `F:\Minecraft DOORS Project\_ResourcePack\assets\doors\textures\item\` |
+| The Library: about 3×3 screens, 5 digits from 8 books and a paper, three closets, the code's books glinting within ~3 metatiles | Owner's choices (2026-10-18). DOORS' and the Minecraft version's puzzle (shapes without repeats, digits with; nothing rolls a code) |
+| Figure: hold B to sneak (B is free there: items aren't needed in the Library); walking is heard anywhere; hunting outruns you; touching him is death with a full-screen face | Owner's choices (2026-10-18; first a Select toggle, then B). Minecraft rules otherwise: he finishes a hunt before taking a new noise, never finds a hidden player, a 3 s deafness on entering with the game's only tutorial line |
+| Figure is visible, with footsteps and an arrow at the screen's edge while he's off screen | Owner's choice (2026-10-18) |
+| The notes (Start) don't pause; the padlock turns both ways (Up/Down); a wrong code resets the wheels silently | Owner's choices (2026-10-18). The notes and the padlock share a panel over the bottom of the screen (owner's pick from mock-ups), so the room and Figure stay in view |
+| Library art: bookcases in three spine mixes on the hotel floor and carpet, a desk with the paper, a numberless padlocked door; Figure 32×48 (pick A of two sizes); his scare as mocked up | Owner's picks (2026-10-18). Figure after the DOORS wiki render and a frame of his jumpscare the owner linked; no pack texture exists |
+| The Library's music: *Unhinged (Library Theme)*; *Unhinged II (Electrical Theme)* for Room 100 | Owner (2026-10-18): added both MIDIs to `assets/music/midi/` |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

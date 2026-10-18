@@ -9,7 +9,8 @@ const char platform_name[] = "GBC";
 
 uint8_t platform_fade;
 uint8_t platform_dim;
-static uint8_t tint;
+uint8_t platform_tint;   // not static: scripts/scroll-test.py skips green (Ambush) frames
+#define tint platform_tint
 uint8_t platform_flash;
 #define flash platform_flash
 #define dim platform_dim
