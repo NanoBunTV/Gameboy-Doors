@@ -12,6 +12,8 @@
 #define DEATH_HIDE   3
 #define DEATH_SCREECH 4
 #define DEATH_EYES   5
+#define DEATH_DUPE   6
+#define DEATH_HALT   7
 
 #define DEATH_TRY_AGAIN 0
 #define DEATH_TITLE     1

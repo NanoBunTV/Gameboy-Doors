@@ -65,7 +65,7 @@ void entity_reset(void) BANKED {
 }
 
 static int16_t route_length(uint8_t room) {
-    return (int16_t)room_template_length[run_template[room]];
+    return (int16_t)room_template_length[run_template[room]][run_exit[room]];   // to this run's real exit
 }
 
 static void fire(void) {
@@ -151,7 +151,7 @@ static uint8_t travel(void) {
 static void place(void) {
     if (placed_room != entity_room || placed_in != run_room) {
         uint8_t t = run_template[entity_room];
-        const uint8_t *r = room_template_route[t];
+        const uint8_t *r = room_template_route[t][run_exit[entity_room]];
         int16_t ax = (int16_t)r[0] << 3, ay = (int16_t)r[1] << 3;
         int16_t bx = (int16_t)r[2] << 3, by = (int16_t)r[3] << 3;
         int16_t len = route_length(entity_room);

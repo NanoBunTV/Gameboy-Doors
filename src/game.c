@@ -16,6 +16,8 @@
 #include "light.h"
 #include "screech.h"
 #include "eyes.h"
+#include "halt.h"
+#include "timothy.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "sprite_key.h"
@@ -37,7 +39,9 @@ uint8_t game_death;
 
 static spr_sheet_t key_sheet;
 static uint8_t key_frames[SPR_KEY_FRAME_COUNT * 4];
-static const room_obj_t *entry_door, *exit_door;
+static const room_obj_t *entry_door, *exit_door;    // exit_door: this run's real exit
+static const room_obj_t *exits[ROOM_EXITS_MAX];      // every exit, in object order (Dupe rooms have 2-3)
+static uint8_t exit_count;
 static const room_obj_t *key_spot;   // where the key lies in the open, or 0
 
 #ifdef AUTOTEST
@@ -78,7 +82,8 @@ void game_init(void) BANKED {
     uint8_t t = 36 + spr_sheet_load(&key_sheet, BANK(sprite_key), &sprite_key, 36, 1, key_frames);
     t += entity_load(t, 2);
     t += eyes_load(t, 4);
-    screech_load(t, 5);
+    t += screech_load(t, 5);
+    timothy_load(t, 6);   // Halt's sheets borrow Rush's tiles while the hallway lasts (halt.c)
 }
 
 static uint8_t player_light(void) {
@@ -121,6 +126,14 @@ static int16_t step_toward(int16_t from, int16_t to) {
     return from + d;
 }
 
+void game_draw_room(void) BANKED {
+    bg_draw_full(camera_target_x(), camera_target_y());
+}
+
+void game_follow_camera(void) BANKED {
+    bg_set_camera(step_toward(cam_x, camera_target_x()), step_toward(cam_y, camera_target_y()));
+}
+
 // ------------------------------------------------------------------------------------------ objects
 
 // The n-th object of a type (for key spots, only the non-fixed ones), or 0
@@ -154,16 +167,25 @@ static uint8_t drawer_index(const room_obj_t *o) {
 #define DOOR_CLOSED 1
 #define DOOR_LOCKED 2
 
-// Sets a door's metatiles for its state. Closed doors get their number on the plate (dynamic metatile).
+// Which exit (object order) a door is, for its plate slot
+static uint8_t exit_index(const room_obj_t *o) {
+    for (uint8_t k = 0; k < exit_count; k++)
+        if (exits[k] == o)
+            return k;
+    return 0;
+}
+
+// Sets a door's metatiles for its state. Closed doors get their number on the plate (dynamic metatile,
+// one per exit).
 static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
-    uint8_t x = o->x, y = o->y;
+    uint8_t x = o->x, y = o->y, slot = exit_index(o);
     switch (o->param) {
     case WALL_TOP:
         if (state == DOOR_OPEN) {   // the number stays on the header over the open doorway
-            room_set_metatile(x, y, room_make_plate(0, MT_HOTEL_DOOR_OPEN_TOP, number));
+            room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_OPEN_TOP, number));
             room_set_metatile(x, y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
         } else {
-            room_set_metatile(x, y, room_make_plate(0, MT_HOTEL_DOOR_TOP, number));
+            room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_TOP, number));
             room_set_metatile(x, y + 1, state == DOOR_LOCKED ? MT_HOTEL_DOOR_BOTTOM_LOCKED : MT_HOTEL_DOOR_BOTTOM);
         }
         break;
@@ -173,7 +195,7 @@ static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
             room_set_metatile(x, y, MT_HOTEL_SIDE_OPEN_TOP);
             room_set_metatile(x, y + 1, MT_HOTEL_SIDE_OPEN_BOTTOM);
         } else {
-            room_set_metatile(x, y, room_make_plate(0, MT_HOTEL_SIDE_DOOR_TOP, number));
+            room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_SIDE_DOOR_TOP, number));
             room_set_metatile(x, y + 1, state == DOOR_LOCKED ? MT_HOTEL_SIDE_DOOR_BOTTOM_LOCKED : MT_HOTEL_SIDE_DOOR_BOTTOM);
         }
         break;
@@ -190,10 +212,33 @@ static uint8_t exit_state(void) {
     return (f & (RF_LOCKED | RF_FINAL)) ? DOOR_LOCKED : DOOR_CLOSED;
 }
 
+// A wrong door (Dupe room): its index among the wrong ones (0 or 1)
+static uint8_t fake_index(const room_obj_t *o) {
+    uint8_t k = exit_index(o);
+    return k < run_exit[run_room] ? k : k - 1;
+}
+
+// What a wrong door shows: no number without Dupe, his wrong number, scribbles once he's fired
+static uint8_t fake_label(const room_obj_t *o) {
+    uint8_t f2 = run_flags2[run_room], i = fake_index(o);
+    if (!(f2 & RF2_DUPE))
+        return PLATE_BLANK;
+    if (f2 & (RF2_DUPE_HIT << i))
+        return PLATE_GARBLED;
+    return run_fake_number(run_room, i);
+}
+
 // Puts the room's saved state into the freshly loaded map: doors, opened drawers, where the key is
 static void apply_room_state(void) {
     entry_door = find_obj(OBJ_ENTRY, 0);
-    exit_door = find_obj(OBJ_EXIT, 0);
+    exit_count = 0;
+    while (exit_count < ROOM_EXITS_MAX && (exits[exit_count] = find_obj(OBJ_EXIT, exit_count)))
+        exit_count++;
+    exit_door = exits[run_exit[run_room]];
+    // The wrong doors look like the real one: padlocked when it is, and shut
+    for (uint8_t k = 0; k < exit_count; k++)
+        if (exits[k] != exit_door)
+            door_set(exits[k], (run_flags[run_room] & RF_LOCKED) ? DOOR_LOCKED : DOOR_CLOSED, fake_label(exits[k]));
     if (exit_door)
         door_set(exit_door, exit_state(), run_room + 1);
     if (entry_door)
@@ -231,6 +276,7 @@ static void draw_sprites(void) {
     if (!hide_hidden)
         player_draw();
     screech_draw();
+    timothy_draw();
     entity_draw();
     eyes_draw();
     if (key_spot)
@@ -270,6 +316,7 @@ static void enter_room(uint8_t n, uint8_t via) {
         game_fade(platform_fade, FADE_BLACK);
     hud_hide_now();
     hide_reset();
+    timothy_reset();
     platform_set_dim(0, TINT_NONE);
     spr_begin();
     spr_end();
@@ -297,11 +344,11 @@ static void enter_room(uint8_t n, uint8_t via) {
     game_state = GAME_PLAYING;
 }
 
-// Screech bit and you lived: his face, then back to the room as it was (the picture used the tileset's and
-// some sprites' VRAM)
-static void screech_bite(void) {
+// Screech bit (or Dupe got you) and you lived: the face, then back to the room as it was (the picture used
+// the tileset's and some sprites' VRAM)
+static void survived_scare(uint8_t cause) {
     game_state = GAME_TRANSITION;
-    death_jumpscare(DEATH_SCREECH);
+    death_jumpscare(cause);
     game_init();
     load_room();
     show_room();
@@ -332,6 +379,17 @@ static uint8_t inside(const room_obj_t *o, uint8_t mx, uint8_t my) {
 static uint8_t check_doors(void) {
     uint8_t mx = (uint8_t)((player_x + PLAYER_FEET_X) >> 4), my = (uint8_t)((player_y + PLAYER_FEET_Y) >> 4);
     if (inside(exit_door, mx, my) && exit_state() == DOOR_OPEN && run_room < RUN_LAST_ROOM) {
+        uint8_t *f2 = &run_flags2[run_room];
+        if ((*f2 & (RF2_HALT | RF2_HALT_DONE)) == RF2_HALT) {
+            // Halt's hallway first; you come out at the next room as if through the door (Minecraft docs 06)
+            uint8_t death = halt_run();
+            if (death) {
+                game_death = death;
+                game_state = GAME_DEAD;
+                return 1;
+            }
+            *f2 |= RF2_HALT_DONE;
+        }
         enter_room(run_room + 1, VIA_ENTRY);
         return 1;
     }
@@ -386,6 +444,39 @@ static void use_exit(void) {
     eyes_dismiss();   // progress is the answer to Eyes
 }
 
+// A wrong door in a Dupe room (Minecraft docs 06, "The refusal order"): checked before any lock, and it
+// spends no key
+static void use_fake(const room_obj_t *o) {
+    uint8_t *f2 = &run_flags2[run_room];
+    uint8_t hit = RF2_DUPE_HIT << fake_index(o);
+    if (entity_active()) {
+        hud_message("IT WON'T BUDGE.", HUD_MESSAGE_FRAMES);
+        sfx_play(SFX_LOCKED);
+        return;
+    }
+    if (!(*f2 & RF2_DUPE) || (*f2 & hit)) {
+        hud_message((*f2 & hit) ? "IT WON'T OPEN." : "IT'S FAKE.", HUD_MESSAGE_FRAMES);
+        sfx_play(SFX_LOCKED);
+        return;
+    }
+    // The door opens on him: a beat, then his face (owner: full-screen) and 40 HP. Not progress, so Eyes
+    // stays. The door then shuts with scribbles where its number was.
+    game_state = GAME_TRANSITION;
+    sfx_play(SFX_DOOR);
+    door_set(o, DOOR_OPEN, fake_label(o));   // still his wrong number while it swings open
+    *f2 |= hit;
+    draw_sprites();
+    game_wait_frames(20);
+    if (run_hp > DUPE_DAMAGE) {
+        run_hp -= DUPE_DAMAGE;
+        survived_scare(DEATH_DUPE);
+    } else {
+        run_hp = 0;
+        game_death = DEATH_DUPE;
+        game_state = GAME_DEAD;
+    }
+}
+
 static void use_drawer(const room_obj_t *o) {
     uint8_t bit = 1 << drawer_index(o);
     if (run_drawers[run_room] & bit)
@@ -393,6 +484,11 @@ static void use_drawer(const room_obj_t *o) {
     run_drawers[run_room] |= bit;
     room_set_metatile(o->x, o->y, MT_HOTEL_DRESSER_OPEN);
     sfx_play(SFX_DRAWER);
+    if (run_timothy_in(run_room, drawer_index(o))) {   // he took whatever was in it
+        run_timothy = 1;
+        timothy_spring(o->x, o->y);
+        return;
+    }
     uint8_t f = run_flags[run_room];
     if ((f & (RF_LOCKED | RF_KEY_DRAWER | RF_KEY_TAKEN)) == (RF_LOCKED | RF_KEY_DRAWER) &&
         drawer_index(o) == run_key_slot[run_room])
@@ -416,7 +512,10 @@ static uint8_t interact_at(int16_t px, int16_t py) {
             continue;
         switch (o->type) {
         case OBJ_EXIT:
-            use_exit();
+            if (o == exit_door)
+                use_exit();
+            else
+                use_fake(o);
             return 1;
         case OBJ_DRAWER:
             use_drawer(o);
@@ -455,8 +554,11 @@ void game_frame(void) BANKED {
         // No door takes you anywhere while Rush or Ambush is out (the open ones too)
         if (!entity_active() && check_doors())
             return;
-        if (input_pressed & J_A)
+        if (input_pressed & J_A) {
             interact();
+            if (game_state != GAME_PLAYING)   // Dupe's last blow
+                return;
+        }
 #ifdef LIGHT_DEBUG
         if (input_pressed & J_B)
             game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
@@ -470,7 +572,7 @@ void game_frame(void) BANKED {
     if (!death && screech_update()) {
         if (run_hp > SCREECH_DAMAGE) {
             run_hp -= SCREECH_DAMAGE;
-            screech_bite();
+            survived_scare(DEATH_SCREECH);
             return;
         }
         run_hp = 0;
@@ -481,11 +583,12 @@ void game_frame(void) BANKED {
         game_state = GAME_DEAD;
         return;
     }
+    timothy_update();
     uint8_t dim, tint, hd = hide_dim();
     entity_lights(&dim, &tint);
     platform_set_dim(hd > dim ? hd : dim, tint);
     hud_update();
-    bg_set_camera(step_toward(cam_x, camera_target_x()), step_toward(cam_y, camera_target_y()));
+    game_follow_camera();
     // The light follows the player a frame late when the camera just built a column or row: the player
     // crosses a tile edge on the same frame the centred camera does, and both together overran a DMG frame
     if (!bg_col_n && !bg_row_n) {

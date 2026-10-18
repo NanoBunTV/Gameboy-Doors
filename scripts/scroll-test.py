@@ -25,7 +25,7 @@ from pyboy import PyBoy
 
 ROOT = Path(__file__).resolve().parent.parent
 MT_DYN_FIRST = 120          # src/room.h
-GAME_PLAYING = 1            # src/game.h
+GAME_PLAYING, GAME_HALT = 1, 4   # src/game.h
 SETTLE_FRAMES = 12          # skip this long after a fade or a metatile change
 LIGHT_SHAPES, LIGHT_ROWS, LIGHT_REACH, LIGHT_OFF = 10, 17, 8, 0xFF   # src/light.h
 # Reference colour of an unlit tile (the font's blank): one no art uses, so it learns its own screen colour
@@ -92,12 +92,14 @@ def main():
         wy = mem[0xFF4A]
         if wy < 144 and mem[0xFF40] & 0x20:
             mask[wy:, :] = False
-        ok = u8("_game_state") == GAME_PLAYING and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
+        state = u8("_game_state")
+        ok = (state in (GAME_PLAYING, GAME_HALT) and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
+              and u8("_platform_flash") == 0)
         dark = u8("_light_dark")
         sources = [(u8("_light_src_shape", i), u8("_light_src_x", i), u8("_light_src_y", i)) for i in range(2)]
         pending = u8("_vq_head") != u8("_vq_tail") or u8("_bg_vq_n") != 0 or u8("_light_pending") != 0
         return dict(x=full(mem[0xFF43], s16("_cam_x")), y=full(mem[0xFF42], s16("_cam_y")), w=w, h=h,
-                    room=room, mask=mask, ok=ok, dark=dark, sources=sources, pending=pending)
+                    room=room, mask=mask, ok=ok, dark=dark, sources=sources, pending=pending, state=state)
 
     def sx16(addr):
         v = mem[addr] | (mem[addr + 1] << 8)
@@ -146,10 +148,11 @@ def main():
     def keys(a):
         return (a[..., 0].astype(np.uint32) << 16) | (a[..., 1].astype(np.uint32) << 8) | a[..., 2]
 
-    colour_map = defaultdict(Counter)
-    learned = None
-    learn_frames = 0
-    checked = failed = 0
+    # Halt's hallway is tinted blue on GBC: its colours are learned separately (per game state)
+    colour_maps = defaultdict(lambda: defaultdict(Counter))
+    learned_by = {}
+    learn_frames = Counter()
+    checked = failed = halt_checked = 0
     prev, settle, last_room = None, SETTLE_FRAMES, None
     for frame in range(args.frames):
         pyboy.tick(1, frame % args.every == 0)
@@ -176,12 +179,14 @@ def main():
         mask = drawn["mask"] & dyn
         screen = pyboy.screen.ndarray[:, :, :3]
         ref_k, scr_k = keys(ref), keys(screen)
+        mode = drawn["state"]
+        learned = learned_by.get(mode)
         if learned is None:
             for r, s_ in zip(ref_k[mask].ravel(), scr_k[mask].ravel()):
-                colour_map[r][s_] += 1
-            learn_frames += 1
-            if learn_frames >= 20:
-                learned = {r: c.most_common(1)[0][0] for r, c in colour_map.items()}
+                colour_maps[mode][r][s_] += 1
+            learn_frames[mode] += 1
+            if learn_frames[mode] >= 20:
+                learned_by[mode] = {r: c.most_common(1)[0][0] for r, c in colour_maps[mode].items()}
             continue
         # A colour the learning phase didn't see (a metatile not on screen then) learns now
         for r in np.unique(ref_k[mask]):
@@ -191,6 +196,7 @@ def main():
         expected = np.vectorize(lambda r: learned.get(r, -1), otypes=[np.int64])(ref_k)
         bad = (expected != scr_k) & mask
         checked += 1
+        halt_checked += mode == GAME_HALT
         if bad.any():
             failed += 1
             if failed <= 5:
@@ -201,7 +207,8 @@ def main():
                       f"pixels, x {xs.min()}-{xs.max()}, y {ys.min()}-{ys.max()} -> {out.name}")
     reached = u8("_run_room")
     pyboy.stop(save=False)
-    print(f"{args.rom}: {checked} frames compared up to room {reached}, {failed} with wrong background pixels")
+    print(f"{args.rom}: {checked} frames compared up to room {reached} ({halt_checked} in Halt's hallway), "
+          f"{failed} with wrong background pixels")
     raise SystemExit(1 if failed or checked == 0 else 0)
 
 

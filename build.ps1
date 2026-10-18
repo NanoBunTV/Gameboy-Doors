@@ -43,9 +43,9 @@ if ($Test) {
         }
         # PyBoy: is every background pixel right while scrolling, and does the VRAM work fit in VBlank?
         # (PyBoy prints a harmless SDL2 UserWarning on start; filtered out.)
-        & .\tools\venv\Scripts\python.exe scripts\scroll-test.py $r 11000 --every 2 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        & .\tools\venv\Scripts\python.exe scripts\scroll-test.py $r 14000 --every 2 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
-        & .\tools\venv\Scripts\python.exe scripts\vblank-budget.py $r 11000 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        & .\tools\venv\Scripts\python.exe scripts\vblank-budget.py $r 14000 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
         # The recorded run (tests/autotest_input.c) must still play through: a changed room or rule that
         # breaks it shows up here. Re-record with scripts/record-run.ps1 after deliberate changes.

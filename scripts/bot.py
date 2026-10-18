@@ -28,8 +28,9 @@ ROOT = Path(__file__).resolve().parent.parent
 J = {"right": 0x01, "left": 0x02, "up": 0x04, "down": 0x08, "a": 0x10, "b": 0x20, "select": 0x40, "start": 0x80}
 OBJ_ENTRY, OBJ_EXIT, OBJ_DRAWER, OBJ_KEYSPOT, OBJ_CLOSET, OBJ_BED = 1, 2, 3, 4, 6, 7
 RF_LOCKED, RF_KEY_DRAWER, RF_KEY_TAKEN, RF_EXIT_OPEN, RF_FINAL, RF_KEY_FIXED = 1, 2, 4, 8, 16, 32
-RF2_DARK, RF2_EYES = 1, 2
-GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD = 0, 1, 2, 3
+RF2_DARK, RF2_EYES, RF2_DUPE, RF2_DUPE_HIT, RF2_HALT = 1, 2, 8, 0x10, 0x40
+GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD, GAME_HALT = 0, 1, 2, 3, 4
+WRONG_DOOR_FROM = 12  # the first Dupe room from here: the bot opens a wrong door on purpose (40 HP)
 ENT_IDLE, ENT_WAIT, ENT_WARN, ENT_MOVE, ENT_PAUSE = 0, 1, 2, 3, 4
 REHIDE_AFTER = 540   # frames hidden before stepping out and back in (Hide throws you out at 720)
 
@@ -196,6 +197,9 @@ class Bot:
         self.hides = 0
         self.entity_shots = False
         self.lit_rooms = set()
+        self.tried_fake = False    # pressed A at a numberless wrong door ("IT'S FAKE.")
+        self.met_dupe = False      # opened a wrong door with Dupe behind it
+        self.halts = 0
         self.door_shots = None   # filename prefix: screenshot each exit door when walking up to it
 
     def log(self, *a):
@@ -382,6 +386,45 @@ class Bot:
         self.step(J["a"])
         self.step(0)
 
+    def exits(self, objs=None):
+        """The room's exits in object order, and this run's real one"""
+        ex = [o for o in (objs or self.g.objects()) if o[0] == OBJ_EXIT]
+        return ex, ex[self.g.u8("_run_exit", self.g.room())]
+
+    def try_wrong_door(self, obj):
+        """Presses A at a wrong door: 'IT'S FAKE.' without Dupe; with him, his face, 40 HP, and back"""
+        cellpos, face = self.approach(obj)
+        self.log("wrong door", obj)
+        if not self.walk_to(cellpos):
+            raise RuntimeError(f"stuck walking to the wrong door {obj}")
+        for _ in range(3):
+            self.step(J[face])
+        self.step(0)
+        before = self.g.u8("_run_flags2", self.g.room())
+        dupe = before & RF2_DUPE
+        # Dupe: tap until he fires (a tap can land on a frame the game didn't read). No Dupe: one tap.
+        self.press_a_until(lambda: self.g.u8("_run_flags2", self.g.room()) != before, tries=6 if dupe else 1)
+        for _ in range(600):   # Dupe: the door opens, his face, the room again
+            if self.g.state() == GAME_PLAYING:
+                break
+            self.g.tick(0)
+        if self.g.state() == GAME_DEAD:
+            raise RuntimeError("Dupe killed the bot")
+        return self.g.u8("_run_flags2", self.g.room()) != before
+
+    def play_halt(self):
+        """Halt's hallway: walk the way the game says (halt_dir) until out at the far end"""
+        self.halts += 1
+        hp = self.g.u8("_run_hp")
+        while self.g.state() in (GAME_HALT, GAME_TRANSITION):
+            if self.g.state() == GAME_HALT:
+                self.g.tick(J["right"] if self.g.u8("_halt_dir") == 1 else J["left"])
+            else:
+                self.g.tick(0)
+        if self.g.state() == GAME_DEAD:
+            raise RuntimeError("Halt killed the bot")
+        self.log("out of Halt's hallway, HP", hp, "->", self.g.u8("_run_hp"))
+
     def go_through(self, obj):
         """Walks into an open door until the room changes."""
         room = self.g.room()
@@ -395,6 +438,10 @@ class Bot:
         for _ in range(240):
             if self.g.room() != room:
                 break
+            if self.g.state() == GAME_HALT or (self.g.state() == GAME_TRANSITION and
+                                               (self.g.u8("_run_flags2", room) & (RF2_HALT | 0x80)) == RF2_HALT):
+                self.play_halt()
+                continue
             # keep pushing outward through the door
             wall = obj[5]
             self.step({1: J["up"], 2: J["down"], 3: J["left"], 4: J["right"]}[wall])
@@ -414,9 +461,23 @@ class Bot:
 
     def play_room_once(self):
         objs = self.g.objects()
-        exit_ = next(o for o in objs if o[0] == OBJ_EXIT)
+        exits, exit_ = self.exits(objs)
         entry = next((o for o in objs if o[0] == OBJ_ENTRY), None)
         n = self.g.room()
+        f2 = self.g.u8("_run_flags2", n)
+
+        # Dupe rooms: once, a numberless wrong door (refuses) and once, from room WRONG_DOOR_FROM, Dupe himself
+        wrong = [o for o in exits if o != exit_]
+        if wrong and not (f2 & RF2_DUPE) and not self.tried_fake:
+            self.tried_fake = True
+            if self.try_wrong_door(wrong[0]):
+                raise RuntimeError("a numberless wrong door did something")
+        if wrong and (f2 & RF2_DUPE) and n >= WRONG_DOOR_FROM and not self.met_dupe:
+            self.met_dupe = True
+            hp = self.g.u8("_run_hp")
+            if not self.try_wrong_door(wrong[0]):
+                raise RuntimeError("Dupe's door didn't fire")
+            self.log("Dupe: HP", hp, "->", self.g.u8("_run_hp"))
 
         # Debug and AUTOTEST builds: B cycles the light (glow, lighter, flashlight). Each new dark room gets
         # the next one, so the recorded run lights rooms all three ways.
@@ -431,8 +492,7 @@ class Bot:
             self.go_through(entry)          # to room 2, arriving at its exit
             if self.g.room() != 2:
                 raise RuntimeError("backtrack went to the wrong room")
-            objs2 = self.g.objects()
-            self.go_through(next(o for o in objs2 if o[0] == OBJ_EXIT))
+            self.go_through(self.exits()[1])
             return
 
         for attempt in range(12):
@@ -586,6 +646,7 @@ def main():
     spawns = sum(1 for i in range(g.room() + 1) if g.u8("_run_flags", i) & 0x40)
     print(f"reached room {g.room()} in {g.frames} frames ({len(g.record)} input frames); "
           f"{locked} locked doors; {spawns} spawn rolls; hid {bot.hides} times; HP {g.u8('_run_hp')}; "
+          f"Halt {bot.halts}, Dupe {'met' if bot.met_dupe else 'not met'}, fake door {'tried' if bot.tried_fake else 'not tried'}; "
           f"templates {templates}")
     if args.record:
         n = write_recording(g.record, rec_path)

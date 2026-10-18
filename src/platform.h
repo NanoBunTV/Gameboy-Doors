@@ -33,7 +33,12 @@ extern uint8_t platform_fade;
 // green flicker. Cheap to call every frame: nothing happens unless the values change.
 #define TINT_NONE  0
 #define TINT_GREEN 1
+#define TINT_BLUE  2   // Halt's hallway
 void platform_set_dim(uint8_t level, uint8_t tint);
+
+// Halt's flash: the whole background white while on (both consoles)
+void platform_set_flash(uint8_t on);
+extern uint8_t platform_flash;   // (scripts/scroll-test.py skips flashed frames)
 extern uint8_t platform_dim;   // the current level (scripts/scroll-test.py skips dimmed frames)
 
 // Called by bg_flush() in VBlank: writes changed palettes. All the arithmetic happens in the set_*

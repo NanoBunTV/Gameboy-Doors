@@ -1,36 +1,31 @@
 #include <gb/gb.h>
 #include <string.h>
 #include "hud.h"
+#include "hud_state.h"
 #include "bg.h"
 #include "room.h"
-#include "run.h"
-#include "input.h"
 #include "platform.h"
 #include "font.h"
 
-#define WIN_MAP 0x9C00u
-#define HUD_ROWS 2
-#define HUD_Y_SHOWN (144 - HUD_ROWS * 8)
-#define HUD_Y_HIDDEN 144
-#define SLIDE_SPEED 2
+// Bank 0: what switches banks to read the font, and what reads text passed in from the caller's bank (a
+// string literal lives in the caller's bank, which is only mapped while bank 0 code runs). The rest of the
+// HUD is in hud_status.c.
 
-static uint8_t ascii[96];          // WRAM copy of the font's ASCII table
-static char shown[21];             // what the text row currently holds (or is queued to)
-static char want[21];
-static uint8_t timer;              // frames left to show
-static uint8_t msg_timer;          // frames left of the message (0 = show the status line)
-static uint8_t msg_new;            // hud_message filled `want` since the last update
+uint8_t hud_ascii[96];
+char hud_shown[21];
+char hud_want[21];
+uint8_t hud_timer, hud_msg_timer, hud_msg_new;
 
-static uint8_t tile_for(char c) {
+uint8_t hud_tile_for(char c) {
     uint8_t code = (uint8_t)c;
-    return (code >= 32 && code < 128) ? ascii[code - 32] : ascii[0];
+    return (code >= 32 && code < 128) ? hud_ascii[code - 32] : hud_ascii[0];
 }
 
 void hud_init(void) {
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(font));
     set_bkg_data(FONT_FIRST_TILE, font.tile_count, font.tiles);
-    memcpy(ascii, font.ascii, sizeof(ascii));
+    memcpy(hud_ascii, font.ascii, sizeof(hud_ascii));
 #ifdef CGB
     platform_set_bkg_palettes(PAL_TEXT, font.palette, 1);
 #endif
@@ -38,9 +33,9 @@ void hud_init(void) {
 
     // Window map: row 0 a border line, row 1 the text
     uint8_t row[20];
-    memset(row, tile_for('='), 20);
+    memset(row, hud_tile_for('='), 20);
     set_win_tiles(0, 0, 20, 1, row);
-    memset(row, tile_for(' '), 20);
+    memset(row, hud_tile_for(' '), 20);
     set_win_tiles(0, 1, 20, 1, row);
 #ifdef CGB
     VBK_REG = VBK_ATTRIBUTES;
@@ -49,113 +44,34 @@ void hud_init(void) {
     set_win_tiles(0, 1, 20, 1, row);
     VBK_REG = VBK_TILES;
 #endif
-    memset(shown, ' ', 20);
-    shown[20] = 0;
+    memset(hud_shown, ' ', 20);
+    hud_shown[20] = 0;
     WX_REG = 7;
     bg_wy = HUD_Y_HIDDEN;
     WY_REG = HUD_Y_HIDDEN;
-}
-
-void hud_show(uint8_t frames) {
-    if (timer < frames)
-        timer = frames;
 }
 
 void hud_message(const char *text, uint8_t frames) {
     uint8_t n = 0;
     while (n < 20 && text[n])
         n++;
-    memset(want, ' ', 20);
-    memcpy(want + ((20 - n) >> 1), text, n);  // centred
-    msg_timer = frames;
-    msg_new = 1;
+    memset(hud_want, ' ', 20);
+    memcpy(hud_want + ((20 - n) >> 1), text, n);  // centred
+    hud_msg_timer = frames;
+    hud_msg_new = 1;
     hud_show(frames);
-}
-
-void hud_hide_now(void) {
-    timer = msg_timer = 0;
-    bg_wy = HUD_Y_HIDDEN;
-}
-
-void text_3digits(char *buf, uint8_t n) {
-    buf[0] = '0' + n / 100;
-    buf[1] = '0' + (n / 10) % 10;
-    buf[2] = '0' + n % 10;
-}
-
-// " DOOR 012 @######## ~": the room you're in, health (a heart and an 8-tile bar) and the key if you
-// carry one. The bar's glyphs ('*' empty, '+' '{' '}' 2/4/6 px, '#' full) are in the font (font.json).
-static void status_line(void) {
-    static const char bar_glyph[5] = { '*', '+', '{', '}', '#' };
-    memset(want, ' ', 20);
-    memcpy(want + 1, "DOOR", 4);
-    text_3digits(want + 6, run_room);
-    want[10] = '@';
-    uint8_t px = (uint8_t)(((uint16_t)run_hp * 64 + 50) / 100);   // 0-64 px
-    for (uint8_t i = 0; i < 8; i++) {
-        uint8_t fill = px > 8 ? 8 : px;
-        px -= fill;
-        want[11 + i] = bar_glyph[fill >> 1];
-    }
-    if (run_key_door)
-        want[19] = '~';
-}
-
-void hud_update(void) {
-    static uint8_t last_hp;
-    // What the status line was last built from: it's only rebuilt when one changes. Building it every
-    // frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines (Phase 4).
-    static uint8_t built_room = 0xFF, built_hp, built_key, built_msg;
-    uint8_t dirty = 0;
-    if (input_held & J_SELECT)
-        hud_show(30);
-    if (run_hp != last_hp) {   // health changed: show it (DESIGN.md, HUD)
-        last_hp = run_hp;
-        hud_show(150);
-    }
-    if (msg_timer) {
-        msg_timer--;
-        if (msg_new) {
-            msg_new = 0;
-            built_msg = 1;
-            dirty = 1;
-        }
-    } else if (built_msg || run_room != built_room || run_hp != built_hp || run_key_door != built_key) {
-        built_msg = 0;
-        built_room = run_room;
-        built_hp = run_hp;
-        built_key = run_key_door;
-        status_line();
-        dirty = 1;
-    }
-    if (timer)
-        timer--;
-
-    // Queue the characters that changed (the text row is window row 1)
-    if (dirty)
-        for (uint8_t i = 0; i < 20; i++)
-            if (shown[i] != want[i]) {
-                shown[i] = want[i];
-                bg_queue_tile(WIN_MAP + 32 + i, tile_for(want[i]), PAL_TEXT);
-            }
-
-    uint8_t target = timer ? HUD_Y_SHOWN : HUD_Y_HIDDEN;
-    if (bg_wy < target)
-        bg_wy = (target - bg_wy > SLIDE_SPEED) ? bg_wy + SLIDE_SPEED : target;
-    else if (bg_wy > target)
-        bg_wy = (bg_wy - target > SLIDE_SPEED) ? bg_wy - SLIDE_SPEED : target;
 }
 
 void text_queue(uint16_t addr, const char *text) {
     while (*text)
-        bg_queue_tile(addr++, tile_for(*text++), PAL_TEXT);
+        bg_queue_tile(addr++, hud_tile_for(*text++), PAL_TEXT);
 }
 
 void text_print_bg(uint8_t x, uint8_t y, const char *text) {
     uint8_t row[20];
     uint8_t n = 0;
     while (text[n] && x + n < 20) {
-        row[n] = tile_for(text[n]);
+        row[n] = hud_tile_for(text[n]);
         n++;
     }
     uint16_t addr = 0x9800u + ((uint16_t)y << 5) + x;

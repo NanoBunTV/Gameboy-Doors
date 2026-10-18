@@ -49,6 +49,9 @@ uint8_t room_solid_at(int16_t x, int16_t y);
 
 // Makes dynamic metatile MT_DYN_FIRST + slot: a copy of `base` (a door's top half, whose header shows "000"
 // in the art) with `number` painted over it as 3 brass digits. Returns its metatile number.
+// Slots: 0-2 for a room's exits (object order), 3 free. PLATE_BLANK: no number; PLATE_GARBLED: scribbles.
+#define PLATE_BLANK   0xFF
+#define PLATE_GARBLED 0xFE
 uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number);
 
 #endif

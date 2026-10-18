@@ -10,6 +10,8 @@ const char platform_name[] = "GBC";
 uint8_t platform_fade;
 uint8_t platform_dim;
 static uint8_t tint;
+uint8_t platform_flash;
+#define flash platform_flash
 #define dim platform_dim
 static palette_color_t bkg[32], spr[32];       // 8 palettes x 4 colours each, as set
 static palette_color_t bkg_out[32], spr_out[32]; // with fade and dimming applied, for the next VBlank
@@ -17,7 +19,8 @@ static uint8_t bkg_dirty, spr_dirty;
 // The room palettes (0-6) at each dim level and tint, made the first time they're needed after the
 // palettes or the fade change: the light flicker switches level every few frames, and recomputing 28
 // colours each time cost the GBC whole frames.
-static palette_color_t dim_cache[2][4][28];
+// Not blue: Halt's hallway sets it once (and WRAM bank 1 has no room for a third set).
+static palette_color_t dim_cache[2][4][28];   // per tint (none, green)
 static uint8_t dim_valid[2];   // bit per level
 
 void platform_init(void) {
@@ -25,18 +28,22 @@ void platform_init(void) {
     cpu_fast();
 }
 
-// Scales every channel of n colours by keep/9 (keep 0-9). For tint, red and blue are halved again.
-static void scale(palette_color_t *out, const palette_color_t *in, uint8_t n, uint8_t keep, uint8_t green) {
+// Scales every channel of n colours by keep/9 (keep 0-9), then tints: green (Ambush) or blue (Halt)
+static void scale(palette_color_t *out, const palette_color_t *in, uint8_t n, uint8_t keep, uint8_t t) {
     uint8_t tab[32];
     for (uint8_t v = 0; v < 32; v++)
         tab[v] = (uint8_t)((v * keep) / 9);
     while (n--) {
         uint16_t c = *in++;
         uint8_t r = tab[c & 31], g = tab[(c >> 5) & 31], b = tab[(c >> 10) & 31];
-        if (green) {
+        if (t == TINT_GREEN) {
             r >>= 2;
             b >>= 1;
             g = g < 24 ? g + 6 : 31;
+        } else if (t == TINT_BLUE) {
+            r >>= 2;
+            g -= g >> 2;
+            b = b < 22 ? b + 9 : 31;
         }
         *out++ = r | ((uint16_t)g << 5) | ((uint16_t)b << 10);
     }
@@ -44,24 +51,31 @@ static void scale(palette_color_t *out, const palette_color_t *in, uint8_t n, ui
 
 // Fade and dim levels 0-3 each keep (3 - level) / 3 of the brightness; together, the product
 static void update_bkg(void) {
-    uint8_t g = tint == TINT_GREEN;
-    if (!(dim_valid[g] & (1 << dim))) {
-        scale(dim_cache[g][dim], bkg, 28, (FADE_BLACK - platform_fade) * (3 - dim), g);
-        dim_valid[g] |= 1 << dim;
+    uint8_t g = tint;
+    if (flash) {
+        for (uint8_t i = 0; i < 28; i++)
+            bkg_out[i] = RGB(31, 31, 31);
+    } else if (g == TINT_BLUE) {
+        scale(bkg_out, bkg, 28, (FADE_BLACK - platform_fade) * (3 - dim), g);
+    } else {
+        if (!(dim_valid[g] & (1 << dim))) {
+            scale(dim_cache[g][dim], bkg, 28, (FADE_BLACK - platform_fade) * (3 - dim), g);
+            dim_valid[g] |= 1 << dim;
+        }
+        memcpy(bkg_out, dim_cache[g][dim], sizeof(dim_cache[0][0]));
     }
-    memcpy(bkg_out, dim_cache[g][dim], sizeof(dim_cache[0][0]));
     bkg_dirty = 1;
 }
 
 // The palettes or the fade changed: every cached level is stale, and the text palette needs redoing
 static void bkg_changed(void) {
     dim_valid[0] = dim_valid[1] = 0;
-    scale(bkg_out + 28, bkg + 28, 4, (FADE_BLACK - platform_fade) * 3, 0);
+    scale(bkg_out + 28, bkg + 28, 4, (FADE_BLACK - platform_fade) * 3, TINT_NONE);
     update_bkg();
 }
 
 static void update_spr(void) {
-    scale(spr_out, spr, 32, (FADE_BLACK - platform_fade) * 3, 0);
+    scale(spr_out, spr, 32, (FADE_BLACK - platform_fade) * 3, TINT_NONE);
     spr_dirty = 1;
 }
 
@@ -86,6 +100,11 @@ void platform_set_dim(uint8_t level, uint8_t t) {
         return;
     dim = level;
     tint = t;
+    update_bkg();
+}
+
+void platform_set_flash(uint8_t on) {
+    flash = on;
     update_bkg();
 }
 

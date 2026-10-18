@@ -128,12 +128,14 @@ pick Try again.
 `input_update` itself. It used to compare `input_frame` before and after each tick, and a frame boundary
 falling between the joypad read and the count put the recording one input out of step (found 2026-10-18,
 when heavier frames made it common). AUTOTEST builds replay that instead of reading the joypad, with the fixed
-seed `AUTOTEST_SEED` (0x01D9, `game.h`; Try again also uses it). It was 0xC0DE until Phase 4, whose first 30
-rooms had no dark room and no Eyes. 0x01D9 has dark rooms 15, 17 and 21, Eyes in 17 and Ambush in 5,
-chosen with a Python copy of `run.c`'s planner. **The game is deterministic in its input**:
+seed `AUTOTEST_SEED` (0x1331, `game.h`; Try again also uses it). It was 0xC0DE until Phase 4 and 0x01D9 in
+Phase 4. 0x1331 has Ambush in 5, wrong doors without Dupe in 2 and 7 (the bot presses A at the first:
+"IT'S FAKE."), Dupe rooms 9, 12 and 18 (the bot opens a wrong door in 12: his face, 40 HP), Halt's door in
+10 (the bot walks the hallway by `halt_dir`), Eyes in 11 and 18, and dark rooms from 15. Seeds are chosen with
+`scripts/plan.py`, a Python copy of `run.c`'s planner (keep it in step with `plan_room()`). **The game is deterministic in its input**:
 on DMG and GBC every room change, hide and the death happen at the same input frame (checked 2026-10-18).
-`--check N` replays and fails if room N isn't reached; `build.ps1 -Test` runs it (room 30 at input frame 8,979
-on both, Phase 4). Snapshots taken once per emulated frame can differ by one input frame between consoles:
+`--check N` replays and fails if room N isn't reached; `build.ps1 -Test` runs it (room 30 at input frame
+10,292 on both, Phase 5; 8,979 in Phase 4). Snapshots taken once per emulated frame can differ by one input frame between consoles:
 PyBoy samples WRAM once per emulated frame and the GBC, at double speed, has finished more of the frame by
 then, so state that changes mid-frame is seen one input frame apart. Compare events (room changes), not per-frame snapshots, between consoles.
 
@@ -141,10 +143,16 @@ then, so state that changes mid-frame is seen one input frame apart. Compare eve
 speed, entity timing, interaction): `.\scripts\record-run.ps1`. It writes an empty recording first, because
 the bot needs an AUTOTEST ROM that reads the joypad.
 
+**Rare events** are tested by poking WRAM from a PyBoy script (never during `--record`: the replay wouldn't
+have the poke). Timothy (1 drawer in 200): set `run_force_timothy` to 1 (DEBUG and AUTOTEST builds) and the
+next drawer opened that doesn't hold the key holds him; checked 2026-10-18 on both consoles (100 → 90 HP, and
+5 → 1: he never takes the last). A dark room or Eyes: set `RF2_DARK` / `RF2_EYES` in `run_flags2[n]` before
+entering room n (Phase 4). Dupe and Halt come up in the recorded run's seed.
+
 ### Background correctness: `scripts/scroll-test.py`
 
 ```
-tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 11000 --every 2
+tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 14000 --every 2
 ```
 
 Runs an AUTOTEST ROM (playing its recorded run) and every 2nd frame compares the whole screen with a reference
@@ -154,7 +162,9 @@ room loads, frames with the room dimmed (hiding, the flicker: `platform_dim` is 
 any metatile change (a door or drawer opening is redrawn a frame or two later
 on purpose). It first learns which screen colour each art colour becomes (PyBoy's DMG greys and GBC colour
 conversion differ from the PNG), then counts wrong pixels. Failing frames are saved as
-`build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`, over 11,000 frames (the whole replay).
+`build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`, over 14,000 frames (the whole replay;
+11,000 until Phase 5's hallway made it longer). **Halt's hallway** is compared too (game state 4), with its
+own learned colours (blue on GBC), skipping flash frames (`platform_flash`).
 
 **Dark rooms** are compared too: the reference is black wherever the game's light state (`light_src_*`,
 `light_l/r` in WRAM, `src/light.c`) says a tile is unlit, on frames where the tile queue is empty and no light
@@ -174,8 +184,9 @@ reference colour: on GBC the font's black isn't the same screen colour as the wa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 4: bank 0 90% (GBC) / 79% (DMG), 64 KB ROM; DMG WRAM about 6.2 of 8 KB; GBC WRAM bank 1
-(0xD000) 90%. Phase 3 was 84% / 75%; Phase 4's light code briefly overflowed GBC bank 0 until `player.c` and
+As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.
+Phase 4 ended at 90% / 79%, then 84% / 73% once the HUD's status line and the effect scripts moved into banks;
+Phase 5 added the per-exit route tables (bank 0) and `run_exit` (WRAM). Phase 3 was 84% / 75%; Phase 4's light code briefly overflowed GBC bank 0 until `player.c` and
 moving a light (`light_move.c`) went into banks. `romusage -g` prints the table; for what takes bank 0, sum
 `A _CODE size` per object file (`grep "^A _CODE size" build/gbc/obj/*.rel`).
 
@@ -192,7 +203,11 @@ including single-tile batches): **DMG 8 of 10, GBC 6 of 10** (ARCHITECTURE.md, "
 Phase 3's flicker briefly made it 12 on GBC (palette upload + a column in one VBlank) until map writes were
 made to wait a frame after a palette upload.
 
-**Lag frames** (frames where the game didn't call `input_update`) show slow logic. Count them per room by
+**Lag frames** (frames where the game didn't call `input_update`) show slow logic. Check that a "missing"
+frame isn't paired with a frame that called it twice: PyBoy's tick ends at LY 0, so a loop that reads input
+just before line 154 can tip a call into the next tick without losing a frame. Halt's hallway first measured
+292 of 1,956 that way because its loop ran `audio_frame()` before the game logic; in `main()`'s order (audio
+last) it's 1. Count them per room by
 comparing `input_frame` before and after each PyBoy tick of the replay; this found the GBC's palette
 recomputation during Ambush's flicker (92 of 332 frames, ARCHITECTURE.md "Fades, dimming and palettes"; now 4
 per pass) and Phase 4's slow darkness (DMG dark rooms dropped 30–37% of frames).
@@ -205,7 +220,9 @@ symbol (a table in bank 0) corrupts reads and the game goes another way. A 154-l
 about 140 lines of game logic. Phase 4's numbers this way: the HUD rebuilding its line every frame ~45 lines,
 a hardware sprite ~9, each `room_solid_at` ~3 (a multiply per lookup, now a row table), the first light code
 ~140 to move the glow one tile, and Rush/Ambush's `place()` ~100 while he moved (two 32-bit divisions a
-frame; now worked out once per room and stepped).
+frame; now worked out once per room and stepped). Phase 5: a hardware sprite still ~3 lines through a
+`put()` call per column (five stack arguments); `spr_draw` writing both columns itself saved ~11 lines a
+frame in Halt's hallway (6 sprites for Halt, 10 for TURN AROUND, 2 for the player).
 
 ### Audio
 

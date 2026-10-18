@@ -125,9 +125,12 @@ uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number) {
     memcpy(buf + 16, ts->tiles + (uint16_t)mt_tiles[b + 1] * 16, 16);
     SWITCH_ROM(saved);
 
+    // A fake door without Dupe has no number; one Dupe fired from shows scribbles (Minecraft docs 06)
+    static const uint8_t blank[5] = { 0, 0, 0, 0, 0 };
+    static const uint8_t garbled[3][5] = { { 5, 2, 7, 1, 6 }, { 3, 6, 2, 5, 4 }, { 6, 1, 5, 2, 7 } };
     uint8_t digits[3] = { number / 100, (number / 10) % 10, number % 10 };
     for (uint8_t d = 0; d < 3; d++) {
-        const uint8_t *g = plate_digits[digits[d]];
+        const uint8_t *g = number == PLATE_BLANK ? blank : number == PLATE_GARBLED ? garbled[d] : plate_digits[digits[d]];
         uint8_t x0 = PLATE_DIGIT_X + d * 4;
         for (uint8_t y = 0; y < 5; y++)
             for (uint8_t x = 0; x < 3; x++)

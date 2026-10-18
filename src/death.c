@@ -14,6 +14,7 @@
 #include "image_scare_rush.h"
 #include "image_scare_ambush.h"
 #include "image_scare_screech.h"
+#include "image_scare_dupe.h"
 
 #define SCARE_FRAMES 60
 #define TYPE_FRAMES  3       // per character
@@ -39,6 +40,12 @@ static const char *const lines_screech[] = {
 static const char *const lines_eyes[] = {
     "YOU DIED TO EYES.", "", "DON'T LOOK AT HIM.", "", "WALK PAST WITH", "YOUR EYES AWAY,",
     "THEN LEAVE.", 0 };
+static const char *const lines_dupe[] = {
+    "DUPE GOT YOU.", "", "COUNT THE DOORS.", "", "A WRONG DOOR LIES", "ABOUT ITS NUMBER.", "",
+    "OPEN THE NEXT ONE.", 0 };
+static const char *const lines_halt[] = {
+    "YOU DIED TO HALT.", "", "WHEN THE SCREEN", "SAYS TURN AROUND,", "WALK THE OTHER WAY", "", "KEEP GOING AND",
+    "YOU'LL GET OUT.", 0 };
 
 #ifdef CGB
 // The font palette made blue (colour 0 the text, 2 the background)
@@ -66,6 +73,8 @@ void death_jumpscare(uint8_t cause) BANKED {
         image_show(BANK(image_scare_ambush), &image_scare_ambush, 0, 0);
     else if (cause == DEATH_SCREECH)
         image_show(BANK(image_scare_screech), &image_scare_screech, 0, 0);
+    else if (cause == DEATH_DUPE)
+        image_show(BANK(image_scare_dupe), &image_scare_dupe, 0, 0);
     else
         image_show(BANK(image_scare_rush), &image_scare_rush, 0, 0);
     platform_set_fade(0);
@@ -131,7 +140,7 @@ uint8_t death_run(uint8_t cause) BANKED {
     spr_end();
     frames = 0;
 
-    if (cause == DEATH_RUSH || cause == DEATH_AMBUSH || cause == DEATH_SCREECH)
+    if (cause == DEATH_RUSH || cause == DEATH_AMBUSH || cause == DEATH_SCREECH || cause == DEATH_DUPE)
         death_jumpscare(cause);
     else
         game_fade(platform_fade, FADE_BLACK);
@@ -145,7 +154,7 @@ uint8_t death_run(uint8_t cause) BANKED {
     music_play(MUSIC_GUIDING);
     game_fade(FADE_BLACK, 0);
     static const char *const *const lines[] = { lines_rush, lines_rush, lines_ambush, lines_hide, lines_screech,
-                                                lines_eyes };
+                                                lines_eyes, lines_dupe, lines_halt };
     type_lines(lines[cause]);
     uint8_t choice = menu();
     sfx_play(SFX_SELECT);

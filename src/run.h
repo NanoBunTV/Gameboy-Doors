@@ -30,6 +30,18 @@
 #define EYES_CHANCE_PERCENT 5
 #define EYES_FIRST_ROOM 8
 
+// Dupe (Minecraft docs 06, owner 2026-10-18): rooms with more than one exit; the run picks the real one.
+// 35% of those from room 6 hide Dupe behind the others.
+#define DUPE_CHANCE_PERCENT 35
+#define DUPE_FIRST_ROOM 6
+#define DUPE_DAMAGE 40
+// Halt: 3% per room arms its (plain) exit door, at most once a run
+#define HALT_CHANCE_PERCENT 3
+#define HALT_FIRST_ROOM 10
+// Timothy: one drawer in 200, at most once a run; 10 HP, never the last
+#define TIMOTHY_ODDS 200
+#define TIMOTHY_DAMAGE 10
+
 #define MAX_HP 100
 
 // run_flags[n]
@@ -46,6 +58,11 @@
 #define RF2_DARK        0x01        // the lights are out
 #define RF2_EYES        0x02        // Eyes is in this room ...
 #define RF2_EYES_GONE   0x04        // ... until a door opens (eyes.c)
+#define RF2_DUPE        0x08        // the wrong doors hide Dupe (else they're numberless fakes)
+#define RF2_DUPE_HIT    0x10        // first wrong door: Dupe has fired (shut, a garbled number) ...
+                                    // ... 0x20 the second
+#define RF2_HALT        0x40        // the exit leads into Halt's hallway first
+#define RF2_HALT_DONE   0x80        // ... and the player came out of it
 
 extern uint16_t run_seed;
 extern uint8_t run_room;            // the room the player is in
@@ -58,10 +75,20 @@ extern uint8_t run_flags2[RUN_ROOMS];
 extern uint8_t run_key_slot[RUN_ROOMS];
 extern uint8_t run_drawers[RUN_ROOMS];  // opened drawers, one bit per drawer in object order
 extern uint8_t run_banned[RUN_ROOMS];   // hiding spots Hide threw the player out of, one bit per spot
+extern uint8_t run_exit[RUN_ROOMS];     // which of the template's exits is the real one (object order)
+extern uint8_t run_timothy;             // Timothy has been met this run
 
 void run_start(uint16_t seed) BANKED;
 
 // Makes sure rooms 0..n are planned (in order: each depends on the one before)
 void run_plan(uint8_t n) BANKED;
+
+// The number on room n's k-th wrong door (k = 0 or 1) when Dupe is there: one below the real door's or up
+// to two above it, never the same twice in a room (Minecraft docs 06, "The wrong numbers")
+uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED;
+
+// Is Timothy in room n's drawer d? (Once a run, 1 in TIMOTHY_ODDS, never the key's drawer.) From the seed,
+// so a replay meets him in the same drawer.
+uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED;
 
 #endif

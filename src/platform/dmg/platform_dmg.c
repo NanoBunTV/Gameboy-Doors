@@ -7,6 +7,8 @@ uint8_t platform_fade;
 uint8_t platform_dim;
 #define dim platform_dim
 static uint8_t bgp_out, obp0_out, obp1_out, dirty;
+uint8_t platform_flash;
+#define flash platform_flash
 
 // Shade numbers match scripts/assets.py: 0 = white, 1 = light grey, 2 = dark grey, 3 = black.
 // Background: colour n is shade n. Sprites: colour 0 is transparent; a sprite gets one of these per 8x16
@@ -27,7 +29,7 @@ static uint8_t reg(const uint8_t *shades, uint8_t by) {
 
 static void update(void) {
     // The DMG has one background palette, so the HUD dims with the room
-    bgp_out = reg(bgp, platform_fade + dim);
+    bgp_out = flash ? 0 : reg(bgp, platform_fade + dim);   // Halt's flash: every shade white
     obp0_out = reg(obp0, platform_fade);
     obp1_out = reg(obp1, platform_fade);
     dirty = 1;
@@ -49,6 +51,11 @@ void platform_set_dim(uint8_t level, uint8_t tint) {
     if (level == dim)
         return;
     dim = level;
+    update();
+}
+
+void platform_set_flash(uint8_t on) {
+    flash = on;
     update();
 }
 

@@ -16,6 +16,12 @@ uint8_t run_flags2[RUN_ROOMS];
 uint8_t run_key_slot[RUN_ROOMS];
 uint8_t run_drawers[RUN_ROOMS];
 uint8_t run_banned[RUN_ROOMS];
+uint8_t run_exit[RUN_ROOMS];
+uint8_t run_timothy;
+#if defined(AUTOTEST) || defined(DEBUG)
+uint8_t run_force_timothy;   // scripts poke 1: the next drawer opened (not the key's) holds Timothy
+#endif
+static uint8_t halt_planned;   // a Halt is already armed in an earlier room
 static uint8_t planned;   // rooms 0 .. planned - 1 are planned
 
 // xorshift16 (Brad Forschner's 7, 9, 8 triple), seeded per room from the run seed and the room number.
@@ -66,6 +72,9 @@ void run_start(uint16_t seed) BANKED {
     memset(run_flags2, 0, sizeof(run_flags2));
     memset(run_drawers, 0, sizeof(run_drawers));
     memset(run_banned, 0, sizeof(run_banned));
+    memset(run_exit, 0, sizeof(run_exit));
+    run_timothy = 0;
+    halt_planned = 0;
     run_plan(1);
 }
 
@@ -77,7 +86,7 @@ static void plan_room(uint8_t n) {
             if (room_template_info[i][0] == ROOM_KIND_START)
                 t = i;
     } else {
-        uint8_t need = opposite(room_template_info[run_template[n - 1]][2]);
+        uint8_t need = opposite(room_template_exits[run_template[n - 1]][run_exit[n - 1]]);
         uint8_t candidates[ROOM_TEMPLATE_COUNT], count = 0;
         // Twice: the second pass drops the no-repeat rule, in case the pool is too small for it
         for (uint8_t pass = 0; pass < 2 && !count; pass++)
@@ -124,6 +133,21 @@ static void plan_room(uint8_t n) {
         flags2 |= RF2_DARK;
     if (n >= EYES_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < EYES_CHANCE_PERCENT)
         flags2 |= RF2_EYES;
+    // Phase 5's: which exit is real (rooms with more than one), Dupe behind the others, Halt
+    uint8_t exits = 0;
+    while (exits < ROOM_EXITS_MAX && room_template_exits[t][exits])
+        exits++;
+    uint8_t real = 0;
+    if (exits > 1) {
+        real = rnd_below(exits);
+        if (n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DUPE_CHANCE_PERCENT)
+            flags2 |= RF2_DUPE;
+    } else if (!halt_planned && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM && !(flags & RF_LOCKED) &&
+               rnd_below(100) < HALT_CHANCE_PERCENT) {
+        flags2 |= RF2_HALT;   // only a plain door: not locked, not a Dupe room (owner)
+        halt_planned = 1;
+    }
+    run_exit[n] = real;
     run_flags[n] = flags;
     run_flags2[n] = flags2;
     run_key_slot[n] = slot;
@@ -134,4 +158,30 @@ void run_plan(uint8_t n) BANKED {
         n = RUN_LAST_ROOM;
     while (planned <= n)
         plan_room(planned++);
+}
+
+// Both draw from their own sequence (the planner reseeds per room, so borrowing its generator is safe)
+uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED {
+    static const int8_t offsets[3] = { -1, 1, 2 };
+    rng_seed(run_seed ^ 0xD0FEu, n);
+    uint8_t a = rnd_below(3);
+    if (k) {
+        uint8_t b = rnd_below(2);   // one of the other two
+        a = b >= a ? b + 1 : b;
+    }
+    return (uint8_t)(n + 1 + offsets[a]);
+}
+
+uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED {
+    uint8_t f = run_flags[n];
+    if (run_timothy || ((f & (RF_LOCKED | RF_KEY_DRAWER)) == (RF_LOCKED | RF_KEY_DRAWER) && run_key_slot[n] == d))
+        return 0;
+#if defined(AUTOTEST) || defined(DEBUG)
+    if (run_force_timothy) {
+        run_force_timothy = 0;
+        return 1;
+    }
+#endif
+    rng_seed(run_seed ^ 0x7177u ^ ((uint16_t)d << 12), n);
+    return rnd() % TIMOTHY_ODDS == 0;
 }

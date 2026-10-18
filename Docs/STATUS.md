@@ -26,7 +26,12 @@
 | 2026-10-18 | same, recorded run (new seed 0x01D9: dark rooms 15, 17, 21, Eyes in 17, Ambush in 5) | `build.ps1 -Test` | **All passed.** BGB, all exception breaks, all three combinations, 15 s (the whole replay and the death). `scroll-test.py` over 11,000 frames, dark rooms included: 2,504 (GBC) / 2,491 (DMG) frames, **0 wrong pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame 8,979 on both |
 | 2026-10-18 | same | Lag frames per room (replay) | GBC: at most 2 in any dark room, 7 in Ambush's room. DMG: 2–5 in dark rooms with the glow or lighter; 32 of 215 in room 17 (flashlight + Eyes + Screech) |
 | 2026-10-18 | Rush/Ambush position without per-frame divisions | Lag frames per room (replay), `build.ps1 -Test` | DMG Rush and Ambush rooms: **3–5** dropped frames (were 27–98: room 5, Ambush's 1,700 frames, 98 → 4). All tests pass; the replay is unchanged (room 30 at input frame 8,979) |
-| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start |
+| 2026-10-18 | HUD status line (`hud_status.c`) and effect scripts (`sfx_data.c`) moved out of bank 0 | `build.ps1 -Test`, `romusage -g` | Bank 0: GBC 90% → **84%** (2.6 KB free), DMG 79% → **73%**. **All passed**: BGB, all three combinations, 15 s; scroll-test 0 wrong pixels (2,504 GBC / 2,583 DMG frames); VBlank DMG 8 of 10, GBC 6 of 10; replay reaches room 30 at input frame 8,979 on both |
+| 2026-10-18 | Phase 5: Dupe rooms, Halt's hallway, Timothy; cheaper sprite drawing | PyBoy, scripted (the bot with screenshots; Timothy forced with `run_force_timothy`) | Both consoles: a numberless wrong door says "IT'S FAKE."; Dupe's door shows his wrong number (014 for door 13), opens, his face, 40 HP, then scribbles on the plate. The hallway: blue on GBC, grey on DMG, the entry shut, Halt at the screen's edge closing in, TURN AROUND over a white flash. Timothy hops onto the player and runs off along the floor: 100 → 90 HP, 5 → 1 |
+| 2026-10-18 | same, recorded run (new seed 0x1331) | `bot.py`, 30 rooms + death | The ROM's rooms match `scripts/plan.py`'s. Through Halt's hallway untouched (it walks by `halt_dir`), Dupe met in room 12 (100 → 60 HP), hid 5 times, room 30 on 60 HP |
+| 2026-10-18 | same | `build.ps1 -Test` | **All passed.** BGB, all exception breaks, all three combinations, 15 s. `scroll-test.py` now over 14,000 frames and through the hallway: 3,767 (GBC, 886 in the hallway) / 3,974 (DMG, 876) frames, **0 wrong pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame 10,292 on both |
+| 2026-10-18 | same | Lag frames per room (replay) | DMG: 3–7 in every room, the hallway 1 of 1,956, room 18 (dark, Eyes, the debug flashlight) 21 of 215. GBC: at most 7 (Ambush's room), the hallway 12 of 1,967 |
+| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy |
 
 ## Test checklist for new builds
 
@@ -50,22 +55,38 @@
   typewriter, the menu blip, the rumble, and Phase 4's lights-out, Screech's psst and leaving, Eyes' drone and
   his hit.
 - **DMG frame budget**: every room drops only a few frames on DMG now (Rush and Ambush rooms included, since
-  `place()` stopped dividing every frame), except the debug flashlight with Eyes in the room (about 15%).
+  `place()` stopped dividing every frame; Halt's hallway too), except the debug flashlight with Eyes in the
+  room (about 10%).
   Phase 9 (the real flashlight) should look at the flashlight's redraw (`light_step`) and at sprite drawing
   (a 32×32 entity still costs ~22 scanlines); player collision (`room_solid_at`) is the next biggest cost.
 - **Memory outlook** (2026-10-18; numbers from `romusage -g`):
   - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
     grows from 64 KB.
-  - *Bank 0 (GBC 90%, 1.6 KB left; DMG 79%)*: a real, fixed 16 KB. Every phase so far added engine code there.
-    Before it passes ~95%: move `hud.c` (all but `hud_init`) and `audio.c`'s effect tables into banks; only
-    code that switches banks to read assets, and the per-frame streaming, has to stay.
+  - *Bank 0 (GBC 84%, 2.6 KB left; DMG 73%)*: a real, fixed 16 KB. Every phase so far added engine code there.
+    The HUD's timers and status line (`hud_status.c`) and the sound effects' scripts (`sfx_data.c`) moved
+    out on 2026-10-18 (~1 KB). Next candidates if it fills again: `room.c`'s door and plate painting, parts
+    of `sprites.c`; only code that switches banks to read assets, reads text from its caller's bank, or runs
+    the per-frame streaming has to stay. After Phase 5: GBC 88% (1.9 KB free), DMG 76% (the route tables for
+    Dupe rooms' exits grew `room_templates.c`).
   - *WRAM*: DMG has 8 KB in all, ~1.8 KB free (the room map takes 3 KB). Later phases (inventory, Figure,
     Seek, the shop) need some. Room for more: the cartridge's 32 KB SRAM works as extra RAM on both consoles
     (enable it, use it, disable it), and the room map could shrink if no room needs 3,072 metatiles. GBC's
-    WRAM bank 1 is 91% full but banks 2–7 (24 KB) are unused.
-  - *Sprite VRAM*: 142 of the 184 sprite tiles are used. Figure, Seek, Halt, Dupe, Timothy and the items
-    won't all fit at once: sheets will have to be loaded per room or per event (the jumpscares already force
-    reloading). This is the limit most likely to need design work soon.
+    WRAM bank 1 is **96% full** after Phase 5 (~170 bytes left; Halt's blue tint went uncached to fit) but
+    banks 2–7 (24 KB) are unused: the next big GBC-only table should go there.
+  - *Sprite VRAM*: 144 of the 184 sprite tiles are used (Timothy took 2; Halt and his letters borrow Rush's
+    tiles in the hallway, the first sheets loaded per event). Figure, Seek and the items will need the same:
+    sheets loaded per room or per event.
+- **Dupe rooms are common**: 5 of the 14 normal templates have 2–3 doors, so about a third of rooms are
+  multi-door rooms (with Dupe in 35% of those from room 6). Seed 0x1331's first 30 rooms have 8 (3 with Dupe). More
+  single-door templates would thin them out; or a weight per template.
+- **Halt's numbers are scaled to the screen**, not the Minecraft distances (ARCHITECTURE.md): he walks
+  1.4 px/frame (1.12 × yours), you have 2/3 s to react, and each leg starts him 73–82 px away, at the screen's
+  edge. A player who turns at once never gets touched; one who hesitates ~1 s is. Worth a play to judge.
+- **Halt's hallway is plain**: 36 metatiles of empty hotel corridor tinted blue (no lamps or furniture), and
+  the TURN AROUND letters are 8×16 sprites (two words, to stay under 10 sprites a line).
+- **Timothy is 8×8** (owner's pick): small next to the player; he can be missed if you're not looking.
+- **The room template table grew** with per-exit routes (bank 0, ~0.5 KB). If bank 0 fills again, the
+  tables could move into a bank with `run.c` (the only reader besides `entity.c` and `eyes.c`).
 - **Eyes floats at the route's middle**, even over furniture (top-down, it reads fine). A room whose route
   midpoint is in a wall would put him there; none does yet.
 - **Screech's body is black**, so in the dark only his eyes and grin show (on purpose). On a lit tile (the
@@ -74,8 +95,6 @@
   cut through furniture. Fine in the current rectangular rooms.
 - **Ambush's flicker is only green on GBC.** On DMG his howl is the only difference from Rush's warning.
 - **The Guiding Light's lines sit on consecutive rows**, which reads a little cramped.
-- **Bank 0 is 90% full on GBC** (1.6 KB left). `player.c` and `light_move.c` are banked; `hud.c` (all but
-  `hud_init`) could follow, or the effect tables in `audio.c` could move.
 
 - **The DMG floor is busy**: the wood-plank pattern in greys is noisy next to the white-headed player. To revisit
   with real art (ASSETS.md).
@@ -107,7 +126,7 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 2. Rooms and doors (**done 2026-10-17**, owner's hands-on test pending) | Title with logo, seeded room chaining (reception + 9 templates), door numbers, opening doors, walking back, keys in drawers and in the open, locked doors, the on-demand HUD, fades; the play-testing bot and recorded run |
 | 3. Hiding and Rush/Ambush (**done 2026-10-18**, played by the owner: fixes in Phase 4) | Closets, beds, light flicker, Rush and Ambush on the door-to-door path, Hide (moved here from Phase 5), the health bar (on-demand HUD), jumpscares, death and the Guiding Light screen; hUGEDriver with the title and Guiding Light songs from the owner's MIDIs, a hotel ambience, sound effects (audio moved here from Phase 10) |
 | 4. Darkness, Screech, Eyes (**done 2026-10-18**, owner's hands-on test pending) | Dark rooms on both consoles (black but for what's lit), the glow, the lighter and flashlight (debug switch until Phase 9), Screech with his jumpscare, Eyes; from the owner's first play: the title music cut on Start, the ambience removed, door numbers redone (layout B); DMG speed-ups (HUD, sprites, collision lookups, the light) |
-| 5. Dupe, Halt, Timothy | The smaller entities |
+| 5. Dupe, Halt, Timothy (**done 2026-10-18**, owner's hands-on test pending) | Five Dupe rooms (2–3 doors, the real one per run), Dupe's wrong numbers and full-screen face, numberless fakes; Halt's blue-lit sideways hallway with TURN AROUND; Timothy's spider in a drawer; the HUD and effect scripts out of bank 0; cheaper sprite drawing |
 | 6. The Library (50) | Figure, books, the padlock code |
 | 7. Seek | Eyes on the walls, the chase sequences |
 | 8. Courtyard, Greenhouse, Room 100 | Rooms 89–100, the fuses and the escape, the ending |

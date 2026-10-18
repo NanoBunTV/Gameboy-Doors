@@ -45,6 +45,7 @@ typedef struct {
 #define ROOM_KIND_NORMAL 0
 #define ROOM_KIND_START  1
 #define ROOM_KIND_TEST   2
+#define ROOM_KIND_HALT   3   // Halt's hallway: never planned, loaded by halt.c
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

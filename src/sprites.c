@@ -32,36 +32,46 @@ void spr_begin(void) {
     oam_ptr = (uint8_t *)shadow_OAM;
 }
 
-static void put(const spr_sheet_t *sheet, uint8_t tile, uint8_t attr, int16_t sx, int16_t sy) {
-    if (tile == 0xFF || oam_next >= 40)
-        return;
-    // On screen: -8 < sx < 160 and -16 < sy < 144, as one unsigned compare each
-    uint16_t ox = (uint16_t)(sx + 8), oy = (uint16_t)(sy + 16);
-    if (ox - 1 >= 167 || oy - 1 >= 159)
-        return;
-    uint8_t *o = oam_ptr;
-    o[0] = (uint8_t)oy;
-    o[1] = (uint8_t)ox;
-    o[2] = sheet->base_tile + tile;
-#ifdef CGB
-    o[3] = attr + sheet->base_pal;
-#else
-    o[3] = attr;
-#endif
-    oam_ptr = o + 4;
-    oam_next++;
-}
-
+// Both 8x16 columns in one function with no calls: a put() per column, with five arguments on the stack,
+// cost ~3 DMG scanlines a sprite (Phase 5, Halt's hallway)
 void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, uint8_t flags) {
+    // On screen: -16 < sy < 144 and, per column, -8 < x < 160, as one unsigned compare each
+    uint16_t oy = (uint16_t)(sy + 16);
+    if (oy - 1 >= 159)
+        return;
     const uint8_t *f = sheet->frames + (frame << 2);
-    if (flags & SPR_FLIPX) {
-        // Mirrored: the right column's tiles go on the left, both flipped
-        put(sheet, f[2], f[3] ^ SPR_FLIPX, sx, sy);
-        put(sheet, f[0], f[1] ^ SPR_FLIPX, sx + 8, sy);
+    uint8_t t0, a0, t1, a1;
+    if (flags & SPR_FLIPX) {   // mirrored: the right column's tiles go on the left, both flipped
+        t0 = f[2]; a0 = f[3] ^ SPR_FLIPX;
+        t1 = f[0]; a1 = f[1] ^ SPR_FLIPX;
     } else {
-        put(sheet, f[0], f[1], sx, sy);
-        put(sheet, f[2], f[3], sx + 8, sy);
+        t0 = f[0]; a0 = f[1];
+        t1 = f[2]; a1 = f[3];
     }
+#ifdef CGB
+    a0 += sheet->base_pal;
+    a1 += sheet->base_pal;
+#endif
+    uint8_t base = sheet->base_tile, n = oam_next, y = (uint8_t)oy;
+    uint8_t *o = oam_ptr;
+    uint16_t ox = (uint16_t)(sx + 8);
+    if (t0 != 0xFF && n < 40 && ox - 1 < 167) {
+        *o++ = y;
+        *o++ = (uint8_t)ox;
+        *o++ = base + t0;
+        *o++ = a0;
+        n++;
+    }
+    ox += 8;
+    if (t1 != 0xFF && n < 40 && ox - 1 < 167) {
+        *o++ = y;
+        *o++ = (uint8_t)ox;
+        *o++ = base + t1;
+        *o++ = a1;
+        n++;
+    }
+    oam_ptr = o;
+    oam_next = n;
 }
 
 void spr_draw_big(const spr_sheet_t *sheet, uint8_t frame, uint8_t pw, uint8_t ph, int16_t sx, int16_t sy) {

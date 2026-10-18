@@ -58,6 +58,14 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   DMG with PyBoy hooks found the HUD rebuilding its line every frame (~45 of 154 scanlines) and slow sprite
   and light code; all fixed. The test seed changed to one with dark rooms and Eyes, and the bot's recording
   moved to a hook on `input_update` after it drifted by one input.
+- **2026-10-18**: the HUD's status line and the sound effects' scripts moved out of bank 0 (owner's request;
+  GBC bank 0 90% → 84%). Then **Phase 5 done** (Dupe, Halt, Timothy): fifth round of questions and art
+  mock-ups (answers below). Five Dupe rooms with 2–3 doors, the run picking the real one; Dupe's wrong numbers,
+  his full-screen face, numberless fakes; Halt's blue-lit sideways hallway with TURN AROUND and the
+  Minecraft version's spacing sum scaled to the screen; Timothy's spider jumping out of a drawer. Art from the
+  resource pack (Halt 24×32, Timothy 8×8, Dupe's face). The test seed changed to 0x1331 (Dupe rooms, Halt's
+  door) and the bot learned the hallway and the wrong doors. Halt's hallway dropped DMG frames: drawing a
+  sprite was cheapened for every room.
 
 ## Decisions and why
 
@@ -117,6 +125,10 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Screech: 3 s to face him, 40 HP; chance rises the longer you linger; 16×16; full-screen jumpscare on a bite | Owner's choices (2026-10-18). Minecraft numbers otherwise (20 s cooldown, hiding dismisses him) |
 | Eyes: looking = the exact facing direction (±22.5°); 5 HP per 0.25 s after 0.5 s; 5% from room 8 at the room's middle, glowing in the dark | Owner's choices (2026-10-18). Gone when the exit door opens |
 | Screech and Eyes art from the Minecraft resource pack's item textures | Owner (2026-10-18): `F:\Minecraft DOORS Project\_ResourcePack\assets\doors\textures\item\eyes.png` and `screech.png` |
+| Dupe: new 2–3 door rooms; 35% per such room from room 6; on a miss the other doors carry no number and say "IT'S FAKE."; a wrong door is a full-screen jumpscare and 40 HP | Owner's choices (2026-10-18). Minecraft rules otherwise (wrong numbers one below or up to two above; ignores the lock, spends no key; the door then shows a garbled number) |
+| Halt: a sideways, blue-lit hallway (grey on DMG); a flash and big "TURN AROUND" text; 60 HP a hit; 3% per room arms the next door, once a run; about 8 turn-arounds long; only ever a plain door (not locked, not a Dupe room) | Owner's choices (2026-10-18). Minecraft's spacing sum for where each leg starts; a hit puts him back at the leg's start; nothing else runs while he does |
+| Timothy: 1 drawer in 200, once a run; a small spider jumps out of the drawer at you, 10 HP, never lethal; the drawer is empty after | Owner's choices (2026-10-18) |
+| Dupe, Halt and Timothy art from the resource pack's item textures | Owner (2026-10-18): `dupe.png` (the jumpscare), `halt.png`, `timothypet.png` in `F:\Minecraft DOORS Project\_ResourcePack\assets\doors\textures\item\` |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

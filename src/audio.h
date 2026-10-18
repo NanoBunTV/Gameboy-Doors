@@ -32,7 +32,9 @@
 #define SFX_SCREECH_GONE 17 // ... and leaves, looked at
 #define SFX_EYES       18  // Eyes is in the room
 #define SFX_EYES_HIT   19  // Eyes hurts you (about once a second)
-#define SFX_COUNT      20
+#define SFX_HALT       20  // TURN AROUND
+#define SFX_TIMOTHY    21  // the spider's hiss
+#define SFX_COUNT      22
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1
