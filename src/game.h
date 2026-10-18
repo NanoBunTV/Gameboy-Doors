@@ -10,10 +10,14 @@
 #define GAME_PLAYING    1
 #define GAME_TRANSITION 2
 #define GAME_DEAD       3
+// The seed AUTOTEST builds always use (title and Try again). 0x01D9 has dark rooms (15, 17, 21), Eyes in a
+// dark room (17), Ambush (5) and a spawn rolled in a dark room (21) within the recorded 30 rooms.
+#define AUTOTEST_SEED 0x01D9
+
 extern uint8_t game_state;   // for tests (scripts/bot.py reads it)
 extern uint8_t game_death;   // DEATH_* (death.h) once game_state is GAME_DEAD
 
-void game_init(void) BANKED;              // once at boot: sprite sheets
+void game_init(void) BANKED;              // sprite sheets (game_start does it; STAT-safe)
 void game_start(uint16_t seed) BANKED;    // a new run, starting in the reception
 void game_frame(void) BANKED;             // one frame of play (call after vsync + bg_flush)
 

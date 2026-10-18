@@ -14,6 +14,7 @@
 
 extern int16_t cam_x, cam_y;   // top left of the screen in room pixels
 extern uint8_t bg_wy;          // window Y register value, applied in bg_flush()
+extern uint8_t bg_col_n, bg_row_n;   // a column / row is built and waits for the next VBlank (non-zero)
 
 // Draws the whole screen at a camera position. Safe with the LCD on (every write waits for STAT) but
 // takes a frame or two, so do it while the screen is faded to black.
@@ -36,6 +37,10 @@ void bg_queue_tile(uint16_t addr, uint8_t tile, uint8_t attr);
 
 // Queues a redraw of one room metatile from room_map, if it's in the part of the map that's drawn
 void bg_refresh_metatile(uint8_t mx, uint8_t my);
+
+// The same for tiles x0..x1 of tile row y (room tile coordinates, in the room if lit): their room tiles if
+// lit, else black (light.h)
+void bg_refresh_span(int16_t x0, int16_t x1, int16_t y, uint8_t lit);
 
 // VRAM address of a background tile's pixel data (0x8800 addressing, main.c)
 uint16_t bg_tile_addr(uint8_t tile);

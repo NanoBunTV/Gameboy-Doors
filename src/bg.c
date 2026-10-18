@@ -2,6 +2,7 @@
 #include "bg.h"
 #include "room.h"
 #include "platform.h"
+#include "light.h"
 
 #define VIS_COLS 21   // tile columns the screen can show at once (20 + 1 when scrolled mid-tile)
 #define VIS_ROWS 19
@@ -29,14 +30,14 @@ static uint8_t *map_slot(int16_t tx, int16_t ty) {
 
 // --- Single-tile writes: changed metatiles and HUD text. A ring of (address, tile, GBC attribute); each
 // frame that has no column or row to stream, up to VQ_PER_FRAME of them go into bg_vq_buf for VBlank.
-#define VQ_MAX 64           // power of two
+#define VQ_MAX 128          // power of two (a flashlight turning redraws up to ~60 tiles)
 #define VQ_PER_FRAME 20     // fits the DMG's VBlank with GBDK's interrupt (ARCHITECTURE.md)
 static uint16_t vq_addr[VQ_MAX];
 static uint8_t vq_tile[VQ_MAX];
 #ifdef CGB
 static uint8_t vq_attr[VQ_MAX];
 #endif
-static uint8_t vq_head, vq_tail;   // entries vq_tail .. vq_head - 1
+uint8_t vq_head, vq_tail;          // entries vq_tail .. vq_head - 1 (not static: scripts/scroll-test.py)
 uint8_t bg_vq_n;
 uint8_t bg_vq_buf[VQ_PER_FRAME * 3];
 #ifdef CGB
@@ -96,20 +97,53 @@ static void vq_drop_bg(void) {
     vq_head = j;
 }
 
-void bg_refresh_metatile(uint8_t mx, uint8_t my) {
-    int16_t tx = (int16_t)mx << 1, ty = (int16_t)my << 1;
-    uint16_t k = (uint16_t)room_map[(uint16_t)my * room_w + mx] << 2;
-    for (uint8_t j = 0; j < 2; j++)
-        for (uint8_t i = 0; i < 2; i++) {
-            int16_t x = tx + i, y = ty + j;
-            if (x < ld_l || x > ld_r || y < ld_t || y > ld_b)
-                continue;  // not in the map yet; streaming will draw it from room_map
+void bg_refresh_span(int16_t x0, int16_t x1, int16_t y, uint8_t lit) {
+    // Only what's in the map now; streaming draws the rest from room_map (and the light) later
+    if (y < ld_t || y > ld_b)
+        return;
+    if (x0 < ld_l)
+        x0 = ld_l;
+    if (x1 > ld_r)
+        x1 = ld_r;
+    if (x0 > x1)
+        return;
+    // This runs for every tile a moving light changes, inside a busy DMG frame: the queue is written
+    // directly, with byte indexes. Lit tiles are in the room (light_move.c and bg_refresh_metatile clip).
+    uint8_t n = (uint8_t)(x1 - x0) + 1;
+    const uint8_t *row = room_map + room_row[(uint8_t)(y >> 1)];   // lit tiles are in the room
+    uint8_t ysub = ((uint8_t)y & 1) << 1;
+    uint8_t base_hi = (uint8_t)((0x9800u + (((uint16_t)y & 31) << 5)) >> 8);
+    uint8_t base_lo = (uint8_t)(((uint16_t)y & 7) << 5);
+    uint8_t x = (uint8_t)x0;               // wraps like the map's columns do
+    uint8_t tile = LIGHT_DARK_TILE, attr = LIGHT_DARK_ATTR;
+    while (n--) {
+        uint8_t next = (vq_head + 1) & (VQ_MAX - 1);
+        if (next == vq_tail)
+            return;   // full (as bg_queue_tile)
+        if (lit) {
+            uint16_t k = ((uint16_t)row[x >> 1] << 2) + ysub + (x & 1);
+            tile = mt_tiles[k];
 #ifdef CGB
-            bg_queue_tile((uint16_t)map_slot(x, y), mt_tiles[k + (j << 1) + i], mt_attrs[k + (j << 1) + i]);
-#else
-            bg_queue_tile((uint16_t)map_slot(x, y), mt_tiles[k + (j << 1) + i], 0);
+            attr = mt_attrs[k];
 #endif
         }
+        vq_addr[vq_head] = ((uint16_t)base_hi << 8) | (uint8_t)(base_lo | (x & 31));
+        vq_tile[vq_head] = tile;
+#ifdef CGB
+        vq_attr[vq_head] = attr;
+#else
+        (void)attr;
+#endif
+        vq_head = next;
+        x++;
+    }
+}
+
+void bg_refresh_metatile(uint8_t mx, uint8_t my) {
+    uint8_t tx = mx << 1, ty = my << 1;
+    for (uint8_t j = 0; j < 2; j++)
+        for (uint8_t i = 0; i < 2; i++)
+            bg_refresh_span(tx + i, tx + i, ty + j, !light_dark || light_lit8(tx + i, ty + j));
 }
 
 uint16_t bg_tile_addr(uint8_t tile) {
@@ -189,6 +223,12 @@ static void build_column(int16_t tx, int16_t ty, uint8_t count) {
         my++;
         p += room_w;
     }
+    if (light_dark)
+#ifdef CGB
+        light_mask_column(tx, ty, count, bg_col_tiles, bg_col_attrs);
+#else
+        light_mask_column(tx, ty, count, bg_col_tiles, 0);
+#endif
     bg_col_dst = map_slot(tx, ty);
     bg_col_n = count;
 }
@@ -224,6 +264,12 @@ static void build_row(int16_t tx, int16_t ty, uint8_t count) {
         mx++;
         p++;
     }
+    if (light_dark)
+#ifdef CGB
+        light_mask_row(tx, ty, count, bg_row_tiles, bg_row_attrs);
+#else
+        light_mask_row(tx, ty, count, bg_row_tiles, 0);
+#endif
     bg_row_dst = map_slot(tx, ty);
     bg_row_n = count;
 }

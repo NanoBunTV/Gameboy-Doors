@@ -54,8 +54,8 @@ The hotel metatiles:
 |---|---|
 | void, floor, floor_shadow, carpet_l/m/r | `floor_shadow` is the floor row below a wall face |
 | wall_top, wallpaper, wallpaper_shadow, wainscot | The wallpaper is the Minecraft version's wall: `green_terracotta.png` from `F:\Minecraft DOORS Project\_ResourcePack\assets\minecraft\textures\block\` (owner's request, 2026-10-17), a lighter olive diamond on darker olive |
-| door_top, door_bottom, door_bottom_locked, door_open_top, door_open_bottom | A door in the top wall: 1 wide, 2 tall (wallpaper row + wainscot row). **door_top's brass plate (x 2–13, y 3–9) must stay blank**: the game draws the door number into it (digits at x 3, 7, 11, y 4–8, in colour 3) |
-| side_door_top, side_door_bottom, side_door_bottom_locked, side_open_top, side_open_bottom | A door in the left or right wall, seen from above (symmetric, so one set serves both walls). side_door_top carries the number plate like door_top |
+| door_top, door_bottom, door_bottom_locked, door_open_top, door_open_bottom | A door in the top wall: 1 wide, 2 tall (wallpaper row + wainscot row). Layout (owner, 2026-10-18): a dark header (rows 0–8 of door_top) with the number, then a whole door (frame, panel, knob at rows 20–21 of the door's 32). **The number area (x 2–12, y 2–6 of the top half) is painted over by the game**: brass digits (the palette's lightest colour) on the dark (its darkest); the art shows "000" there. It must stay within the top 8 pixel rows. door_open_top keeps the header (the number shows over an open doorway) |
+| side_door_top, side_door_bottom, side_door_bottom_locked, side_open_top, side_open_bottom | A door in the left or right wall, seen from above (symmetric, so one set serves both walls). The shut ones are drawn like the top-wall door; side_open_* is floor |
 | doorway_s | An open doorway in the bottom wall (entries only) |
 | closet_top, closet_bottom, dresser, dresser_open, table, desk_l/m/r | Furniture. dresser_open is a dresser after its drawer was searched |
 | bed_top, bed_bottom | A bed, headboard and pillow above the blanket (Phase 3; metatiles 29 and 30) |
@@ -138,7 +138,11 @@ Sheets: `player` (`down_idle`, `down_a`, `down_b`, `up_idle`, `up_a`, `up_b`, `l
 `rush` and `ambush` (32×32, frames `f0` and `f1`, alternated every 4 frames: the second is the first with
 its smoky edge jittered). Rush and Ambush were pixelated (2026-10-17) from the DOORS wiki pictures the owner
 pointed to (`static.wikitide.net/doorswiki/3/36/Rushvnew.webp`, `.../1/1a/Ambush_sprite.png`): Rush black
-smoke with a grey face and white teeth, Ambush green and white. The art is LSPLASH's.
+smoke with a grey face and white teeth, Ambush green and white. `eyes` (32×32, `f0`/`f1`, the aura jittered)
+was reduced from the Minecraft resource pack's `assets/doors/textures/item/eyes.png` (owner's choice,
+2026-10-18): white eyes edged in magenta on a dark purple aura. `screech` (16×16, `f0`/`f1`, the tentacles
+moved) is drawn by hand after the pack's `screech.png`, because a straight reduction was a black blob: black
+body (invisible in the dark, as it should be), white eyes, a white-and-pink grin. The art is LSPLASH's.
 
 ## Font (`assets/fonts/`)
 
@@ -157,9 +161,10 @@ colours with a 1 px outline. The logo is LSPLASH's; this is a fan project.
 
 ## Jumpscares (`assets/scares/`)
 
-`scare_rush` and `scare_ambush` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2× (each art pixel is
-2×2) in 4 shades, from the same wiki pictures as the sprites. Same rules as the title picture: 4 colours per
-8×8 tile on GBC and at most 184 different tiles (Rush uses 115, Ambush 171), since they're loaded over the
+`scare_rush`, `scare_ambush` and `scare_screech` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2×
+(each art pixel is 2×2) in 4 shades, from the same pictures as the sprites. Same rules as the title picture:
+4 colours per 8×8 tile on GBC and at most 184 different tiles (Rush uses 115, Ambush 171, Screech 155: his
+first version had 188, from speckle in the dark outline, and was simplified), since they're loaded over the
 tileset while shown.
 
 ## Music (`assets/music/`)
@@ -172,10 +177,10 @@ rebuild. The build converts each with `uge2source` into `music_<name>`. Songs mu
 |---|---|---|
 | `title.uge` | Title screen | The owner's `midi/Lobby Theme (Title Screen).mid`, arranged by hand: CH1 the Scifi lead, CH2 the jazz guitar stabs (and before they start, the cello chords) as arpeggios, CH3 the cello's bass notes, CH4 the drums. 72 bpm: rows alternate 13 and 12 ticks (F0D/F0C on CH4) |
 | `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
-| `hotel.uge` | In the hotel | Claude's: a low drone that drifts and a far-off two-note figure now and then. DOORS has almost no music in rooms |
 
-In all of them a row is a 16th note and a pattern is 4 bars. **Keep CH1, CH2 and CH4 light in the hotel
-song**: sound effects borrow them (CH4 for the whole of a Rush or Ambush pass). The other MIDI files (Elevator
+In both a row is a 16th note and a pattern is 4 bars. The rooms have no music: the hotel ambience
+(`hotel.uge`) was removed at the owner's request (2026-10-18). Sound effects borrow CH1, CH2 and CH4 (CH4 for
+the whole of a Rush or Ambush pass), so any song that plays during a run must leave them light. The other MIDI files (Elevator
 Jam, Jeff's Shop Jingle, Here I Come, Ending Theme) are for later phases and get arranged when those come.
 
 Sound effects aren't files: they're register scripts in `src/audio.c` (`s_door`, `s_flicker`, …), one table

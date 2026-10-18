@@ -1,14 +1,14 @@
 # Architecture
 
-As of Phase 3 (2026-10-18): the engine core (Phase 1), runs of generated rooms with doors, drawers and keys
-(Phase 2), and hiding, Rush, Ambush, Hide, health, death and the Guiding Light, music and sound effects
-(Phase 3). Sections marked **planned** aren't built yet.
+As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms with doors, drawers and keys
+(Phase 2), hiding, Rush, Ambush, Hide, health, death and the Guiding Light, music and sound effects
+(Phase 3), and dark rooms, Screech and Eyes (Phase 4). Sections marked **planned** aren't built yet.
 
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `Makefile`, `build.ps1` | Build both ROMs: `build/gbc/doors.gbc` and `build/dmg/doors.gb`, plus the AUTOTEST variants (BUILDING.md) |
+| `Makefile`, `build.ps1` | Build both ROMs: `build/gbc/doors.gbc` and `build/dmg/doors.gb`, plus the AUTOTEST and DEBUG variants (BUILDING.md) |
 | `src/` | Game code in C, shared by both targets (module table below) |
 | `src/platform/` | Code that differs per target: `cgb/` (double speed, palettes), `dmg/` (BGP/OBP palettes) |
 | `assets/tilesets/` | Tiled tilesets (`.tsx`) of 16×16 metatiles, each with a `.gbc.png` and a `.dmg.png` (ASSETS.md) |
@@ -19,7 +19,7 @@ As of Phase 3 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `scripts/` | `assets.py` (asset converter), `check-rom.py`, `bgb-check.ps1`, `run-test.py`, `scroll-test.py`, `vblank-budget.py`, `bot.py`, `record-run.ps1` (DEBUGGING.md) |
 | `tests/` | `autotest_input.c`: the recorded run AUTOTEST builds replay (written by `bot.py`) |
 | `tools/` | Downloaded tools, not in git (`tools/README.md`) |
-| `build/` | Output, not in git: `gen/` (generated C from assets), `gbc/`, `dmg/`, `gbc-autotest/`, `dmg-autotest/` (ROM, `.sym`, `.map`, `obj/`), `screens/`, `preview/` |
+| `build/` | Output, not in git: `gen/` (generated C from assets), `gbc/`, `dmg/`, `gbc-autotest/`, `dmg-autotest/`, `gbc-debug/`, `dmg-debug/` (ROM, `.sym`, `.map`, `obj/`), `screens/`, `preview/` |
 
 ### Source modules
 
@@ -27,11 +27,14 @@ As of Phase 3 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 |---|---|
 | `main.c` | Startup (LCDC setup, sound), title → run → death screen → run or title |
 | `title.c/.h` | *Banked.* The title screen (logo, blinking PRESS START, the Lobby Theme) and the run's seed |
-| `game.c/.h` | *Banked.* Playing a run: entering rooms (fades, placing the player at the door), door states and number plates, drawers, keys, pressing A, walking through doors, the camera, the light level |
-| `run.c/.h` | *Banked.* The run: seed, per-room random generator, which template each room uses, locks and key places, spawn rolls, what's been opened, health, Hide's bans |
+| `game.c/.h` | *Banked.* Playing a run: entering rooms (fades, placing the player at the door), door states and numbers, drawers, keys, pressing A, walking through doors, the camera, the light level, the player's light, Screech's bite |
+| `run.c/.h` | *Banked.* The run: seed, per-room random generator, which template each room uses, locks and key places, spawn, dark-room and Eyes rolls, what's been opened, health, Hide's bans |
 | `entity.c/.h` | *Banked.* Rush and Ambush: the spawn queue, the route, the flicker, the rumble, the kill test |
 | `hide.c/.h` | *Banked.* Closets and beds, and Hide's timer, heartbeat and eviction |
-| `death.c/.h` | *Banked.* The jumpscare, the Guiding Light (typed hint, Try again / Title) |
+| `screech.c/.h` | *Banked.* Screech: the roll in dark rooms, where he waits, the look, the bite |
+| `eyes.c/.h` | *Banked.* Eyes: where he hangs, his glow, the looking test and the drain |
+| `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
+| `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player |
 | `image.c/.h` | Full-screen pictures (logo, jumpscares) and clearing the screen, STAT-safe |
 | `assets.h` | The data types the generated asset files use: `tileset_t`, `room_def_t`, `room_obj_t`, `sprite_sheet_t`, `font_t`, `image_t`; `TILESET_*`, `OBJ_*`, `WALL_*` |
@@ -39,7 +42,7 @@ As of Phase 3 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `bg.c/.h` | Camera and background streaming (below); the single-tile write queue; STAT-safe VRAM copy; VRAM writes in inline assembly |
 | `hud.c/.h` | The font, the on-demand HUD on the window layer, messages, text printing |
 | `sprites.c/.h` | Sprite sheets in VRAM, drawing 16×16 frames as two 8×16 hardware sprites (bigger frames as several), the per-frame shadow OAM allocator |
-| `player.c/.h` | 8-direction walking, collision, corner nudging, facing (8 directions), walk animation |
+| `player.c/.h` | *Banked.* 8-direction walking, collision, corner nudging, facing (8 directions), walk animation |
 | `input.c/.h` | Joypad held/pressed; in AUTOTEST builds the recorded run instead of the joypad |
 | `platform.h`, `platform/*/` | Per-console setup, palettes (kept in WRAM, written in VBlank), the fade to black, dimming and Ambush's green tint |
 
@@ -55,7 +58,7 @@ One source tree, two builds selected by a define (`-DCGB` / `-DDMG`, set by the 
 | VRAM | 2 banks: more tiles, per-tile attributes (palette, flip, priority) | 1 bank |
 | Palettes | 8 background + 8 sprite palettes of 4 colours | BGP, OBP0, OBP1 (4 shades) |
 | Art | `<name>.gbc.png` (colour) | `<name>.dmg.png` (greys), drawn separately (owner's decision) |
-| Effects | Flicker and hiding dim the room palettes (not the sprites or the HUD); Ambush tints them green. **Planned**: palette-based darkness | Flicker and hiding shift BGP darker (the HUD dims too: one BG palette); no tint. **Planned**: tile-based darkness |
+| Effects | Flicker and hiding dim the room palettes (not the sprites or the HUD); Ambush tints them green. Darkness: unlit tiles are the font's black space (palette 7) | Flicker and hiding shift BGP darker (the HUD dims too: one BG palette); no tint. Darkness: the same tiles as GBC |
 
 `#ifdef CGB` appears in `src/platform/`, the generated asset files, and where GBC attributes or palettes are
 written (`room.c`, `bg.c`, `sprites.c`). Game logic is the same. The DMG build is the performance floor:
@@ -65,15 +68,15 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming, player, input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`). **84% full on GBC, 75% on DMG** as of Phase 3 |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 64 KB. Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
-| VRAM 0x8000–0x87FF | Sprite tiles 0–127: player 0–35, key 36–39, then Rush and Ambush (`entity_load`) |
-| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door-number plates 184–191** (2 tiles each, made at runtime), **font 192–255**. Sprite tiles 128–255 would overlap this, so sprites stay below 128 |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`). **90% full on GBC, 79% on DMG** as of Phase 4 |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `light_move`, `light_shapes`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 64 KB. Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| VRAM 0x8000–0x8FFF | Sprite tiles: player 0–35, key 36–39, Rush 40–71, Ambush 72–103 (`entity_load`), Eyes 104–133, Screech 134–141. Tiles 128 and up are the same memory as background tiles 128 and up, which a jumpscare picture of more than 128 tiles overwrites, so `game_start` (and the room after Screech's bite) reloads every sheet (`game_init`, STAT-safe). Sprites must stay below 184 (the door numbers and the font) |
+| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime; only the first pair is used), **font 192–255** (its space, all black, is darkness's tile) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
 | VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text). GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
-| GBC sprite palettes | 0 player, 1 key, 2 Rush, 3 Ambush |
-| WRAM | Room map (`room_map`, up to 3,072 metatiles) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~600 bytes for 101 rooms), the GBC's cached dim levels (448 bytes), hUGEDriver's variables, the tile write queue, frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~4.9 of 8 KB |
+| GBC sprite palettes | 0 player, 1 key, 2 Rush, 3 Ambush, 4 Eyes, 5 Screech |
+| WRAM | Room map (`room_map`, up to 3,072 metatiles; `room_row`, each row's offset) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.2 of 8 KB; on GBC, WRAM bank 1 has ~390 bytes left (STATUS.md) |
 | SRAM | **Planned**: the save |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
@@ -96,16 +99,21 @@ when the save is built).
 3. Input. Hidden: A or B leaves, Hide's timer runs. Otherwise: player movement and collision; walking into
    an open door's doorway starts a room transition (below) and ends the frame, unless Rush or Ambush is
    out; A uses whatever is in front of the player.
-4. Rush / Ambush move (`entity_update`). Hide or Rush / Ambush can end the run here (`GAME_DEAD`).
+4. Rush / Ambush move (`entity_update`), Eyes looks (`eyes_update`), Screech waits (`screech_update`). Hide,
+   Rush / Ambush, Eyes or Screech can end the run here (`GAME_DEAD`); Screech's bite when you live shows his
+   face and redraws the room (`screech_bite`).
 5. The light level: the larger of hiding's darkness and the flicker (`platform_set_dim`).
-6. HUD: timers, slide, queue changed text.
+6. HUD: timers, slide, queue changed text (the status line is rebuilt only when what it shows changes).
 7. Camera: target = player centre minus half the screen, clamped to the room; moved at most 4 px per axis
    per frame. `bg_set_camera()` builds the next column or row, or a batch of queued single tiles.
-8. Sprites: `spr_begin()`, draw calls into shadow OAM, `spr_end()` hides entries left over from last frame.
-9. `audio_frame()`: a music tick and the sound effects' next steps. After the VBlank work on purpose:
+8. The player's light (`light_set`) and a few rows of the redraw it needs (`light_step`), **only on frames
+   that didn't build a column or row**: the player crosses a tile edge on the same frame as the centred
+   camera, and both together overran DMG frames.
+9. Sprites: `spr_begin()`, draw calls into shadow OAM, `spr_end()` hides entries left over from last frame.
+10. `audio_frame()`: a music tick and the sound effects' next steps. After the VBlank work on purpose:
    hUGEDriver takes a few scanlines and the DMG has two to spare.
 
-Loops outside play (the title, fades, the death screen) use `game_wait_frames()`, which does steps 1–2 and 9
+Loops outside play (the title, fades, the death screen) use `game_wait_frames()`, which does steps 1–2 and 10
 and lets queued single-tile writes through (`bg_idle()`). `main()` runs title → run → `death_run()` → a new
 run (Try again) or the title.
 
@@ -141,15 +149,42 @@ palettes every few frames. So `platform_vblank()` reports when it uploaded, `bg_
 writes for the next frame, and `bg_set_camera()` builds nothing new while last frame's writes are still
 waiting. The one-tile margin covers the delay. Now 6 of 10 lines on GBC.
 
-**Single-tile writes** (`bg_queue_tile`): a ring of 64 (address, tile, GBC attribute) entries for things that
-change in place: a metatile changing on screen (`room_set_metatile` → `bg_refresh_metatile`, which only
-queues the tiles inside the loaded region; the rest is drawn from `room_map` when it streams in) and HUD
-text. A frame writes **either** a column/row **or** up to 20 queued tiles, never both, to stay inside the DMG's
+**Single-tile writes** (`bg_queue_tile`, `bg_refresh_span`): a ring of 128 (address, tile, GBC attribute)
+entries for things that change in place: a metatile changing on screen (`room_set_metatile` →
+`bg_refresh_metatile`, which only queues the tiles inside the loaded region; the rest is drawn from
+`room_map` when it streams in), tiles a moving light lights or darkens, and HUD text. A frame writes **either** a column/row **or** up to 20 queued tiles, never both, to stay inside the DMG's
 VBlank: queued tiles go first unless a visible column/row is missing. `bg_draw_full` drops queued writes to
 the background map (they'd paint the old room) but keeps the window's.
 
 `scripts/scroll-test.py` checks every background pixel against a reference picture of the room built from the
-game's own map, while the AUTOTEST build plays its recorded run (DEBUGGING.md).
+game's own map (and, in dark rooms, its light state), while the AUTOTEST build plays its recorded run
+(DEBUGGING.md).
+
+## Darkness (`light.c`, `light_move.c`, `light_shapes.c`)
+
+A dark room (owner, 2026-10-18) is black except the tiles a light reaches: an unlit tile is drawn as the
+font's space (all black; GBC palette 7, which dimming never touches). It's the same on both consoles, so
+darkness costs map writes, not palettes.
+
+- **Sources**: two, each a shape at a tile. The player's: the **glow** (a rounded 5×5 tiles) until items
+  exist; in DEBUG and AUTOTEST builds B cycles to the **lighter** (radius 3) and the **flashlight** (a cone
+  7.5 tiles long, 1 wide at the player and 5 at the end, in the facing direction, plus the glow). Eyes':
+  the lighter's shape at his middle.
+- **Shapes** (`light_shapes.c`, at boot): for each of 10 shapes (glow, lighter, 8 flashlight directions),
+  rows -8..8 around the source, each one span of columns, plus the first and last row with anything.
+- **Streaming**: every column or row `bg.c` builds in a dark room is masked (`light_mask_column`,
+  `light_mask_row`): per source, the rows or span that fall in it, then a byte loop blacks out the rest.
+  Nothing outside the room is ever lit.
+- **Moving a light** (`light_set`): records the shape and place before the move; `light_step` then redraws
+  what changed, 4 rows per frame, row by row as intervals: what the new shape adds is lit, what the old one
+  loses goes dark unless the other source lights it. Nothing per tile asks what's lit.
+- **Cost** (measured on DMG with PyBoy hooks, DEBUGGING.md): SDCC's 16-bit code is slow on the SM83, so the
+  per-row and per-tile work is 8-bit, in room tile coordinates (rooms are at most 127 metatiles a side). The
+  first version took ~140 scanlines to move the glow one tile; now a dark room drops no more frames than a lit
+  one, except with the debug flashlight and Eyes together (STATUS.md).
+- **Rooms**: `run_plan` rolls darkness for rooms 15 and up (10%, after every earlier roll). Rush and Ambush
+  never fire into a dark room (the spawn waits, as for a room with no hiding spot). The lights-out sound plays
+  when a dark room follows a lit one, not again for a run of dark rooms.
 
 ## Rooms, doors and the run (`run.c`, `game.c`)
 
@@ -168,9 +203,12 @@ next (or previous) room and fades in.
 - **State** per room (`run_flags`, `run_drawers`, `run_key_slot`, `run_template`; 101 rooms): exit opened,
   key taken, drawers searched. Loading a room puts that state into the fresh map (`apply_room_state`), so
   going back finds it as left. The player carries at most one key (`run_key_door`).
-- **Doors** are swapped between metatile sets by state (open / closed / locked, per wall). A closed door's top
-  metatile is a **runtime metatile** (120+): `room_make_plate` copies the door's plate tiles from ROM, draws
-  the number with a 3×5 digit font, and writes them to BG tiles 184+.
+- **Doors** are swapped between metatile sets by state (open / closed / locked, per wall). A door's top
+  metatile (front doors open or shut, side doors shut) is a **runtime metatile** (120): `room_make_plate`
+  copies its top two tiles from ROM, paints the number over the art's "000" in brass on the dark header
+  (3×5 digits at x 2/6/10, y 2–6), and writes them to BG tiles 184–185. Only those two tiles are copied, so
+  the digits must end above pixel row 8 (a compile-time check; until 2026-10-18 their bottom row ran past
+  the buffer, which was the "cut-off" digit).
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
   through the exit, just inside that. The doorway cells are the trigger, so arriving never re-triggers.
 - **Using things** (A): the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
@@ -192,18 +230,39 @@ Numbers come from the Minecraft config (`entities`, `rush`, `ambush`, `hide`), o
 - **Route**: each template's route is the straight line from its entry door's centre to its exit door's
   centre (the reception: spawn to exit), written by `assets.py` with its length. The entity's position is a
   room number and a distance along that room's route, so he exists in rooms the player isn't in; he's drawn
-  only in this one, placed by interpolating between the two door centres.
+  only in this one, placed by interpolating between the two door centres: exactly (two 32-bit divisions)
+  when he's first placed in the player's room, then by adding his step times the route's slope each frame.
+  Dividing every frame cost ~100 of the DMG's 154 scanlines.
 - **A pass**: fired → 45 frames → the flicker (Rush 2 s with an electric buzz; Ambush 4 s, green on GBC, with
   his howl) → he starts 1,000 px of route behind this room's entry door and travels to the far door (the
   furthest room reached's exit): Rush at 5.33 px/frame, Ambush 8.53. Rush vanishes there. Ambush turns, goes
   back to where he started, waits 5 s and comes again: 3–5 legs in all (from the seed), so he leaves at the
   far door or the rear. While either is out, no door opens or lets you through.
 - **Kill test**: same room, player not hidden, within 96 px (Rush) / 128 px (Ambush) of him, through walls.
+- **Dark rooms**: never fired into (Darkness, above).
 - **Rumble**: continuous CH4 noise whose volume follows his distance along the route, from 768 px.
 - **Hiding**: A at a closet or bed hides (the player sprite goes, the room dims to level 2); A or B leaves.
   Hide: from 7 s a heartbeat that speeds up (with a darker pulse on each beat, the warning without sound),
   at 12 s out with 40 HP gone, that spot banned for the run (`run_banned`, a bit per spot). Damage at 40 HP or
   less kills (Hide's Guiding Light).
+
+## Screech and Eyes (`screech.c`, `eyes.c`)
+
+The owner's numbers (2026-10-18) on top of the Minecraft config (`screech`, `eyes`); DESIGN.md has the rules.
+
+- **Screech**: in a dark room, not hidden, off cooldown, every 15 frames a 5/256 roll (the Minecraft
+  version's per-tick chance for "45% of dark rooms, for someone spending 8 s in one"). He waits 32 px from the
+  player in a direction 90–270° from where they face, picked so he's on screen (the camera stops at room
+  edges), and follows the player. Facing his direction for 18 frames in a row sends him away (a squeak, a
+  40-frame shudder); 180 frames without that, he bites: 40 HP, his face full screen (`death_jumpscare`), then
+  the room reloaded and redrawn as it was (`screech_bite`), or the Guiding Light if those were the last 40.
+  Hiding sends him away silently. A 20 s cooldown follows any of these. His random numbers come from a
+  generator seeded from the run, so a recorded run replays.
+- **Eyes**: `run_plan` rolls rooms 8 and up (5%), independently of everything else. He hangs at the middle of
+  the room's route (between the two door centres) and lights a lighter-sized area. **Looking** = facing
+  exactly the one of 8 directions he's in (`octant()`, 22.5° either side; the owner's narrow cone), or
+  standing under him. After 30 frames of looking, 5 HP every 15 frames, with the hit sound on every 4th hit.
+  Hidden, no damage. Opening the room's exit door dismisses him for good (`RF2_EYES_GONE`).
 
 ## Fades, dimming and palettes (`platform/*`)
 
@@ -225,7 +284,8 @@ The window layer at 0x9C00, 2 rows: a border line and 20 characters of text, sli
 WY 144 to 128 while shown. It shows the status line (`DOOR 012`, a heart and an 8-tile health bar in 2 px
 steps from font glyphs, the key icon) on entering a room, when health changes and while Select is held, or a
 centred message ("IT'S LOCKED.", "GOT KEY FOR DOOR 012", "GET OUT!"). Changed characters
-go through the single-tile queue. On GBC the window's attributes are all palette 7 (the font's).
+go through the single-tile queue. The status line is rebuilt only when the room, health or key changes:
+building it every frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines. On GBC the window's attributes are all palette 7 (the font's).
 
 ## Title and death screen (`title.c`, `death.c`, `image.c`)
 
@@ -234,14 +294,15 @@ which then calls `room_forget_tileset()` so the next room reloads the tileset (S
 At boot the LCD is still off; coming back from a run the title is drawn behind a fade to black instead,
 because turning the LCD off would flash white on a DMG.
 
-`death_run()`: Rush or Ambush → the screen goes black, the jumpscare image loads behind it, then shows at
-once with a scream and 60 frames of screen shake, and fades out. Hide → straight to the fade. Then the
+`death_run()`: Rush, Ambush or Screech → the screen goes black, the jumpscare image loads behind it, then
+shows at once with a scream and 60 frames of screen shake, and fades out (`death_jumpscare`). Hide and Eyes
+→ straight to the fade. Then the
 Guiding Light: the screen cleared to the font's space, GBC palette 7 made blue, the Guiding Light song, the
 hint typed a character every 3 frames (A or Start shows the rest), then Try again / Title. Try again seeds
 the new run from the time spent on that screen, like the title. The run's
 seed is the number of frames the title was shown XOR the divider register when Start is pressed: a Game Boy
 powers on identically every time, so a person's timing is the only randomness. AUTOTEST builds use the
-fixed seed `0xC0DE`.
+fixed seed `AUTOTEST_SEED` (`game.h`: 0x01D9, which has dark rooms, Eyes and Ambush in its first 30 rooms).
 
 ## Sprites (`sprites.c`)
 
@@ -249,12 +310,14 @@ fixed seed `0xC0DE`.
 frame mirrored (`SPR_FLIPX`: the columns swap and both get the X-flip bit). Each sheet's frame table (tile
 and attribute per column, `0xFF` = empty column) is copied to WRAM on load, so drawing needs no bank switch.
 GBC: attribute bits 0–2 are the palette, offset by the sheet's base palette. DMG: bit 4 picks OBP0 or OBP1.
+Entries are written through a byte pointer after one unsigned range check per axis: indexing the OAM structs
+with 16-bit range checks cost ~9 DMG scanlines a hardware sprite.
 
-Frames bigger than 16×16 (Rush and Ambush, 32×32) are stored as 16×16 parts, left to right, top to bottom,
+Frames bigger than 16×16 (Rush, Ambush and Eyes, 32×32) are stored as 16×16 parts, left to right, top to bottom,
 and drawn with `spr_draw_big()`: 8 hardware sprites, 4 on a line, 6 with the player. Planned: when more
 than 10 would share a line (Figure, Seek), sprites will be cycled between frames in a fixed order.
 
-## Player (`player.c`)
+## Player (`player.c`, banked)
 
 - Position in pixels plus an 8-bit subpixel per axis. Speed 1.25 px/frame (75 px/s, about 4.7 metatiles a
   second); diagonals 0.883 px/frame per axis, so the speed is the same in all 8 directions.
@@ -300,7 +363,10 @@ Rules for the art are in ASSETS.md; the converter stops with an error naming the
 
 hUGEDriver 6.1.3 (the release's prebuilt GBDK library) plays one song: `music_play()` calls `hUGE_init` with
 the song's bank switched in, `audio_frame()` calls `hUGE_dosound` once a frame the same way. Songs: the
-Lobby Theme on the title, a quiet ambience in the hotel, the Guiding Light on the death screen.
+Lobby Theme on the title, the Guiding Light on the death screen. The rooms have no music (the owner took
+the ambience out, 2026-10-18). Starting a song, or silence, first silences what the music left sounding (a
+held note rings on once `hUGE_dosound` stops being called), except channels a sound effect is using; Start
+on the title stops the Lobby Theme before the menu blip.
 
 Sound effects are tables of steps (frames, then the channel's registers) on CH1, CH2 or CH4. Starting one
 "mutes" that channel in hUGEDriver (it stops writing it); when it ends the channel is silenced and given back.

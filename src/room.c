@@ -8,6 +8,7 @@
 uint8_t room_w, room_h;
 uint16_t room_px_w, room_px_h;
 uint8_t room_map[ROOM_MAX];
+uint16_t room_row[ROOM_SIDE_MAX];   // offset of each metatile row in room_map (no multiply per lookup)
 uint16_t room_spawn_x, room_spawn_y;
 uint8_t room_obj_count;
 room_obj_t room_objs[ROOM_OBJ_MAX];
@@ -60,6 +61,9 @@ void room_load(uint8_t bank, const room_def_t *def) {
     memcpy(room_objs, def->objects, room_obj_count * sizeof(room_obj_t));
     room_px_w = (uint16_t)room_w << 4;
     room_px_h = (uint16_t)room_h << 4;
+    uint16_t o = 0;
+    for (uint8_t y = 0; y < room_h; y++, o += room_w)
+        room_row[y] = o;
     if (tileset != loaded_tileset)
         tileset_load(tileset);
     SWITCH_ROM(saved);
@@ -68,11 +72,11 @@ void room_load(uint8_t bank, const room_def_t *def) {
 uint8_t room_metatile(int16_t mx, int16_t my) {
     if ((uint16_t)mx >= room_w || (uint16_t)my >= room_h)  // negative values wrap to large ones
         return 0;
-    return room_map[(uint16_t)my * room_w + (uint16_t)mx];
+    return room_map[room_row[(uint8_t)my] + (uint8_t)mx];
 }
 
 void room_set_metatile(uint8_t mx, uint8_t my, uint8_t mt) {
-    room_map[(uint16_t)my * room_w + mx] = mt;
+    room_map[room_row[my] + mx] = mt;
     bg_refresh_metatile(mx, my);
 }
 
@@ -88,8 +92,18 @@ static const uint8_t plate_digits[10][5] = {
     { 7, 4, 7, 1, 7 }, { 7, 4, 7, 5, 7 }, { 7, 1, 1, 2, 2 }, { 7, 5, 7, 5, 7 }, { 7, 5, 7, 1, 7 },
 };
 
-// Plate geometry, matching the door art (ASSETS.md): digits at x 3, 7, 11 and y 4-8 in the metatile
-#define PLATE_DIGIT_Y 4
+// Number geometry, matching the door art (ASSETS.md): brass digits on the dark header over the door, at x 2,
+// 6, 10 and y 2-6 in the metatile. Colours are palette indices (light to dark, the same on both consoles):
+// the art's placeholder "000" is painted over with the dark first.
+#define PLATE_DIGIT_X 2
+#define PLATE_DIGIT_Y 2
+// Only the metatile's top two tiles are copied (buf), so the digits must end above pixel row 8. (Until
+// 2026-10-18 they ran to row 8: each digit's bottom row went past buf instead of onto the door.)
+#if PLATE_DIGIT_Y + 5 > 8
+#error "door digits must fit in the top 8 pixel rows"
+#endif
+#define PLATE_BRASS 0
+#define PLATE_BACK 3
 
 static void set_pixel(uint8_t *two_tiles, uint8_t x, uint8_t y, uint8_t colour) {
     uint8_t *row = two_tiles + (x >> 3) * 16 + y * 2;  // left tile, then right tile
@@ -114,11 +128,10 @@ uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number) {
     uint8_t digits[3] = { number / 100, (number / 10) % 10, number % 10 };
     for (uint8_t d = 0; d < 3; d++) {
         const uint8_t *g = plate_digits[digits[d]];
-        uint8_t x0 = 3 + d * 4;
+        uint8_t x0 = PLATE_DIGIT_X + d * 4;
         for (uint8_t y = 0; y < 5; y++)
             for (uint8_t x = 0; x < 3; x++)
-                if (g[y] & (4 >> x))
-                    set_pixel(buf, x0 + x, PLATE_DIGIT_Y + y, 3);
+                set_pixel(buf, x0 + x, PLATE_DIGIT_Y + y, (g[y] & (4 >> x)) ? PLATE_BRASS : PLATE_BACK);
     }
     vram_write(bg_tile_addr(tile), buf, 32);
 

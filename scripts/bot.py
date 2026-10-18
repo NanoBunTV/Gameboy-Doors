@@ -18,6 +18,7 @@ same input frame (the game is deterministic in its input).
 import argparse
 import sys
 from collections import deque
+import heapq
 from pathlib import Path
 
 from pyboy import PyBoy
@@ -27,9 +28,28 @@ ROOT = Path(__file__).resolve().parent.parent
 J = {"right": 0x01, "left": 0x02, "up": 0x04, "down": 0x08, "a": 0x10, "b": 0x20, "select": 0x40, "start": 0x80}
 OBJ_ENTRY, OBJ_EXIT, OBJ_DRAWER, OBJ_KEYSPOT, OBJ_CLOSET, OBJ_BED = 1, 2, 3, 4, 6, 7
 RF_LOCKED, RF_KEY_DRAWER, RF_KEY_TAKEN, RF_EXIT_OPEN, RF_FINAL, RF_KEY_FIXED = 1, 2, 4, 8, 16, 32
+RF2_DARK, RF2_EYES = 1, 2
 GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD = 0, 1, 2, 3
 ENT_IDLE, ENT_WAIT, ENT_WARN, ENT_MOVE, ENT_PAUSE = 0, 1, 2, 3, 4
 REHIDE_AFTER = 540   # frames hidden before stepping out and back in (Hide throws you out at 720)
+
+
+# player.h DIR_* (clockwise from down) as button masks, and a 4-way step's DIR_*
+DIR_MASK = [0x08, 0x0A, 0x02, 0x06, 0x04, 0x05, 0x01, 0x09]
+STEP_DIR = {(0, 1): 0, (-1, 0): 2, (0, -1): 4, (1, 0): 6}
+EYES_PENALTY = 8     # a step toward Eyes costs as much as this many steps (scripts/bot.py routes round him)
+
+
+def octant(dx, dy):
+    """src/eyes.c's octant(): which DIR_* a vector points in"""
+    ax, ay = abs(dx), abs(dy)
+    if ay * 5 < ax * 2:
+        return 6 if dx > 0 else 2
+    if ax * 5 < ay * 2:
+        return 0 if dy > 0 else 4
+    if dx > 0:
+        return 7 if dy > 0 else 5
+    return 1 if dy > 0 else 3
 
 
 class Danger(Exception):
@@ -52,6 +72,10 @@ class Game:
         self.held = 0
         self.record = []      # buttons per input_update() call
         self.frames = 0
+        # Recorded at the moment the game reads the joypad (a hook on input_update), not by comparing
+        # input_frame between ticks: a frame boundary can fall between the read and the count, which put
+        # the recording one input out (found 2026-10-18)
+        self.pyboy.hook_register(0, self.syms["_input_update"], lambda _: self.record.append(self.held), None)
 
     def u8(self, name, off=0):
         return self.mem[self.syms[name] + off]
@@ -74,11 +98,8 @@ class Game:
     def tick(self, mask=0, render=False):
         """One frame with these buttons held. Records them for each input_update() call it caused."""
         self.set_buttons(mask)
-        before = self.u16("_input_frame")
         self.pyboy.tick(1, render)
         self.frames += 1
-        after = self.u16("_input_frame")
-        self.record += [mask] * ((after - before) & 0xFFFF)
 
     # --- state
     def state(self):
@@ -138,6 +159,35 @@ def bfs(solid, w, h, start, goals):
     return None
 
 
+def cheapest(solid, w, h, start, goal, eyes):
+    """Like bfs, but a step that walks toward Eyes (eyes = his middle in px, or None) costs EYES_PENALTY:
+    facing him hurts, so the bot goes round instead of straight at him"""
+    if eyes is None:
+        return bfs(solid, w, h, start, {goal})
+    dist, prev = {start: 0}, {start: None}
+    q = [(0, start)]
+    while q:
+        d, c = heapq.heappop(q)
+        if c == goal:
+            path = []
+            while c is not None:
+                path.append(c)
+                c = prev[c]
+            return path[::-1]
+        if d > dist[c]:
+            continue
+        for (dx, dy) in DIRS:
+            n = (c[0] + dx, c[1] + dy)
+            if not (0 <= n[0] < w and 0 <= n[1] < h) or solid[n[1]][n[0]]:
+                continue
+            toward = octant(eyes[0] - (n[0] * 16 + 8), eyes[1] - (n[1] * 16 + 8 - 4)) == STEP_DIR[(dx, dy)]
+            nd = d + (EYES_PENALTY if toward else 1)
+            if nd < dist.get(n, 1 << 30):
+                dist[n], prev[n] = nd, c
+                heapq.heappush(q, (nd, n))
+    return None
+
+
 class Bot:
     def __init__(self, game: Game, verbose=False):
         self.g = game
@@ -145,13 +195,31 @@ class Bot:
         self.backtrack_done = False
         self.hides = 0
         self.entity_shots = False
+        self.lit_rooms = set()
+        self.door_shots = None   # filename prefix: screenshot each exit door when walking up to it
 
     def log(self, *a):
         if self.verbose:
             print(f"[frame {self.g.frames} room {self.g.room()}]", *a)
 
+    def face_screech(self):
+        """Screech is waiting: walk a step his way and stand still facing him until he's gone"""
+        m = DIR_MASK[self.g.u8("_screech_dir")]
+        self.log("facing Screech")
+        for _ in range(3):
+            self.g.tick(m)
+        for _ in range(40):
+            if self.g.u8("_screech_state") != 1:
+                break
+            self.g.tick(0)
+
+    def eyes(self):
+        return (self.g.s16("_eyes_x"), self.g.s16("_eyes_y")) if self.g.u8("_eyes_here") else None
+
     def step(self, mask=0):
         """One frame of the bot's own actions; stops them when something is coming"""
+        if self.g.u8("_screech_state") == 1 and self.g.state() == GAME_PLAYING and not self.g.hidden():
+            self.face_screech()
         self.g.tick(mask)
         if self.g.state() == GAME_DEAD:
             raise RuntimeError(f"died (cause {self.g.u8('_game_death')})")
@@ -232,7 +300,7 @@ class Bot:
                 return True  # went through a door
             w, h, solid = self.g.grid()
             here = self.g.cell()
-            path = bfs(solid, w, h, here, {target})
+            path = cheapest(solid, w, h, here, target, self.eyes())
             if path is None:
                 raise RuntimeError(f"no path from {here} to {target}")
             fx, fy = self.g.feet()
@@ -298,6 +366,19 @@ class Bot:
         for _ in range(3):
             self.step(J[face])      # turn to face it (walking into it is harmless)
         self.step(0)
+        if self.door_shots and obj[0] == 2:   # OBJ_EXIT
+            self.g.tick(0, render=True)
+            self.g.pyboy.screen.image.save(ROOT / "build" / "screens" /
+                                           f"{self.door_shots}-door-{self.g.room() + 1:03d}.png")
+        if obj[0] == OBJ_EXIT and not (self.g.flags() & RF_LOCKED and self.g.u8("_run_key_door") != self.g.room() + 1):
+            # a door that will open: tap until it has (one tap can land on a lag frame)
+            self.press_a_until(lambda: self.g.flags() & RF_EXIT_OPEN)
+            # the flag is set before the door is redrawn, and on DMG that work can run past the frame end
+            self.g.tick(0)
+            self.g.tick(0)
+            if self.g.entity() != ENT_IDLE and not self.g.hidden():
+                raise Danger()
+            return
         self.step(J["a"])
         self.step(0)
 
@@ -336,6 +417,13 @@ class Bot:
         exit_ = next(o for o in objs if o[0] == OBJ_EXIT)
         entry = next((o for o in objs if o[0] == OBJ_ENTRY), None)
         n = self.g.room()
+
+        # Debug and AUTOTEST builds: B cycles the light (glow, lighter, flashlight). Each new dark room gets
+        # the next one, so the recorded run lights rooms all three ways.
+        if self.g.u8("_run_flags2", n) & RF2_DARK and "_game_light_tool" in self.g.syms and n not in self.lit_rooms:
+            self.lit_rooms.add(n)
+            self.g.tick(J["b"])
+            self.g.tick(0)
 
         if n == 3 and not self.backtrack_done and entry:
             self.backtrack_done = True
@@ -438,6 +526,8 @@ def main():
                          "(so the recording covers the jumpscare and the Guiding Light)")
     ap.add_argument("--entity-shots", action="store_true",
                     help="screenshot every 6th frame while hidden (build/screens/ent-*.png)")
+    ap.add_argument("--door-shots", metavar="PREFIX",
+                    help="screenshot each exit door before opening it (build/screens/PREFIX-door-NNN.png)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     rec_path = ROOT / "tests" / "autotest_input.c"
@@ -462,6 +552,7 @@ def main():
 
     bot = Bot(g, args.verbose)
     bot.entity_shots = args.entity_shots
+    bot.door_shots = args.door_shots
     for _ in range(60):
         g.tick(0)
     bot.wait_playing()

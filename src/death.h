@@ -10,6 +10,8 @@
 #define DEATH_RUSH   1
 #define DEATH_AMBUSH 2
 #define DEATH_HIDE   3
+#define DEATH_SCREECH 4
+#define DEATH_EYES   5
 
 #define DEATH_TRY_AGAIN 0
 #define DEATH_TITLE     1
@@ -17,5 +19,10 @@
 extern uint16_t death_seed;   // after DEATH_TRY_AGAIN: the new run's seed, from the player's timing
 
 uint8_t death_run(uint8_t cause) BANKED;
+
+// The full-screen face, scream and shake (Rush, Ambush, Screech), ending faded to black. Also used when
+// Screech bites and you live: the room is redrawn after (game.c). Overwrites BG tiles from 0 and so sprite
+// tiles 128 and up (game_init reloads them).
+void death_jumpscare(uint8_t cause) BANKED;
 
 #endif

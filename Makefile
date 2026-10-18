@@ -48,6 +48,12 @@ VARIANT := -autotest
 CFLAGS  += -DAUTOTEST -Itests
 TEST_C  := $(wildcard tests/*.c)   # the recorded run (scripts/bot.py)
 endif
+# make DEBUG=1: the normal game plus debug switches (B cycles the light: glow, lighter, flashlight), in
+# build/gbc-debug and build/dmg-debug
+ifdef DEBUG
+VARIANT := -debug
+CFLAGS  += -DDEBUG
+endif
 CGB_DIR := $(OUTDIR)/gbc$(VARIANT)
 DMG_DIR := $(OUTDIR)/dmg$(VARIANT)
 
@@ -135,4 +141,4 @@ $(DMG_DIR)/obj/tests/%.o: tests/%.c $(HEADERS) $(wildcard tests/*.h)
 	$(LCC) $(CFLAGS) -DDMG -c -o $@ $<
 
 clean:
-	rm -rf $(OUTDIR)/gbc $(OUTDIR)/dmg $(OUTDIR)/gbc-autotest $(OUTDIR)/dmg-autotest $(GEN)
+	rm -rf $(OUTDIR)/gbc $(OUTDIR)/dmg $(OUTDIR)/gbc-autotest $(OUTDIR)/dmg-autotest $(OUTDIR)/gbc-debug $(OUTDIR)/dmg-debug $(GEN)

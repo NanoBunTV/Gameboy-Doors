@@ -19,6 +19,7 @@ static char shown[21];             // what the text row currently holds (or is q
 static char want[21];
 static uint8_t timer;              // frames left to show
 static uint8_t msg_timer;          // frames left of the message (0 = show the status line)
+static uint8_t msg_new;            // hud_message filled `want` since the last update
 
 static uint8_t tile_for(char c) {
     uint8_t code = (uint8_t)c;
@@ -67,6 +68,7 @@ void hud_message(const char *text, uint8_t frames) {
     memset(want, ' ', 20);
     memcpy(want + ((20 - n) >> 1), text, n);  // centred
     msg_timer = frames;
+    msg_new = 1;
     hud_show(frames);
 }
 
@@ -101,25 +103,41 @@ static void status_line(void) {
 
 void hud_update(void) {
     static uint8_t last_hp;
+    // What the status line was last built from: it's only rebuilt when one changes. Building it every
+    // frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines (Phase 4).
+    static uint8_t built_room = 0xFF, built_hp, built_key, built_msg;
+    uint8_t dirty = 0;
     if (input_held & J_SELECT)
         hud_show(30);
     if (run_hp != last_hp) {   // health changed: show it (DESIGN.md, HUD)
         last_hp = run_hp;
         hud_show(150);
     }
-    if (msg_timer)
+    if (msg_timer) {
         msg_timer--;
-    else
+        if (msg_new) {
+            msg_new = 0;
+            built_msg = 1;
+            dirty = 1;
+        }
+    } else if (built_msg || run_room != built_room || run_hp != built_hp || run_key_door != built_key) {
+        built_msg = 0;
+        built_room = run_room;
+        built_hp = run_hp;
+        built_key = run_key_door;
         status_line();
+        dirty = 1;
+    }
     if (timer)
         timer--;
 
     // Queue the characters that changed (the text row is window row 1)
-    for (uint8_t i = 0; i < 20; i++)
-        if (shown[i] != want[i]) {
-            shown[i] = want[i];
-            bg_queue_tile(WIN_MAP + 32 + i, tile_for(want[i]), PAL_TEXT);
-        }
+    if (dirty)
+        for (uint8_t i = 0; i < 20; i++)
+            if (shown[i] != want[i]) {
+                shown[i] = want[i];
+                bg_queue_tile(WIN_MAP + 32 + i, tile_for(want[i]), PAL_TEXT);
+            }
 
     uint8_t target = timer ? HUD_Y_SHOWN : HUD_Y_HIDDEN;
     if (bg_wy < target)

@@ -13,6 +13,7 @@
 #include "font.h"
 #include "image_scare_rush.h"
 #include "image_scare_ambush.h"
+#include "image_scare_screech.h"
 
 #define SCARE_FRAMES 60
 #define TYPE_FRAMES  3       // per character
@@ -32,6 +33,12 @@ static const char *const lines_ambush[] = {
 static const char *const lines_hide[] = {
     "SOMETHING DIDN'T", "WANT YOU IN THERE.", "", "DON'T STAY HIDDEN", "FOR TOO LONG.", "",
     "LISTEN FOR YOUR", "HEARTBEAT.", 0 };
+static const char *const lines_screech[] = {
+    "SCREECH GOT YOU.", "", "IN THE DARK, IF", "YOU HEAR A PSST,", "", "TURN TO FACE HIM",
+    "BEFORE HE BITES.", 0 };
+static const char *const lines_eyes[] = {
+    "YOU DIED TO EYES.", "", "DON'T LOOK AT HIM.", "", "WALK PAST WITH", "YOUR EYES AWAY,",
+    "THEN LEAVE.", 0 };
 
 #ifdef CGB
 // The font palette made blue (colour 0 the text, 2 the background)
@@ -47,12 +54,18 @@ static void wait_input(void) {
     frames++;
 }
 
-static void jumpscare(uint8_t cause) {
+void death_jumpscare(uint8_t cause) BANKED {
+    spr_begin();
+    spr_end();
+    hud_hide_now();
+    platform_set_dim(0, TINT_NONE);
     platform_set_fade(FADE_BLACK);
     game_wait_frames(1);
     bg_set_scroll(0, 0);
     if (cause == DEATH_AMBUSH)
         image_show(BANK(image_scare_ambush), &image_scare_ambush, 0, 0);
+    else if (cause == DEATH_SCREECH)
+        image_show(BANK(image_scare_screech), &image_scare_screech, 0, 0);
     else
         image_show(BANK(image_scare_rush), &image_scare_rush, 0, 0);
     platform_set_fade(0);
@@ -118,8 +131,8 @@ uint8_t death_run(uint8_t cause) BANKED {
     spr_end();
     frames = 0;
 
-    if (cause == DEATH_RUSH || cause == DEATH_AMBUSH)
-        jumpscare(cause);
+    if (cause == DEATH_RUSH || cause == DEATH_AMBUSH || cause == DEATH_SCREECH)
+        death_jumpscare(cause);
     else
         game_fade(platform_fade, FADE_BLACK);
 
@@ -131,14 +144,16 @@ uint8_t death_run(uint8_t cause) BANKED {
     bg_set_scroll(0, 0);
     music_play(MUSIC_GUIDING);
     game_fade(FADE_BLACK, 0);
-    type_lines(cause == DEATH_AMBUSH ? lines_ambush : cause == DEATH_HIDE ? lines_hide : lines_rush);
+    static const char *const *const lines[] = { lines_rush, lines_rush, lines_ambush, lines_hide, lines_screech,
+                                                lines_eyes };
+    type_lines(lines[cause]);
     uint8_t choice = menu();
     sfx_play(SFX_SELECT);
     game_fade(0, FADE_BLACK);
     music_play(MUSIC_NONE);
     hud_font_palette();
 #ifdef AUTOTEST
-    death_seed = 0xC0DE;
+    death_seed = AUTOTEST_SEED;
 #else
     death_seed = frames ^ ((uint16_t)DIV_REG << 8) ^ DIV_REG;
 #endif

@@ -8,6 +8,7 @@
 #include "game.h"
 #include "title.h"
 #include "death.h"
+#include "light.h"
 
 void main(void) {
     DISPLAY_OFF;  // waits for VBlank
@@ -18,7 +19,7 @@ void main(void) {
     LCDC_REG = LCDCF_OFF | LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON |
                LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON;
     hud_init();
-    game_init();
+    light_build_shapes();   // sprite sheets: game_start (game_init)
 
     uint16_t seed = title_run();
     while (1) {

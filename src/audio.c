@@ -4,9 +4,8 @@
 #include "audio.h"
 
 // Songs: C written by hUGETracker's uge2source from assets/music/*.uge (Makefile)
-extern const hUGESong_t music_title, music_hotel, music_guiding_light;
+extern const hUGESong_t music_title, music_guiding_light;
 BANKREF_EXTERN(music_title)
-BANKREF_EXTERN(music_hotel)
 BANKREF_EXTERN(music_guiding_light)
 
 static uint8_t music_id, music_bank;
@@ -78,12 +77,37 @@ static const step_t s_select[] = {
     { 6, 0, DUTY(2), ENV(8, 1), LO(1046), HI(1046) },
     END };
 
+// Lights out: a breaker's clunk, then the hum dying away
+static const step_t s_dark[] = {
+    { 3, 0, 0, ENV(13, 1), 0x34, 0x80 },
+    { 40, 0, 0, ENV(7, 4), 0x87, 0x80 },
+    END };
+// Screech: "p", then a long hiss
+static const step_t s_psst[] = {
+    { 3, 0, 0, ENV(6, 1), 0x22, 0x80 },
+    REST(3),
+    { 24, 0, 0, ENV(10, 2), 0x10, 0x80 },
+    END };
+// Screech looked at: a squeak sliding down (CH1 sweep)
+static const step_t s_screech_gone[] = {
+    { 24, 0x2B, DUTY(2), ENV(10, 2), LO(1400), HI(1400) },
+    END };
+// Eyes: a low wavering drone
+static const step_t s_eyes[] = {
+    { 20, 0, DUTY(1), ENV(9, 0), LO(110), HI(110) },
+    { 20, 0, DUTY(1), ENV(9, 0), LO(104), HI(104) },
+    { 30, 0, DUTY(1), ENV(9, 3), LO(98), HI(98) },
+    END };
+static const step_t s_eyes_hit[] = {
+    { 8, 0, DUTY(3), ENV(11, 1), LO(330), HI(330) },
+    END };
+
 static const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
-    s_flicker, s_ambush, s_scream, s_type, s_select,
+    s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
 };
 // Channel of each effect: 0 = CH1, 1 = CH2, 3 = CH4 (hUGE_channel_t numbering)
-static const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1 };
+static const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1 };
 
 static const step_t *playing[4];
 static uint8_t left[4];
@@ -151,24 +175,25 @@ void audio_init(void) {
     music_id = MUSIC_NONE;
 }
 
+// Stops whatever the music left sounding (a held note keeps ringing once hUGE_dosound stops being called),
+// on the channels no sound effect or rumble is using
 static void silence_music(void) {
-    NR12_REG = 0; NR14_REG = 0x80;
-    NR22_REG = 0; NR24_REG = 0x80;
+    if (!playing[0]) { NR12_REG = 0; NR14_REG = 0x80; }
+    if (!playing[1]) { NR22_REG = 0; NR24_REG = 0x80; }
     NR30_REG = 0;
-    NR42_REG = 0; NR44_REG = 0x80;
+    if (!playing[3] && !rumble_hw) { NR42_REG = 0; NR44_REG = 0x80; }
 }
 
 void music_play(uint8_t id) {
     if (id == music_id)
         return;
     music_id = id;
+    silence_music();
     const hUGESong_t *song;
     switch (id) {
     case MUSIC_TITLE:   song = &music_title;         music_bank = BANK(music_title); break;
-    case MUSIC_HOTEL:   song = &music_hotel;         music_bank = BANK(music_hotel); break;
     case MUSIC_GUIDING: song = &music_guiding_light; music_bank = BANK(music_guiding_light); break;
     default:
-        silence_music();
         return;
     }
     uint8_t saved = CURRENT_BANK;

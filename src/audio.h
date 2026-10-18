@@ -11,7 +11,6 @@
 
 #define MUSIC_NONE    0
 #define MUSIC_TITLE   1   // the owner's Lobby Theme
-#define MUSIC_HOTEL   2   // room ambience
 #define MUSIC_GUIDING 3   // the Guiding Light (death screen)
 
 #define SFX_DOOR       1
@@ -28,7 +27,12 @@
 #define SFX_SCREAM     12  // jumpscare
 #define SFX_TYPE       13  // Guiding Light typewriter
 #define SFX_SELECT     14  // menu
-#define SFX_COUNT      15
+#define SFX_DARK       15  // the lights are out (entering a dark room after a lit one)
+#define SFX_PSST       16  // Screech arrives
+#define SFX_SCREECH_GONE 17 // ... and leaves, looked at
+#define SFX_EYES       18  // Eyes is in the room
+#define SFX_EYES_HIT   19  // Eyes hurts you (about once a second)
+#define SFX_COUNT      20
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1

@@ -20,7 +20,13 @@
 | 2026-10-18 | same | `bot.py`, 40 rooms, both consoles | 5 spawns (Rush and Ambush): the bot hid every time and lost no health; Ambush (room 20) needed stepping out and back in during his rear pause. Screenshots while hidden show Rush crossing from the entry door to the exit and Ambush with the room tinted green (GBC) |
 | 2026-10-18 | same, recorded run (30 rooms + a death) | `build.ps1 -Test` (AUTOTEST ROMs) | **All passed.** BGB, all exception breaks, `.gbc` as GBC, `.gb` as DMG and as GBC: 15 s, which covers the whole replay, the jumpscare, the Guiding Light and the new run (`death_run` reached at about 5 s). `scroll-test.py`: 1,652 (GBC) / 1,707 (DMG) frames compared, **0 wrong background pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30; every room change, hide and the death fall on the same input frame on both consoles |
 | 2026-10-18 | same | PyBoy sound | Title RMS 13.8, hotel 6.3 (20 s each, `build/screens/*.wav`): the music plays. Whether it sounds right: for the owner's ears |
-| | | Owner, by hand | Not yet: play both ROMs in BGB with sound; listen to the songs in hUGETracker |
+| | | Owner, by hand | Played: the title's last note rang on after Start, the ambience didn't work, the door numbers were cut off and the doors looked like plaques. All addressed in Phase 4 |
+| 2026-10-18 | Phase 4: dark rooms (glow; lighter and flashlight on a debug switch), Screech, Eyes; title music cut on Start, ambience removed, door numbers redone | PyBoy, scripted (DEBUG builds, a dark room and Eyes forced in WRAM) | Both consoles: the glow, the lighter's circle and the flashlight's cone in 4 directions; Eyes lights his area. Screech: a bite costs 40 HP, shows his face and returns to the room as it was; facing him sends him away. Eyes drains 20 HP/s while faced (death: his Guiding Light, no jumpscare); Screech's last bite: his face, then his hint. After Start the sound measures 0.0 |
+| 2026-10-18 | same | `bot.py`, 40 rooms, both consoles | Room 40 on full health on both (it faces Screech and walks round Eyes); door screenshots (`--door-shots`) show the brass numbers on every door |
+| 2026-10-18 | same, recorded run (new seed 0x01D9: dark rooms 15, 17, 21, Eyes in 17, Ambush in 5) | `build.ps1 -Test` | **All passed.** BGB, all exception breaks, all three combinations, 15 s (the whole replay and the death). `scroll-test.py` over 11,000 frames, dark rooms included: 2,504 (GBC) / 2,491 (DMG) frames, **0 wrong pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame 8,979 on both |
+| 2026-10-18 | same | Lag frames per room (replay) | GBC: at most 2 in any dark room, 7 in Ambush's room. DMG: 2–5 in dark rooms with the glow or lighter; 32 of 215 in room 17 (flashlight + Eyes + Screech) |
+| 2026-10-18 | Rush/Ambush position without per-frame divisions | Lag frames per room (replay), `build.ps1 -Test` | DMG Rush and Ambush rooms: **3–5** dropped frames (were 27–98: room 5, Ambush's 1,700 frames, 98 → 4). All tests pass; the replay is unchanged (room 30 at input frame 8,979) |
+| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start |
 
 ## Test checklist for new builds
 
@@ -36,19 +42,40 @@
 
 ## Known issues
 
-- **The music arrangements are unheard**: made from the MIDI files and measured as playing, but nobody has
-  listened yet. The Lobby Theme's chords are arpeggios on one channel, and the Guiding Light drops the piano's
-  chord stabs; both may want touching up in hUGETracker.
+- **The music arrangements**: the Lobby Theme's chords are arpeggios on one channel, and the Guiding Light
+  drops the piano's chord stabs; both may want touching up in hUGETracker. The rooms are silent apart from
+  sound effects (the ambience was removed, owner 2026-10-18).
 - **Sound effects are first drafts** (`src/audio.c`), tuned by numbers, not by ear: door, drawer, key,
   locked, unlock, hide, heartbeat, "get out", hurt, the flicker's buzz, Ambush's howl, the scream, the
-  typewriter, the menu blip, and the rumble.
+  typewriter, the menu blip, the rumble, and Phase 4's lights-out, Screech's psst and leaving, Eyes' drone and
+  his hit.
+- **DMG frame budget**: every room drops only a few frames on DMG now (Rush and Ambush rooms included, since
+  `place()` stopped dividing every frame), except the debug flashlight with Eyes in the room (about 15%).
+  Phase 9 (the real flashlight) should look at the flashlight's redraw (`light_step`) and at sprite drawing
+  (a 32×32 entity still costs ~22 scanlines); player collision (`room_solid_at`) is the next biggest cost.
+- **Memory outlook** (2026-10-18; numbers from `romusage -g`):
+  - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
+    grows from 64 KB.
+  - *Bank 0 (GBC 90%, 1.6 KB left; DMG 79%)*: a real, fixed 16 KB. Every phase so far added engine code there.
+    Before it passes ~95%: move `hud.c` (all but `hud_init`) and `audio.c`'s effect tables into banks; only
+    code that switches banks to read assets, and the per-frame streaming, has to stay.
+  - *WRAM*: DMG has 8 KB in all, ~1.8 KB free (the room map takes 3 KB). Later phases (inventory, Figure,
+    Seek, the shop) need some. Room for more: the cartridge's 32 KB SRAM works as extra RAM on both consoles
+    (enable it, use it, disable it), and the room map could shrink if no room needs 3,072 metatiles. GBC's
+    WRAM bank 1 is 91% full but banks 2–7 (24 KB) are unused.
+  - *Sprite VRAM*: 142 of the 184 sprite tiles are used. Figure, Seek, Halt, Dupe, Timothy and the items
+    won't all fit at once: sheets will have to be loaded per room or per event (the jumpscares already force
+    reloading). This is the limit most likely to need design work soon.
+- **Eyes floats at the route's middle**, even over furniture (top-down, it reads fine). A room whose route
+  midpoint is in a wall would put him there; none does yet.
+- **Screech's body is black**, so in the dark only his eyes and grin show (on purpose). On a lit tile (the
+  glow) his outline shows.
 - **Rush and Ambush take the straight line between doors** (the Minecraft version's first design), so they
   cut through furniture. Fine in the current rectangular rooms.
 - **Ambush's flicker is only green on GBC.** On DMG his howl is the only difference from Rush's warning.
 - **The Guiding Light's lines sit on consecutive rows**, which reads a little cramped.
-- **Bank 0 is 84% full on GBC** (2.6 KB left): hUGEDriver took 1.9 KB. `game`, `run` and `title` moved into
-  banks this phase; `hud.c` and `player.c` could follow (they don't switch banks), or the effect tables in
-  `audio.c` could move.
+- **Bank 0 is 90% full on GBC** (1.6 KB left). `player.c` and `light_move.c` are banked; `hud.c` (all but
+  `hud_init`) could follow, or the effect tables in `audio.c` could move.
 
 - **The DMG floor is busy**: the wood-plank pattern in greys is noisy next to the white-headed player. To revisit
   with real art (ASSETS.md).
@@ -64,8 +91,8 @@
   fix it; aim for at least 4–5 per entry wall.
 - **GBC palette writes rely on running in VBlank** (`platform_vblank()` from `bg_flush`); BGB's exception
   breaks don't cover palette RAM, so this isn't machine-checked.
-- **Door numbers are small** (3×5 digits on a 12 px plate): readable on screen, not big. The HUD shows the
-  number too.
+- **Door numbers are small** (3×5 digits on the door's header): readable on screen, not big. The HUD shows
+  the number too.
 - **The bot cheats a little**: it knows which drawer holds the key from WRAM, though it still opens drawers in
   order until it finds it, as a player would.
 
@@ -78,13 +105,13 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 0. Toolchain (**done 2026-10-17**) | GBDK-2020, BGB, Python venv, PyBoy, SameBoy, Emulicious in `tools/`; Makefile for both ROMs; a "hello" ROM that boots on DMG and GBC in BGB with every exception break on |
 | 1. Engine core (**done 2026-10-17**, owner's hands-on test pending) | VBlank queue, OAM DMA, joypad, player movement with collision on a metatile map, scrolling camera, one test room from Tiled; asset converter; automated scroll and VBlank tests |
 | 2. Rooms and doors (**done 2026-10-17**, owner's hands-on test pending) | Title with logo, seeded room chaining (reception + 9 templates), door numbers, opening doors, walking back, keys in drawers and in the open, locked doors, the on-demand HUD, fades; the play-testing bot and recorded run |
-| 3. Hiding and Rush/Ambush (**done 2026-10-18**, owner's hands-on test pending) | Closets, beds, light flicker, Rush and Ambush on the door-to-door path, Hide (moved here from Phase 5), the health bar (on-demand HUD), jumpscares, death and the Guiding Light screen; hUGEDriver with the title and Guiding Light songs from the owner's MIDIs, a hotel ambience, sound effects (audio moved here from Phase 10) |
-| 4. Darkness, Screech, Eyes | Dark rooms on both consoles, lighter/flashlight, Screech, Eyes |
+| 3. Hiding and Rush/Ambush (**done 2026-10-18**, played by the owner: fixes in Phase 4) | Closets, beds, light flicker, Rush and Ambush on the door-to-door path, Hide (moved here from Phase 5), the health bar (on-demand HUD), jumpscares, death and the Guiding Light screen; hUGEDriver with the title and Guiding Light songs from the owner's MIDIs, a hotel ambience, sound effects (audio moved here from Phase 10) |
+| 4. Darkness, Screech, Eyes (**done 2026-10-18**, owner's hands-on test pending) | Dark rooms on both consoles (black but for what's lit), the glow, the lighter and flashlight (debug switch until Phase 9), Screech with his jumpscare, Eyes; from the owner's first play: the title music cut on Start, the ambience removed, door numbers redone (layout B); DMG speed-ups (HUD, sprites, collision lookups, the light) |
 | 5. Dupe, Halt, Timothy | The smaller entities |
 | 6. The Library (50) | Figure, books, the padlock code |
 | 7. Seek | Eyes on the walls, the chase sequences |
 | 8. Courtyard, Greenhouse, Room 100 | Rooms 89–100, the fuses and the escape, the ending |
-| 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items, the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
+| 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items (the lighter and flashlight's light is built: give it fuel, batteries and a slot), the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
 | 10. Audio | The rest: Seek's chase (Here I Come MIDI, Phase 7) and the Ending Theme (Phase 8) when those come; SFX for every entity; a pass by ear over everything |
 | 11. Polish | Title screen extras, achievements (paying Knobs), statistics, Super Game Boy border for the DMG ROM, balance; more room templates (an ongoing job: see known issues) |
 

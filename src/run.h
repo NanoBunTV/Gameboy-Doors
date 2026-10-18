@@ -23,6 +23,13 @@
 #define AMBUSH_SHARE_PERCENT 10     // entities.ambush-share: of those, the share that are Ambush
 #define ENTITY_FIRST_ROOM 3         // entities.first-room
 
+// Dark rooms (Minecraft config dark-rooms, owner 2026-10-18): a roll per room from room 15
+#define DARK_CHANCE_PERCENT 10
+#define DARK_FIRST_ROOM 15
+// Eyes (Minecraft config eyes): 5% per room from room 8, independent of everything else
+#define EYES_CHANCE_PERCENT 5
+#define EYES_FIRST_ROOM 8
+
 #define MAX_HP 100
 
 // run_flags[n]
@@ -35,6 +42,11 @@
 #define RF_SPAWN        0x40        // entering this room the first time queues Rush (or Ambush)
 #define RF_AMBUSH       0x80        // ... Ambush
 
+// run_flags2[n]
+#define RF2_DARK        0x01        // the lights are out
+#define RF2_EYES        0x02        // Eyes is in this room ...
+#define RF2_EYES_GONE   0x04        // ... until a door opens (eyes.c)
+
 extern uint16_t run_seed;
 extern uint8_t run_room;            // the room the player is in
 extern uint8_t run_max_room;        // the furthest room entered
@@ -42,6 +54,7 @@ extern uint8_t run_key_door;        // number of the door the carried key opens;
 extern uint8_t run_hp;              // 0 - MAX_HP
 extern uint8_t run_template[RUN_ROOMS];
 extern uint8_t run_flags[RUN_ROOMS];
+extern uint8_t run_flags2[RUN_ROOMS];
 extern uint8_t run_key_slot[RUN_ROOMS];
 extern uint8_t run_drawers[RUN_ROOMS];  // opened drawers, one bit per drawer in object order
 extern uint8_t run_banned[RUN_ROOMS];   // hiding spots Hide threw the player out of, one bit per spot

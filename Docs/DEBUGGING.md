@@ -102,28 +102,40 @@ tools\venv\Scripts\python.exe scripts\bot.py build\gbc-autotest\doors.gbc --chec
 
 The bot plays like a person: it reads the game's state from WRAM by symbol (`room_map`, `mt_flags`,
 `room_objs`, `run_flags`, `run_drawers`, `run_key_slot`, `run_key_door`, `run_banned`, `player_x/y`,
-`game_state`, `entity_state`, `hide_hidden`, `hide_frames`, `input_frame`), finds paths with a breadth-first
-search over walkable metatiles, searches drawers in order until the key turns up, picks up keys in the open,
+`game_state`, `entity_state`, `hide_hidden`, `hide_frames`, `input_frame`, `screech_state`, `screech_dir`,
+`eyes_here`, `eyes_x/y`, `run_flags2`), finds paths with a breadth-first search over walkable metatiles (with
+Eyes in the room, a cheapest-path search where a step toward him costs 8: it walks round him rather than
+straight at him), searches drawers in order until the key turns up, picks up keys in the open,
 unlocks and opens doors and walks through. At room 3 it goes back to room 2 and returns, to test walking
 back. **When Rush or Ambush is announced** it drops what it's doing, walks to the nearest closet or bed Hide
 hasn't banned, hides, and stays until he's gone; after 9 s hidden, while Ambush waits at the rear, it steps
 out and straight back in, which restarts Hide's clock. It taps A until each step shows in WRAM, since a tap
-can land on a frame the game didn't read the joypad. Dying fails the run.
+can land on a frame the game didn't read the joypad (and waits two frames after a door opens: on DMG the
+door's redraw can run past the end of the frame, so the room isn't walkable yet when the flag is set).
+**When Screech appears** it walks a step his way and stands facing him until he's gone. On entering a dark
+room in an AUTOTEST or DEBUG build it presses B once, so successive dark rooms get the lighter, the flashlight
+and the glow in turn. Dying fails the run.
 
 `--shots` saves a screenshot on entering each room (`build/screens/bot-room-NNN.png`); `--entity-shots` every
-6th frame while hidden (`ent-<hide>-<frame>.png`: Rush and Ambush crossing, the flicker); a failure saves
+6th frame while hidden (`ent-<hide>-<frame>.png`: Rush and Ambush crossing, the flicker); `--door-shots
+PREFIX` one of each exit door as it walks up to it (`PREFIX-door-NNN.png`); a failure saves
 `bot-fail.png` and names the room and template. `--die-at-end` (used by `record-run.ps1`): after the last
 room, play on until something comes, stand still to be caught, skip the Guiding Light's typing with A and
 pick Try again.
 
-`--record` writes the buttons it pressed, for every `input_update()` call, run-length coded, to
-`tests/autotest_input.c` (726 bytes for 30 rooms and the death). AUTOTEST builds replay that instead of reading
-the joypad, with the fixed seed `0xC0DE` (Try again also uses it). **The game is deterministic in its input**:
-on DMG and GBC every room change, hide and the death happen at the same input frame (death at 7,626, the new
-run at 7,639; checked 2026-10-18). `--check N` replays and fails if room N isn't reached; `build.ps1 -Test`
-runs it. It reports 7,275 on DMG and 7,274 on GBC: PyBoy samples WRAM once per emulated frame and the GBC,
-at double speed, has finished more of the frame by then, so state that changes mid-frame is seen one input
-frame apart. Compare events (room changes), not per-frame snapshots, between consoles.
+`--record` writes the buttons held at every `input_update()` call, run-length coded, to
+`tests/autotest_input.c` (about 1.5 KB for 30 rooms and the death). It records from a PyBoy hook on
+`input_update` itself. It used to compare `input_frame` before and after each tick, and a frame boundary
+falling between the joypad read and the count put the recording one input out of step (found 2026-10-18,
+when heavier frames made it common). AUTOTEST builds replay that instead of reading the joypad, with the fixed
+seed `AUTOTEST_SEED` (0x01D9, `game.h`; Try again also uses it). It was 0xC0DE until Phase 4, whose first 30
+rooms had no dark room and no Eyes. 0x01D9 has dark rooms 15, 17 and 21, Eyes in 17 and Ambush in 5,
+chosen with a Python copy of `run.c`'s planner. **The game is deterministic in its input**:
+on DMG and GBC every room change, hide and the death happen at the same input frame (checked 2026-10-18).
+`--check N` replays and fails if room N isn't reached; `build.ps1 -Test` runs it (room 30 at input frame 8,979
+on both, Phase 4). Snapshots taken once per emulated frame can differ by one input frame between consoles:
+PyBoy samples WRAM once per emulated frame and the GBC, at double speed, has finished more of the frame by
+then, so state that changes mid-frame is seen one input frame apart. Compare events (room changes), not per-frame snapshots, between consoles.
 
 **Re-record after any change that alters what the same buttons do** (rooms, generation, door positions,
 speed, entity timing, interaction): `.\scripts\record-run.ps1`. It writes an empty recording first, because
@@ -132,7 +144,7 @@ the bot needs an AUTOTEST ROM that reads the joypad.
 ### Background correctness: `scripts/scroll-test.py`
 
 ```
-tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 6500 --every 2
+tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 11000 --every 2
 ```
 
 Runs an AUTOTEST ROM (playing its recorded run) and every 2nd frame compares the whole screen with a reference
@@ -142,7 +154,12 @@ room loads, frames with the room dimmed (hiding, the flicker: `platform_dim` is 
 any metatile change (a door or drawer opening is redrawn a frame or two later
 on purpose). It first learns which screen colour each art colour becomes (PyBoy's DMG greys and GBC colour
 conversion differ from the PNG), then counts wrong pixels. Failing frames are saved as
-`build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`.
+`build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`, over 11,000 frames (the whole replay).
+
+**Dark rooms** are compared too: the reference is black wherever the game's light state (`light_src_*`,
+`light_l/r` in WRAM, `src/light.c`) says a tile is unlit, on frames where the tile queue is empty and no light
+redraw is pending (`vq_head == vq_tail`, `bg_vq_n == 0`, `light_pending == 0`). Unlit tiles get their own
+reference colour: on GBC the font's black isn't the same screen colour as the wall art's black.
 
 - **PyBoy timing**: when `tick()` returns, the game's VBlank code has already run, so SCX/SCY, OAM and the map
   hold the *next* frame's values. The script uses what it read after the previous tick. Without this, every
@@ -157,9 +174,10 @@ conversion differ from the PNG), then counts wrong pixels. Failing frames are sa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 3: bank 0 84% (GBC) / 75% (DMG), banks 1 and 2 full / 74–81%, 64 KB ROM; DMG WRAM about 5.2 of
-8 KB. Phase 2 was 74% / 67% before hUGEDriver (1.9 KB, bank 0) and the moving of `game`, `run` and `title`
-into banks.
+As of Phase 4: bank 0 90% (GBC) / 79% (DMG), 64 KB ROM; DMG WRAM about 6.2 of 8 KB; GBC WRAM bank 1
+(0xD000) 90%. Phase 3 was 84% / 75%; Phase 4's light code briefly overflowed GBC bank 0 until `player.c` and
+moving a light (`light_move.c`) went into banks. `romusage -g` prints the table; for what takes bank 0, sum
+`A _CODE size` per object file (`grep "^A _CODE size" build/gbc/obj/*.rel`).
 
 ### VBlank budget: `scripts/vblank-budget.py`
 
@@ -174,16 +192,27 @@ including single-tile batches): **DMG 8 of 10, GBC 6 of 10** (ARCHITECTURE.md, "
 Phase 3's flicker briefly made it 12 on GBC (palette upload + a column in one VBlank) until map writes were
 made to wait a frame after a palette upload.
 
-**Lag frames** (frames where the game didn't call `input_update`) show slow logic. Count them by comparing
-`input_frame` before and after each PyBoy tick; this found the GBC's palette recomputation during Ambush's
-flicker (92 of 332 frames, ARCHITECTURE.md "Fades, dimming and palettes"). Now 4 frames per pass.
+**Lag frames** (frames where the game didn't call `input_update`) show slow logic. Count them per room by
+comparing `input_frame` before and after each PyBoy tick of the replay; this found the GBC's palette
+recomputation during Ambush's flicker (92 of 332 frames, ARCHITECTURE.md "Fades, dimming and palettes"; now 4
+per pass) and Phase 4's slow darkness (DMG dark rooms dropped 30–37% of frames).
+
+**Where the time goes** (a profiler, of sorts): `pyboy.hook_register(bank, address, callback)` on function
+entries, reading LY (0xFF44) in each callback, gives the scanline each function starts on. Take the
+functions from the compiler's listings (`; Function name` lines in `build/<target>/obj/*.asm`) and their
+addresses from the `.sym`. **Only hook code**: PyBoy patches the byte at the address, so a hook on a data
+symbol (a table in bank 0) corrupts reads and the game goes another way. A 154-line DMG frame has room for
+about 140 lines of game logic. Phase 4's numbers this way: the HUD rebuilding its line every frame ~45 lines,
+a hardware sprite ~9, each `room_solid_at` ~3 (a multiply per lookup, now a row table), the first light code
+~140 to move the glow one tile, and Rush/Ambush's `place()` ~100 while he moved (two 32-bit divisions a
+frame; now worked out once per room and stepped).
 
 ### Audio
 
 PyBoy can emulate sound (`sound_emulated=True`; `pyboy.sound.ndarray` after each tick, signed 8-bit stereo).
-On 2026-10-18 20 s of the title measured RMS 13.8 / peak 36, the hotel 6.3 / 12 (quieter on purpose), saved
-as `build/screens/title.wav` and `hotel.wav`. That proves the driver runs and the song plays, not that it
-sounds right: listen in BGB or hUGETracker.
+On 2026-10-18 20 s of the title measured RMS 13.8 / peak 36, saved as `build/screens/title.wav`. That proves
+the driver runs and the song plays, not that it sounds right: listen in BGB or hUGETracker. After Start: the
+blip, then 0.0 (the Lobby Theme's last note used to ring on; fixed in Phase 4).
 
 ## SameBoy and Emulicious (accuracy cross-checks)
 

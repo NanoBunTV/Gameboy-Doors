@@ -13,6 +13,9 @@
 #include "entity.h"
 #include "hide.h"
 #include "death.h"
+#include "light.h"
+#include "screech.h"
+#include "eyes.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "sprite_key.h"
@@ -60,12 +63,36 @@ void game_wait_frames(uint8_t n) BANKED {
     }
 }
 
+#if defined(AUTOTEST) || defined(DEBUG)
+// Debug builds only, until the items exist (Phase 9): B cycles the player's light between the glow, the
+// lighter and the flashlight (owner, 2026-10-18)
+#define LIGHT_DEBUG
+uint8_t game_light_tool;
+#endif
+
 void game_init(void) BANKED {
-    player_load();
     // Player: sprite tiles 0-35, palette 0. Key: tiles from 36, palette 1. Rush and Ambush after it,
-    // palettes 2 and 3.
+    // palettes 2 and 3; Eyes 4, Screech 5. Tiles 128 and up share VRAM with background tiles a jumpscare
+    // uses, so game_start reloads all of this.
+    player_load();
     uint8_t t = 36 + spr_sheet_load(&key_sheet, BANK(sprite_key), &sprite_key, 36, 1, key_frames);
-    entity_load(t, 2);
+    t += entity_load(t, 2);
+    t += eyes_load(t, 4);
+    screech_load(t, 5);
+}
+
+static uint8_t player_light(void) {
+#ifdef LIGHT_DEBUG
+    if (game_light_tool == 1)
+        return LIGHT_LIGHTER;
+    if (game_light_tool == 2)
+        return LIGHT_FLASH + player_facing;
+#endif
+    return LIGHT_GLOW;
+}
+
+static void light_player(void) {
+    light_set(LIGHT_PLAYER, player_light(), (player_x + 8) >> 3, (player_y + 8) >> 3);
 }
 
 // ------------------------------------------------------------------------------------------ camera
@@ -132,8 +159,8 @@ static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
     uint8_t x = o->x, y = o->y;
     switch (o->param) {
     case WALL_TOP:
-        if (state == DOOR_OPEN) {
-            room_set_metatile(x, y, MT_HOTEL_DOOR_OPEN_TOP);
+        if (state == DOOR_OPEN) {   // the number stays on the header over the open doorway
+            room_set_metatile(x, y, room_make_plate(0, MT_HOTEL_DOOR_OPEN_TOP, number));
             room_set_metatile(x, y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
         } else {
             room_set_metatile(x, y, room_make_plate(0, MT_HOTEL_DOOR_TOP, number));
@@ -203,7 +230,9 @@ static void draw_sprites(void) {
     spr_begin();
     if (!hide_hidden)
         player_draw();
+    screech_draw();
     entity_draw();
+    eyes_draw();
     if (key_spot)
         spr_draw(&key_sheet, SPR_KEY_KEY, ((int16_t)key_spot->x << 4) - cam_x, ((int16_t)key_spot->y << 4) - cam_y, 0);
     spr_end();
@@ -215,6 +244,23 @@ void game_fade(uint8_t from, uint8_t to) BANKED {
         platform_set_fade(from);
         game_wait_frames(FADE_STEP_FRAMES);
     }
+}
+
+// The current room's template and saved state into WRAM (and its tileset into VRAM if needed)
+static void load_room(void) {
+    uint8_t bank;
+    const room_def_t *def = room_template(run_template[run_room], &bank);
+    room_load(bank, def);
+    apply_room_state();
+}
+
+// Draws the loaded room around the player, lights first (behind black)
+static void show_room(void) {
+    light_room(run_flags2[run_room] & RF2_DARK);
+    light_player();
+    eyes_room_entered();
+    bg_draw_full(camera_target_x(), camera_target_y());
+    draw_sprites();
 }
 
 // Loads room n with the screen black and fades in. `via`: how the player arrives.
@@ -233,17 +279,17 @@ static void enter_room(uint8_t n, uint8_t via) {
     uint8_t first_time = n > run_max_room;
     if (first_time)
         run_max_room = n;
-    uint8_t bank;
-    const room_def_t *def = room_template(run_template[n], &bank);
-    room_load(bank, def);
-    apply_room_state();
+    uint8_t was_dark = light_dark;
+    load_room();
     if (via == VIA_START)
         player_place(room_spawn_x, room_spawn_y, DIR_UP);
     else
         place_at_door(via == VIA_ENTRY ? entry_door : exit_door);
-
-    bg_draw_full(camera_target_x(), camera_target_y());
-    draw_sprites();
+    screech_room_entered();
+    show_room();
+    // The darkness cue marks the lights going out, so a run of dark rooms announces once (Minecraft docs 05)
+    if (light_dark && !was_dark)
+        sfx_play(SFX_DARK);
     hud_show(HUD_ENTER_FRAMES);
     entity_room_entered(first_time);
     game_wait_frames(1);
@@ -251,11 +297,28 @@ static void enter_room(uint8_t n, uint8_t via) {
     game_state = GAME_PLAYING;
 }
 
+// Screech bit and you lived: his face, then back to the room as it was (the picture used the tileset's and
+// some sprites' VRAM)
+static void screech_bite(void) {
+    game_state = GAME_TRANSITION;
+    death_jumpscare(DEATH_SCREECH);
+    game_init();
+    load_room();
+    show_room();
+    hud_show(150);
+    game_wait_frames(1);
+    game_fade(FADE_BLACK, 0);
+    game_state = GAME_PLAYING;
+}
+
 void game_start(uint16_t seed) BANKED {
     run_start(seed);
+    game_init();   // sprite tiles: a jumpscare may have used their VRAM
     entity_reset();
+    screech_reset();
     hide_reset();
-    music_play(MUSIC_HOTEL);
+    light_room(0);
+    music_play(MUSIC_NONE);   // no music in the rooms (owner, 2026-10-18: the ambience is gone)
     enter_room(0, VIA_START);
 }
 
@@ -319,7 +382,8 @@ static void use_exit(void) {
         sfx_play(SFX_DOOR);
     }
     *f |= RF_EXIT_OPEN;
-    door_set(exit_door, DOOR_OPEN, 0);
+    door_set(exit_door, DOOR_OPEN, run_room + 1);
+    eyes_dismiss();   // progress is the answer to Eyes
 }
 
 static void use_drawer(const room_obj_t *o) {
@@ -393,10 +457,25 @@ void game_frame(void) BANKED {
             return;
         if (input_pressed & J_A)
             interact();
+#ifdef LIGHT_DEBUG
+        if (input_pressed & J_B)
+            game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
+#endif
         death = DEATH_NONE;
     }
     if (!death)
         death = entity_update();
+    if (!death)
+        death = eyes_update();
+    if (!death && screech_update()) {
+        if (run_hp > SCREECH_DAMAGE) {
+            run_hp -= SCREECH_DAMAGE;
+            screech_bite();
+            return;
+        }
+        run_hp = 0;
+        death = DEATH_SCREECH;
+    }
     if (death) {
         game_death = death;
         game_state = GAME_DEAD;
@@ -407,5 +486,11 @@ void game_frame(void) BANKED {
     platform_set_dim(hd > dim ? hd : dim, tint);
     hud_update();
     bg_set_camera(step_toward(cam_x, camera_target_x()), step_toward(cam_y, camera_target_y()));
+    // The light follows the player a frame late when the camera just built a column or row: the player
+    // crosses a tile edge on the same frame the centred camera does, and both together overran a DMG frame
+    if (!bg_col_n && !bg_row_n) {
+        light_player();
+        light_step(LIGHT_ROWS_PER_FRAME);
+    }
     draw_sprites();
 }

@@ -49,6 +49,15 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   arranged by hand into `.uge` songs (owner's choice over a converter script), the rest wait for their phases.
   `game`, `run` and `title` moved into banked ROM to make room for the driver. The bot learned to hide, and
   the recorded run now ends with a death and a new run, so BGB checks the death screen too.
+- **2026-10-18**: **Phase 4 done** (darkness, Screech, Eyes): fourth round of questions (answers below).
+  Dark rooms black except what a light reaches, on both consoles; the glow, and the lighter and flashlight
+  behind a debug switch until the items exist; Screech and Eyes from the Minecraft resource pack's pictures,
+  with the Screech jumpscare. From the owner's first play: the title's last note rang on after Start (fixed),
+  the hotel ambience was removed, and the door numbers were redone (the bottom row of every digit was being
+  written past its buffer; now a dark header with brass numbers over a whole, shorter door). Measuring the
+  DMG with PyBoy hooks found the HUD rebuilding its line every frame (~45 of 154 scanlines) and slow sprite
+  and light code; all fixed. The test seed changed to one with dark rooms and Eyes, and the bot's recording
+  moved to a hook on `input_update` after it drifted by one input.
 
 ## Decisions and why
 
@@ -83,7 +92,7 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Camera centred on the player, stopping at room edges | Owner's choices (2026-10-17): "always centred" over a dead zone or look-ahead; stop at walls over showing void |
 | Separate rooms with a quick fade between them | Owner's choice (2026-10-17) over a Zelda slide or a seamless corridor: fits memory, any room shape. Entities that travel between rooms (Rush) will be tracked by distance off-screen |
 | Doors open with A | Owner's choice (2026-10-17) over opening automatically |
-| Door numbers on the door's plate and in the HUD | Owner's choice (2026-10-17) |
+| Door numbers on the door and in the HUD | Owner's choice (2026-10-17). Layout (owner, 2026-10-18, from three mock-ups): brass digits on a dark header over a whole, shorter door, the knob 2 px higher; the full-width plate made the door look cut off |
 | Keys in drawers or lying in the open, mostly drawers (75%) | Owner's choice (2026-10-17). Lock chance 18% and no template repeated within 3 rooms, both from the Minecraft config |
 | Exits go up or sideways, never down | Owner's choice (2026-10-17): doors read clearly in 3/4 view and progress is always "onward" |
 | The reception (room 0) now, the elevator later | Owner's choice (2026-10-17). Door 1 always locked, key on the wall behind the desk |
@@ -92,7 +101,7 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Title screen with the DOORS logo, pixelated | Owner's request (2026-10-17), from the logo URL they gave. The logo belongs to LSPLASH; this is a fan project |
 | Title screen and seed from the player's timing | A Game Boy powers on identically, so the frame count and divider register when Start is pressed are the only randomness |
 | A play-testing bot and a recorded run for AUTOTEST builds | Lets BGB, which can't press buttons, check the whole game under its hardware-rule breaks, and catches anything that breaks a full playthrough |
-| hUGEDriver brought in at Phase 3, not Phase 10 | Owner's choice (2026-10-17): Rush and Ambush need sound cues, and SFX written for the real driver don't need redoing. Phase 3 has SFX, a quiet hotel ambience and a short title theme |
+| hUGEDriver brought in at Phase 3, not Phase 10 | Owner's choice (2026-10-17): Rush and Ambush need sound cues, and SFX written for the real driver don't need redoing. Phase 3 had SFX, a quiet hotel ambience (removed in Phase 4) and a short title theme |
 | Hiding darkens the room (no slats overlay) | Owner's choice (2026-10-17) over a slats view or just hiding the sprite |
 | Closets and beds both hide the player from Phase 3 | Owner's choice (2026-10-17) |
 | Hide (the entity) moved into Phase 3 | Owner's choice (2026-10-17): otherwise a closet is always safe. MC numbers: 12 s, heartbeat from 7 s, 40 HP, banned from that closet |
@@ -100,6 +109,14 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Ambush: green-tinted flicker plus his own sound | Owner's choice (2026-10-17), as in DOORS (the Minecraft version gives him no flicker). On DMG the flicker can't be green, so his sound is what tells them apart |
 | Death: jumpscare, then the Guiding Light, then Try again / Title | Owner's choice (2026-10-17) |
 | The owner's MIDI files become the music, arranged by hand per song | Owner (2026-10-17): supplied `Lobby Theme (Title Screen)`, `Guiding Light (Death Theme)`, `Elevator Jam`, `Jeff's Shop Jingle`, `Here I Come (Seek Chase)`, `Ending Theme`. Chose a hand arrangement per song (4 channels, SFX borrowing three) over a reusable converter. Each lands in the phase that uses it |
+| No music in the rooms | Owner (2026-10-18): the hotel ambience "doesn't work very well"; removed. The title and Guiding Light songs stay |
+| Dark rooms: black except the tiles a light reaches | Owner's choice (2026-10-18) over a dimmed room or a palette circle. The same tile-based method on both consoles |
+| No items in Phase 4: a small glow (5×5 tiles) in the dark | Owner's choice (2026-10-18). The lighter (radius 3) and flashlight (a cone 7 long, 5 wide) are built now behind a debug switch (owner's choice) and come as items in Phase 9 |
+| Dark rooms 10% from room 15 | Owner's choice (2026-10-18), the Minecraft rule. Rush and Ambush never spawn into one |
+| Facing changes only by walking | Owner's choice (2026-10-18): to face Screech you walk his way (no turn-in-place) |
+| Screech: 3 s to face him, 40 HP; chance rises the longer you linger; 16×16; full-screen jumpscare on a bite | Owner's choices (2026-10-18). Minecraft numbers otherwise (20 s cooldown, hiding dismisses him) |
+| Eyes: looking = the exact facing direction (±22.5°); 5 HP per 0.25 s after 0.5 s; 5% from room 8 at the room's middle, glowing in the dark | Owner's choices (2026-10-18). Gone when the exit door opens |
+| Screech and Eyes art from the Minecraft resource pack's item textures | Owner (2026-10-18): `F:\Minecraft DOORS Project\_ResourcePack\assets\doors\textures\item\eyes.png` and `screech.png` |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

@@ -4,10 +4,13 @@ from the game's own room map in WRAM and the tileset PNG.
 
 Usage: tools/venv/Scripts/python.exe scripts/scroll-test.py build/gbc-autotest/doors.gbc [frames] [--every 2]
 
+Dark rooms are compared too: the reference is black wherever the game's own light state (the sources and
+shapes in WRAM, src/light.c) says a tile is unlit, on frames where every queued tile write has landed.
+
 Not compared: sprites (from OAM), the HUD window (rows from WY down), door number plates (metatiles made
 at runtime), frames with the room dimmed (hiding, the light flicker before Rush and Ambush), frames during
-fades or room loads, and frames just after a metatile changed (a door or drawer
-opening is redrawn in a later VBlank, on purpose). PyBoy shows colours slightly differently from the PNG
+fades or room loads, frames just after a metatile changed (a door or drawer opening is redrawn in a later
+VBlank, on purpose), and dark-room frames with tile writes still queued. PyBoy shows colours slightly differently from the PNG
 (GBC 5-bit colour, its own DMG greys), so the script first learns which screen colour each art colour
 becomes, then counts pixels that don't match. Failing frames are saved to build/screens/scroll-fail-*.png.
 """
@@ -24,6 +27,10 @@ ROOT = Path(__file__).resolve().parent.parent
 MT_DYN_FIRST = 120          # src/room.h
 GAME_PLAYING = 1            # src/game.h
 SETTLE_FRAMES = 12          # skip this long after a fade or a metatile change
+LIGHT_SHAPES, LIGHT_ROWS, LIGHT_REACH, LIGHT_OFF = 10, 17, 8, 0xFF   # src/light.h
+# Reference colour of an unlit tile (the font's blank): one no art uses, so it learns its own screen colour
+# (on GBC the font's black isn't the wall art's black)
+DARK = np.array([1, 2, 3], dtype=np.uint8)
 
 
 def symbols(sym_file: Path):
@@ -86,8 +93,29 @@ def main():
         if wy < 144 and mem[0xFF40] & 0x20:
             mask[wy:, :] = False
         ok = u8("_game_state") == GAME_PLAYING and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
+        dark = u8("_light_dark")
+        sources = [(u8("_light_src_shape", i), u8("_light_src_x", i), u8("_light_src_y", i)) for i in range(2)]
+        pending = u8("_vq_head") != u8("_vq_tail") or u8("_bg_vq_n") != 0 or u8("_light_pending") != 0
         return dict(x=full(mem[0xFF43], s16("_cam_x")), y=full(mem[0xFF42], s16("_cam_y")), w=w, h=h,
-                    room=room, mask=mask, ok=ok)
+                    room=room, mask=mask, ok=ok, dark=dark, sources=sources, pending=pending)
+
+    def sx16(addr):
+        v = mem[addr] | (mem[addr + 1] << 8)
+        return v - 0x10000 if v & 0x8000 else v
+
+    def s8(v):
+        return v - 256 if v & 0x80 else v
+
+    shapes = None
+
+    def lit(sources, tx, ty):
+        for shape, sx, sy in sources:
+            if shape == LIGHT_OFF:
+                continue
+            row = ty - sy + LIGHT_REACH
+            if 0 <= row < LIGHT_ROWS and shapes[0][shape][row] <= tx - sx <= shapes[1][shape][row]:
+                return True
+        return False
 
     def reference(s):
         w, h, room = s["w"], s["h"], s["room"]
@@ -104,6 +132,15 @@ def main():
                     dyn[y0:y1, x0:x1] = False
                     continue
                 pic[y0:y1, x0:x1] = tiles[m][y0 - sy:y1 - sy, x0 - sx:x1 - sx]
+        if s["dark"]:
+            for sy in range(-(s["y"] % 8), 144, 8):
+                ty = (s["y"] + sy) // 8
+                for sx in range(-(s["x"] % 8), 160, 8):
+                    tx = (s["x"] + sx) // 8
+                    if not (0 <= tx < 2 * w and 0 <= ty < 2 * h and lit(s["sources"], tx, ty)):
+                        y0, x0 = max(sy, 0), max(sx, 0)
+                        pic[y0:min(sy + 8, 144), x0:min(sx + 8, 160)] = DARK
+                        dyn[y0:min(sy + 8, 144), x0:min(sx + 8, 160)] = True   # black over a plate too
         return pic, dyn
 
     def keys(a):
@@ -129,6 +166,12 @@ def main():
             continue
         if frame % args.every:
             continue
+        if drawn["dark"] and drawn["pending"]:
+            continue   # the light moved and its tiles are still on their way (a frame or two)
+        if drawn["dark"] and shapes is None:
+            base_l, base_r = sym["_light_l"], sym["_light_r"]
+            shapes = tuple([[[s8(mem[base + s * LIGHT_ROWS + r]) for r in range(LIGHT_ROWS)] for s in range(LIGHT_SHAPES)]
+                            for base in (base_l, base_r)])
         ref, dyn = reference(drawn)
         mask = drawn["mask"] & dyn
         screen = pyboy.screen.ndarray[:, :, :3]

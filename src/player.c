@@ -1,3 +1,4 @@
+#pragma bank 255
 #include <gb/gb.h>
 #include "player.h"
 #include "input.h"
@@ -26,11 +27,11 @@ static uint8_t frame_buf[SPR_PLAYER_FRAME_COUNT * 4];
 // How far (px) the player is slid sideways when walking into the edge of a gap, such as a doorway
 #define NUDGE_MAX 6
 
-void player_load(void) {
+void player_load(void) BANKED {
     spr_sheet_load(&sheet, BANK(sprite_player), &sprite_player, 0, 0, frame_buf);
 }
 
-void player_place(int16_t x, int16_t y, uint8_t facing) {
+void player_place(int16_t x, int16_t y, uint8_t facing) BANKED {
     player_x = x;
     player_y = y;
     sub_x = sub_y = 0x80;
@@ -123,7 +124,7 @@ static const uint8_t facing_for[16] = {
     0xFF,
 };
 
-void player_update(void) {
+void player_update(void) BANKED {
     int8_t dx = 0, dy = 0;
     if (input_held & J_LEFT) dx--;
     if (input_held & J_RIGHT) dx++;
@@ -147,7 +148,7 @@ void player_update(void) {
     }
 }
 
-void player_draw(void) {
+void player_draw(void) BANKED {
     static const uint8_t step[4] = { 0, 1, 0, 2 };  // idle, a, idle, b
     uint8_t s = moving ? step[(anim_timer >> ANIM_SHIFT) & 3] : 0;
     uint8_t frame, flags = 0;

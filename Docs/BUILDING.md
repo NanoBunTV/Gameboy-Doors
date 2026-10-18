@@ -33,7 +33,15 @@ Everything except make and Python lives in `tools/` (gitignored; `tools/README.m
 .\build.ps1 -Test      # also build the AUTOTEST ROMs and run every automated test on them (DEBUGGING.md)
 ```
 
-A full `-Test` run takes about 3 minutes, most of it PyBoy.
+A full `-Test` run takes about 5 minutes, most of it PyBoy.
+
+A **debug build** is the normal game plus debug switches (for now: B cycles the player's light between the
+glow, the lighter and the flashlight, which have no items to come from until Phase 9). From PowerShell (from
+Git Bash, bankpack fails on a `/tmp` path):
+
+```
+& 'F:\Programs\devkitPro\msys2\usr\bin\make.exe' DEBUG=1
+```
 
 Output:
 
@@ -41,7 +49,8 @@ Output:
 |---|---|
 | `build/gbc/doors.gbc` | GBC-only ROM |
 | `build/dmg/doors.gb` | DMG ROM |
-| `build/gbc-autotest/`, `build/dmg-autotest/` | The same with `-DAUTOTEST`: the player walks a fixed route by itself (`src/input.c`). Only for tests |
+| `build/gbc-autotest/`, `build/dmg-autotest/` | The same with `-DAUTOTEST`: the game replays a recorded run (`src/input.c`), with the debug switches. Only for tests |
+| `build/gbc-debug/`, `build/dmg-debug/` | The same with `-DDEBUG`: the debug switches (above) |
 | `build/<target>/doors.sym` | Symbols, loaded automatically by BGB, SameBoy and Emulicious from next to the ROM |
 | `build/<target>/doors.map`, `.noi`, `.ihx` | Linker map, raw symbols, intermediate hex |
 | `build/<target>/obj/` | Object files, assembler listings (`.lst`), and the `.rel` copies bankpack writes |
@@ -49,7 +58,8 @@ Output:
 | `build/screens/`, `build/preview/` | Screenshots from the test scripts, rendered previews |
 
 Each target has its own folder because the linker names `.map`/`.noi`/`.sym` after the ROM's base name, and
-both ROMs are called `doors`. `make AUTOTEST=1` builds into the `-autotest` folders.
+both ROMs are called `doors`. `make AUTOTEST=1` builds into the `-autotest` folders, `make DEBUG=1` into
+`-debug`.
 
 The `Makefile` compiles `src/*.c` plus `src/platform/cgb/*.c` with `-DCGB`, or `src/platform/dmg/*.c` with
 `-DDMG`, plus everything generated in `build/gen/`. New source files are picked up automatically; new assets

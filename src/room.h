@@ -7,6 +7,7 @@
 
 #define ROOM_MAX 3072           // metatiles (3 KB of the DMG's 8 KB WRAM); scripts/assets.py checks rooms against it
 #define ROOM_OBJ_MAX 24
+#define ROOM_SIDE_MAX 127        // metatiles per side (scripts/assets.py checks)
 #define METATILE_MAX 128
 
 // Background VRAM plan (scripts/assets.py checks tilesets against it): tileset tiles from 0, door plates at
@@ -18,6 +19,7 @@
 extern uint8_t room_w, room_h;          // metatiles
 extern uint16_t room_px_w, room_px_h;   // pixels
 extern uint8_t room_map[ROOM_MAX];
+extern uint16_t room_row[ROOM_SIDE_MAX];   // room_map offset of each metatile row
 extern uint16_t room_spawn_x, room_spawn_y;
 extern uint8_t room_obj_count;
 extern room_obj_t room_objs[ROOM_OBJ_MAX];
@@ -45,8 +47,8 @@ void room_set_metatile(uint8_t mx, uint8_t my, uint8_t mt);
 // Is the pixel at (x, y) inside something solid? Outside the room counts as solid.
 uint8_t room_solid_at(int16_t x, int16_t y);
 
-// Makes dynamic metatile MT_DYN_FIRST + slot: a copy of `base` (a door's top half, whose number plate is
-// blank in the art) with `number` drawn on the plate as 3 digits. Returns its metatile number.
+// Makes dynamic metatile MT_DYN_FIRST + slot: a copy of `base` (a door's top half, whose header shows "000"
+// in the art) with `number` painted over it as 3 brass digits. Returns its metatile number.
 uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number);
 
 #endif

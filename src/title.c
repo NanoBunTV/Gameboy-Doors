@@ -51,10 +51,11 @@ uint16_t title_run(void) BANKED {
         if (input_pressed & J_START)
             break;
     }
+    music_play(MUSIC_NONE);   // cut the song (and its last held note) before the blip
     sfx_play(SFX_SELECT);
 #ifdef AUTOTEST
     (void)frames;
-    return 0xC0DE;   // tests replay a fixed run
+    return AUTOTEST_SEED;   // tests replay a fixed run
 #else
     return frames ^ ((uint16_t)DIV_REG << 8) ^ DIV_REG;
 #endif

@@ -2,6 +2,7 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include <gb/gb.h>
 #include <stdint.h>
 
 // Facing, 8 directions, clockwise from down. DESIGN.md: the facing direction is where the player looks.
@@ -19,9 +20,9 @@ extern uint8_t player_facing;        // DIR_*
 #define PLAYER_FEET_X 8
 #define PLAYER_FEET_Y 12
 
-void player_load(void);                                  // sprite tiles, once
-void player_place(int16_t x, int16_t y, uint8_t facing); // put the player somewhere, standing
-void player_update(void);
-void player_draw(void);
+void player_load(void) BANKED;                                  // sprite tiles, once
+void player_place(int16_t x, int16_t y, uint8_t facing) BANKED; // put the player somewhere, standing
+void player_update(void) BANKED;
+void player_draw(void) BANKED;
 
 #endif

@@ -6,6 +6,7 @@
 #include "room.h"
 #include "bg.h"
 #include "hide.h"
+#include "light.h"
 #include "death.h"
 #include "audio.h"
 #include "player.h"
@@ -40,6 +41,12 @@ static int16_t start_d;
 static uint16_t timer;
 static uint8_t legs;           // Ambush: traverses left, one per direction (min/max-movements 3-5)
 static uint8_t anim;
+// His position in the player's room (place())
+static uint8_t placed_room = 0xFF;   // the room xa/ya are for (0xFF: none)
+static uint8_t placed_in;            // ... while the player was in this room
+static int16_t placed_d;             // ... at this distance
+static int32_t xa, ya;               // position, 24.8 fixed point
+static int16_t sx, sy;               // px moved per px of route, 8.8
 
 static spr_sheet_t rush_sheet, ambush_sheet;
 static uint8_t rush_frames[SPR_RUSH_FRAME_COUNT * 4], ambush_frames[SPR_AMBUSH_FRAME_COUNT * 4];
@@ -83,6 +90,7 @@ static void fire(void) {
         back -= len;
     }
     entity_room = start_room;
+    placed_room = 0xFF;
     entity_d = start_d;
     sub = 0;
     dir = 1;
@@ -99,7 +107,8 @@ void entity_room_entered(uint8_t first_time) BANKED {
     }
     if (!entity_queued)
         return;
-    if (hide_free_spots())
+    // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits.
+    if (hide_free_spots() && !light_dark)
         fire();
     else if (!--patience)
         entity_queued = 0;   // nowhere to hide for too long: give up rather than block every later roll
@@ -135,15 +144,31 @@ static uint8_t travel(void) {
     return 0;
 }
 
-// Where he is in the current room, from the route's two door centres
+// Where he is in the current room, on the line between the route's two door centres. Worked out exactly
+// (two 32-bit divisions) only when he's first placed in the player's room; after that each frame adds his
+// step times a per-room slope. The divisions every frame took ~100 of the DMG's 154 scanlines.
+
 static void place(void) {
-    uint8_t t = run_template[entity_room];
-    const uint8_t *r = room_template_route[t];
-    int16_t ax = (int16_t)r[0] << 3, ay = (int16_t)r[1] << 3;
-    int16_t bx = (int16_t)r[2] << 3, by = (int16_t)r[3] << 3;
-    int16_t len = route_length(entity_room);
-    entity_x = ax + (int16_t)(((int32_t)(bx - ax) * entity_d) / len);
-    entity_y = ay + (int16_t)(((int32_t)(by - ay) * entity_d) / len);
+    if (placed_room != entity_room || placed_in != run_room) {
+        uint8_t t = run_template[entity_room];
+        const uint8_t *r = room_template_route[t];
+        int16_t ax = (int16_t)r[0] << 3, ay = (int16_t)r[1] << 3;
+        int16_t bx = (int16_t)r[2] << 3, by = (int16_t)r[3] << 3;
+        int16_t len = route_length(entity_room);
+        xa = ((int32_t)ax << 8) + (((int32_t)(bx - ax) * entity_d << 8) / len);
+        ya = ((int32_t)ay << 8) + (((int32_t)(by - ay) * entity_d << 8) / len);
+        sx = (int16_t)(((int32_t)(bx - ax) << 8) / len);
+        sy = (int16_t)(((int32_t)(by - ay) << 8) / len);
+        placed_room = entity_room;
+        placed_in = run_room;
+    } else {
+        int16_t moved = entity_d - placed_d;   // at most a few px a frame, either way
+        xa += (int16_t)(sx * moved);
+        ya += (int16_t)(sy * moved);
+    }
+    placed_d = entity_d;
+    entity_x = (int16_t)(xa >> 8);
+    entity_y = (int16_t)(ya >> 8);
 }
 
 // How far he is from the player along the route, in px (roughly: the player counts as at their room's
@@ -229,6 +254,8 @@ uint8_t entity_update(void) BANKED {
     }
     if (entity_room == run_room)
         place();
+    else
+        placed_room = 0xFF;   // he left: worked out afresh when he's back
     uint16_t d = route_distance();
     sfx_rumble(d >= HEAR_DISTANCE ? 0 : 15 - (uint8_t)(d / (HEAR_DISTANCE / 15)),
                entity_kind == ENTITY_AMBUSH ? RUMBLE_AMBUSH : RUMBLE_RUSH);

@@ -12,6 +12,7 @@ uint8_t run_hp;
 uint8_t run_key_door;
 uint8_t run_template[RUN_ROOMS];
 uint8_t run_flags[RUN_ROOMS];
+uint8_t run_flags2[RUN_ROOMS];
 uint8_t run_key_slot[RUN_ROOMS];
 uint8_t run_drawers[RUN_ROOMS];
 uint8_t run_banned[RUN_ROOMS];
@@ -62,6 +63,7 @@ void run_start(uint16_t seed) BANKED {
     run_key_door = 0;
     planned = 0;
     memset(run_flags, 0, sizeof(run_flags));
+    memset(run_flags2, 0, sizeof(run_flags2));
     memset(run_drawers, 0, sizeof(run_drawers));
     memset(run_banned, 0, sizeof(run_banned));
     run_plan(1);
@@ -115,7 +117,15 @@ static void plan_room(uint8_t n) {
         if (rnd_below(100) < AMBUSH_SHARE_PERCENT)
             flags |= RF_AMBUSH;
     }
+    // Phase 4's rolls, again after everything before them (Minecraft docs 05: a seed's layouts and locks
+    // stay the same). Not the reception or the last room.
+    uint8_t flags2 = 0;
+    if (n >= DARK_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DARK_CHANCE_PERCENT)
+        flags2 |= RF2_DARK;
+    if (n >= EYES_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < EYES_CHANCE_PERCENT)
+        flags2 |= RF2_EYES;
     run_flags[n] = flags;
+    run_flags2[n] = flags2;
     run_key_slot[n] = slot;
 }
 

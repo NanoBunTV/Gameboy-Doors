@@ -67,7 +67,8 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
   Room 100. Seek's chases (between roughly 30–45 and 80–89) and Halt's hallway are scripted sequences of rooms.
   Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
   door says "TO BE CONTINUED...".
-- **Doors**: every closed door shows its number on a brass plate (and the HUD shows it on entering). **A**
+- **Doors**: every door in a top wall shows its number in brass on a dark header above it, open or shut (side
+  doors while shut), and the HUD shows it on entering. **A**
   opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
 - **Locked doors**: 18% of rooms that allow it lock their exit; the key is in that room, in a drawer (mostly)
   or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
@@ -80,14 +81,17 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
 - While Rush or Ambush is out, **no door opens or lets you through** (*MC 04*), so hiding is the only answer.
 - Rooms list their closets and beds as objects (ASSETS.md); every normal template has at least one.
 
-## Light and darkness
+## Light and darkness (built in Phase 4)
 
-Darkness is a core mechanic (dark rooms, Screech, the lighter, the flashlight, Guiding Light).
-
-- **GBC:** dark rooms use a dimmed background palette set, with a light circle around the player drawn by
-  swapping palettes per tile (attribute map) near the player. **Open**: exact technique and cost; to prototype.
-- **DMG:** with only one background palette, darkness is drawn by swapping to "dark" versions of tiles near
-  the edge of a circle, or a simpler fixed-radius cutout. **Open**: to prototype.
+- **A dark room is black** except the tiles a light reaches (owner, 2026-10-18), on both consoles: unlit
+  tiles are drawn as plain black tiles. Sprites (the player, Screech, Eyes) always show.
+- **No light item yet** (owner): the player has a small **glow**, a rounded 5×5 tiles, enough to find doors
+  and closets. The **lighter** (a circle of radius 3 tiles) and the **flashlight** (a cone 7 tiles long ahead,
+  widening to 5, plus the glow) are built and switchable with B in debug builds; Phase 9 makes them items.
+- **Which rooms**: 10% of rooms from room 15 (Minecraft rule). Rush and Ambush never come into a dark room:
+  the flicker is their warning; their spawn waits for a lit room. A sound marks the lights going out (once
+  for a run of dark rooms).
+- **Eyes glows**: he lights a lighter-sized area around himself.
 
 ## Entities (Hotel)
 
@@ -95,8 +99,8 @@ Darkness is a core mechanic (dark rooms, Screech, the lighter, the flashlight, G
 |---|---|---|
 | Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed | Kill radius 6 blocks (96 px), ignoring walls (*MC 04*). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
 | Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kill radius 8 blocks (128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
-| Screech | In dark rooms: a "psst" and a small sprite appears off to one side; face it within the time limit or take 40 HP | Hiding dismisses him silently (*MC 11*) |
-| Eyes | Appears in a room; facing toward him drains health. Face away | Short grace period before damage (*MC 11*) |
+| Screech | **Built (Phase 4).** Dark rooms only: a "psst", and a 16×16 grin hangs just outside your glow, in a direction you're not facing. Walk his way (facing him) for 0.3 s and he leaves with a squeak; after 3 s (owner) he bites for 40 HP with a full-screen face. The chance rises the longer you stay in the dark (~45% for 8 s in a room) | Hiding dismisses him silently (*MC 11*). 20 s cooldown. He picks a spot on screen |
+| Eyes | **Built (Phase 4).** 5% of rooms from room 8: a 32×32 cluster of eyes at the room's middle, glowing in the dark. Facing exactly his direction (one of 8, ±22.5°; owner) drains 5 HP every 0.25 s after 0.5 s. Look away, walk round. Gone when the exit door opens; never blocks a door | Hidden, he can't hurt you. Independent of Rush and Ambush |
 | Halt | A long hallway; when the screen flashes and "TURN AROUND" shows, walk the other way | |
 | Dupe | Side doors with wrong numbers; opening a wrong one hurts | |
 | Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
@@ -111,8 +115,8 @@ the group, nothing to do solo).
 
 | Item | What it does |
 |---|---|
-| Lighter | Light in dark rooms; fuel meter |
-| Flashlight | Brighter light; uses battery charge |
+| Lighter | Light in dark rooms (a circle, radius 3 tiles; built, debug switch until Phase 9); fuel meter |
+| Flashlight | A cone ahead, 7 tiles long (built, debug switch until Phase 9); uses battery charge |
 | Battery | Refills the flashlight |
 | Vitamins | Short speed boost and a small heal |
 | Bandage | Heals |
@@ -155,6 +159,5 @@ sitting, as in DOORS.
 
 ## Still open
 
-- Darkness technique on each console (after a prototype).
 - The list of achievements and their Knob rewards.
 - Credits.
