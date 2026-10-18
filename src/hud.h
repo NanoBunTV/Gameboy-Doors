@@ -8,7 +8,7 @@
 // Once at boot with the LCD off: loads the font into VRAM, sets up the window map
 void hud_init(void);
 
-// Shows the status line (door number, key) for `frames` frames
+// Shows the status line (door number, health, key) for `frames` frames
 void hud_show(uint8_t frames);
 
 // Shows a message instead of the status line for `frames` frames (at most 20 characters)
@@ -20,8 +20,11 @@ void hud_hide_now(void);
 // Once per frame: timers, slide, and the status line's contents
 void hud_update(void);
 
-// Prints to the background map at tile (x, y), straight to VRAM. The LCD must be off.
+// Prints to the background map at tile (x, y), straight to VRAM (waiting for STAT: safe with the LCD on)
 void text_print_bg(uint8_t x, uint8_t y, const char *text);
+
+// Puts the font's own palette back in GBC BG palette 7 (after the Guiding Light's blue)
+void hud_font_palette(void);
 
 // Queues text to a BG or window map address (written in later VBlanks; safe with the LCD on)
 void text_queue(uint16_t addr, const char *text);

@@ -1,46 +1,43 @@
+#pragma bank 255
 #include <gb/gb.h>
 #include "title.h"
 #include "hud.h"
 #include "bg.h"
 #include "room.h"
+#include "image.h"
 #include "input.h"
 #include "game.h"
+#include "audio.h"
 #include "platform.h"
 #include "font.h"
 #include "image_logo.h"
 
 #define BLINK_FRAMES 32
 
-uint16_t title_run(void) {
+uint16_t title_run(void) BANKED {
     game_state = GAME_TITLE;
-    DISPLAY_OFF;   // waits for VBlank
-    fill_bkg_rect(0, 0, 32, 32, FONT_FIRST_TILE);   // the font's first character is the space
-#ifdef CGB
-    VBK_REG = VBK_ATTRIBUTES;
-    fill_bkg_rect(0, 0, 32, 32, PAL_TEXT);
-    VBK_REG = VBK_TILES;
-#endif
+    // At boot the LCD is still off; coming back from a run it's on, so draw behind black instead (turning
+    // the LCD off would flash white on a DMG)
+    uint8_t lcd_on = LCDC_REG & LCDCF_ON;
+    if (lcd_on && platform_fade != FADE_BLACK)
+        game_fade(platform_fade, FADE_BLACK);
+    platform_set_dim(0, TINT_NONE);
+    hud_hide_now();
+    screen_fill(FONT_FIRST_TILE, PAL_TEXT);   // the font's first character is the space
     // The logo uses BG tiles from 0, over the room tileset, which is reloaded for the first room
-    uint8_t saved = CURRENT_BANK;
-    SWITCH_ROM(BANK(image_logo));
-    set_bkg_data(0, image_logo.tile_count, image_logo.tiles);
-    set_bkg_tiles(1, 3, image_logo.width, image_logo.height, image_logo.map);
-#ifdef CGB
-    VBK_REG = VBK_ATTRIBUTES;
-    set_bkg_tiles(1, 3, image_logo.width, image_logo.height, image_logo.attrs);
-    VBK_REG = VBK_TILES;
-    platform_set_bkg_palettes(0, image_logo.palettes, image_logo.palette_count);
-#endif
-    SWITCH_ROM(saved);
-    room_forget_tileset();
-
+    image_show(BANK(image_logo), &image_logo, 1, 3);
     text_print_bg(2, 10, "HOTEL - FLOOR 1");
     text_print_bg(4, 13, "PRESS START");
     text_print_bg(17, 17, platform_name);
     bg_set_scroll(0, 0);
-    platform_set_fade(0);
-    platform_vblank();
-    DISPLAY_ON;
+    music_play(MUSIC_TITLE);
+    if (lcd_on) {
+        game_fade(FADE_BLACK, 0);
+    } else {
+        platform_set_fade(0);
+        platform_vblank();
+        DISPLAY_ON;
+    }
 
     // The seed: how long the title was shown, mixed with the divider register at the moment Start is
     // pressed. A Game Boy powers on the same way every time, so a person's timing is the only randomness.
@@ -54,6 +51,7 @@ uint16_t title_run(void) {
         if (input_pressed & J_START)
             break;
     }
+    sfx_play(SFX_SELECT);
 #ifdef AUTOTEST
     (void)frames;
     return 0xC0DE;   // tests replay a fixed run

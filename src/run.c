@@ -1,3 +1,4 @@
+#pragma bank 255
 #include <gb/gb.h>
 #include <string.h>
 #include "run.h"
@@ -6,11 +7,14 @@
 
 uint16_t run_seed;
 uint8_t run_room;
+uint8_t run_max_room;
+uint8_t run_hp;
 uint8_t run_key_door;
 uint8_t run_template[RUN_ROOMS];
 uint8_t run_flags[RUN_ROOMS];
 uint8_t run_key_slot[RUN_ROOMS];
 uint8_t run_drawers[RUN_ROOMS];
+uint8_t run_banned[RUN_ROOMS];
 static uint8_t planned;   // rooms 0 .. planned - 1 are planned
 
 // xorshift16 (Brad Forschner's 7, 9, 8 triple), seeded per room from the run seed and the room number.
@@ -50,13 +54,16 @@ static uint8_t opposite(uint8_t wall) {
     }
 }
 
-void run_start(uint16_t seed) {
+void run_start(uint16_t seed) BANKED {
     run_seed = seed;
     run_room = 0;
+    run_max_room = 0;
+    run_hp = MAX_HP;
     run_key_door = 0;
     planned = 0;
     memset(run_flags, 0, sizeof(run_flags));
     memset(run_drawers, 0, sizeof(run_drawers));
+    memset(run_banned, 0, sizeof(run_banned));
     run_plan(1);
 }
 
@@ -102,11 +109,17 @@ static void plan_room(uint8_t n) {
             slot = rnd_below(info[5]);
         }
     }
+    // Drawn after everything above, so adding this roll didn't change any room's layout or lock
+    if (n >= ENTITY_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < SPAWN_CHANCE_PERCENT) {
+        flags |= RF_SPAWN;
+        if (rnd_below(100) < AMBUSH_SHARE_PERCENT)
+            flags |= RF_AMBUSH;
+    }
     run_flags[n] = flags;
     run_key_slot[n] = slot;
 }
 
-void run_plan(uint8_t n) {
+void run_plan(uint8_t n) BANKED {
     if (n > RUN_LAST_ROOM)
         n = RUN_LAST_ROOM;
     while (planned <= n)

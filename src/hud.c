@@ -81,18 +81,32 @@ void text_3digits(char *buf, uint8_t n) {
     buf[2] = '0' + n % 10;
 }
 
-// " DOOR 012       ~ " : the room you're in, and the key if you carry one
+// " DOOR 012 @######## ~": the room you're in, health (a heart and an 8-tile bar) and the key if you
+// carry one. The bar's glyphs ('*' empty, '+' '{' '}' 2/4/6 px, '#' full) are in the font (font.json).
 static void status_line(void) {
+    static const char bar_glyph[5] = { '*', '+', '{', '}', '#' };
     memset(want, ' ', 20);
     memcpy(want + 1, "DOOR", 4);
     text_3digits(want + 6, run_room);
+    want[10] = '@';
+    uint8_t px = (uint8_t)(((uint16_t)run_hp * 64 + 50) / 100);   // 0-64 px
+    for (uint8_t i = 0; i < 8; i++) {
+        uint8_t fill = px > 8 ? 8 : px;
+        px -= fill;
+        want[11 + i] = bar_glyph[fill >> 1];
+    }
     if (run_key_door)
-        want[18] = '~';
+        want[19] = '~';
 }
 
 void hud_update(void) {
+    static uint8_t last_hp;
     if (input_held & J_SELECT)
         hud_show(30);
+    if (run_hp != last_hp) {   // health changed: show it (DESIGN.md, HUD)
+        last_hp = run_hp;
+        hud_show(150);
+    }
     if (msg_timer)
         msg_timer--;
     else
@@ -126,11 +140,21 @@ void text_print_bg(uint8_t x, uint8_t y, const char *text) {
         row[n] = tile_for(text[n]);
         n++;
     }
-    set_bkg_tiles(x, y, n, 1, row);
+    uint16_t addr = 0x9800u + ((uint16_t)y << 5) + x;
+    vram_write(addr, row, n);
 #ifdef CGB
     VBK_REG = VBK_ATTRIBUTES;
     memset(row, PAL_TEXT, n);
-    set_bkg_tiles(x, y, n, 1, row);
+    vram_write(addr, row, n);
     VBK_REG = VBK_TILES;
+#endif
+}
+
+void hud_font_palette(void) {
+#ifdef CGB
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(BANK(font));
+    platform_set_bkg_palettes(PAL_TEXT, font.palette, 1);
+    SWITCH_ROM(saved);
 #endif
 }

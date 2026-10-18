@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="14" height="12" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="6">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="14" height="12" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="8">
  <properties>
   <property name="kind" value="start"/>
   <property name="allow_lock" type="bool" value="true"/>
@@ -38,5 +38,7 @@
   <object id="5" name="spawn" x="112" y="144">
    <point/>
   </object>
+  <object id="6" name="closet" x="16" y="128" width="16" height="32"/>
+  <object id="7" name="closet" x="192" y="128" width="16" height="32"/>
  </objectgroup>
 </map>

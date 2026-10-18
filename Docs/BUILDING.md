@@ -12,15 +12,18 @@ Everything except make and Python lives in `tools/` (gitignored; `tools/README.m
 | SameBoy | 1.0.4 | github.com/LIJI32/SameBoy/releases, `sameboy_winsdl_v1.0.4.zip` (SHA-256 checked against the release's `SHA2-256SUMS`) | `tools/sameboy/` |
 | Emulicious | 2026-03-27 build | emulicious.net/downloads, "Emulicious" (without bundled Java) | `tools/emulicious/` |
 | PyBoy | 2.8.1 | pip, into a venv | `tools/venv/` |
+| hUGEDriver | 6.1.3 (2026-10-17) | github.com/SuperDisk/hUGEDriver/releases, `hUGEDriver-6.1.3.zip` | `tools/hugedriver/` (`gbdk/hUGEDriver.lib`, `include/hUGEDriver.h`) |
+| hUGETracker | 1.0.11 | github.com/SuperDisk/hUGETracker/releases, `hUGETracker-1.0.11-windows.zip` | `tools/hugetracker/` (the tracker, and `uge2source.exe`, which the build uses) |
 
 - **GNU make**: the owner's devkitPro MSYS2 has one (`F:\Programs\devkitPro\msys2\usr\bin\make.exe`); `build.ps1`
   finds it there, in `C:\devkitPro`, or on PATH.
 - **Python 3.13** for the venv: `C:\Python313\python.exe -m venv tools\venv`, then
-  `tools\venv\Scripts\python.exe -m pip install pyboy pillow`. **Not 3.15**, the owner's default `python`:
+  `tools\venv\Scripts\python.exe -m pip install pyboy pillow mido` (mido reads MIDI files, for arranging
+  the owner's MIDIs; the build doesn't need it). **Not 3.15**, the owner's default `python`:
   PyBoy has no wheels for it yet and building one from source fails (2026-10-17). 3.12–3.14 are also installed.
 - **Java** (owner has Amazon Corretto 25) for Emulicious.
-- Optional: **Tiled** (`F:\Programs\Tiled`) to edit rooms; **hUGETracker** to edit music; **hUGEDriver** (6.1.3 is
-  the latest release) when audio starts.
+- Optional: **Tiled** (`F:\Programs\Tiled`) to edit rooms; **hUGETracker** (`tools\hugetracker\hUGETracker.exe`)
+  to edit and listen to the songs. hUGEDriver and hUGETracker must match: 6.1.3 goes with 1.0.11.
 
 ## Build
 
@@ -54,8 +57,11 @@ too (every `assets/tilesets/*.tsx`, `assets/rooms/*.tmx`, `assets/sprites/*.json
 every header, which is simple and fast enough at this size.
 
 **Assets** are converted by `scripts/assets.py` (ARCHITECTURE.md, ASSETS.md), run with the venv's Python:
-one `.c/.h` pair per tileset, room, sprite sheet, title image and the font, plus `room_templates.c/.h` for all
-rooms together.
+one `.c/.h` pair per tileset, room, sprite sheet, picture (title logo, jumpscares) and the font, plus
+`room_templates.c/.h` for all rooms together. **Songs** (`assets/music/*.uge`) go through hUGETracker's
+`uge2source.exe` into `build/gen/raw/music_<name>.c`, then `assets.py songfix` into `build/gen/music_<name>.c`
+(it patches the empty instrument arrays SDCC rejects). The driver is linked from the release's prebuilt
+library: `-Wl-ltools/hugedriver/gbdk/hUGEDriver.lib`, with `-Itools/hugedriver/include`.
 
 **AUTOTEST builds** also compile `tests/*.c`: the recorded run (`tests/autotest_input.c`, written by
 `scripts/bot.py`; DEBUGGING.md). It's committed, so the tests work from a fresh checkout.
@@ -79,7 +85,7 @@ Set by `lcc`'s makebin flags in the Makefile:
 | Title | `DOORS` | `-Wm-yn"DOORS"` |
 | Cartridge type | `0x1B` (MBC5 + RAM + battery) | `-Wm-yt0x1B` |
 | RAM size | 32 KB (4 banks) | `-Wm-ya4` |
-| ROM size | automatic (with `-autobank`) | `-Wm-yoA` |
+| ROM size | automatic (with `-autobank`); 64 KB as of Phase 3 | `-Wm-yoA` |
 | CGB flag | `0xC0` (GBC only) for `doors.gbc`; `0x00` for `doors.gb` | `-Wm-yC` on the GBC link only |
 | Checksums | header and global, written by makebin | |
 | `.sym` file | converted from `.noi` | `-Wm-yS` |

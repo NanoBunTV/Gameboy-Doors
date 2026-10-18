@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="29" columns="8">
+<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="31" columns="8">
  <image source="hotel.gbc.png" width="128" height="64"/>
  <tile id="0">
   <properties>
@@ -162,6 +162,18 @@
  <tile id="28">
   <properties>
    <property name="name" value="dresser_open"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="29">
+  <properties>
+   <property name="name" value="bed_top"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="30">
+  <properties>
+   <property name="name" value="bed_bottom"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>

@@ -5,7 +5,8 @@ from the game's own room map in WRAM and the tileset PNG.
 Usage: tools/venv/Scripts/python.exe scripts/scroll-test.py build/gbc-autotest/doors.gbc [frames] [--every 2]
 
 Not compared: sprites (from OAM), the HUD window (rows from WY down), door number plates (metatiles made
-at runtime), frames during fades or room loads, and frames just after a metatile changed (a door or drawer
+at runtime), frames with the room dimmed (hiding, the light flicker before Rush and Ambush), frames during
+fades or room loads, and frames just after a metatile changed (a door or drawer
 opening is redrawn in a later VBlank, on purpose). PyBoy shows colours slightly differently from the PNG
 (GBC 5-bit colour, its own DMG greys), so the script first learns which screen colour each art colour
 becomes, then counts pixels that don't match. Failing frames are saved to build/screens/scroll-fail-*.png.
@@ -84,7 +85,7 @@ def main():
         wy = mem[0xFF4A]
         if wy < 144 and mem[0xFF40] & 0x20:
             mask[wy:, :] = False
-        ok = u8("_game_state") == GAME_PLAYING and u8("_platform_fade") == 0
+        ok = u8("_game_state") == GAME_PLAYING and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
         return dict(x=full(mem[0xFF43], s16("_cam_x")), y=full(mem[0xFF42], s16("_cam_y")), w=w, h=h,
                     room=room, mask=mask, ok=ok)
 

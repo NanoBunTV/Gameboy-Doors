@@ -6,10 +6,11 @@
 static uint8_t oam_next;   // next free shadow OAM entry this frame
 static uint8_t oam_used;   // entries used last frame
 
-void spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
-                    uint8_t base_tile, uint8_t base_pal, uint8_t *frame_buf) {
+uint8_t spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
+                       uint8_t base_tile, uint8_t base_pal, uint8_t *frame_buf) {
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(bank);
+    uint8_t count = src->tile_count;
     set_sprite_data(base_tile, src->tile_count, src->tiles);
     memcpy(frame_buf, src->frames, (uint16_t)src->frame_count << 2);
 #ifdef CGB
@@ -19,6 +20,7 @@ void spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
     rt->base_tile = base_tile;
     rt->base_pal = base_pal;
     rt->frames = frame_buf;
+    return count;
 }
 
 void spr_begin(void) {
@@ -50,6 +52,14 @@ void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, u
     } else {
         put(sheet, f[0], f[1], sx, sy);
         put(sheet, f[2], f[3], sx + 8, sy);
+    }
+}
+
+void spr_draw_big(const spr_sheet_t *sheet, uint8_t frame, uint8_t pw, uint8_t ph, int16_t sx, int16_t sy) {
+    for (uint8_t j = 0; j < ph; j++, sy += 16) {
+        int16_t x = sx;
+        for (uint8_t i = 0; i < pw; i++, x += 16)
+            spr_draw(sheet, frame++, x, sy, 0);
     }
 }
 

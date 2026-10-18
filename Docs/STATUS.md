@@ -16,6 +16,11 @@
 | 2026-10-17 | same | `bot.py`, 40 rooms, both consoles | The bot plays to room 40 on GBC and DMG with the same rooms: 8 locked doors (keys from drawers and in the open), walking back from room 3 to 2 and returning. Screenshots of 24 rooms checked by eye: doors, plates, padlocks, keys, side and top doors, centred narrow halls |
 | 2026-10-17 | same, recorded 30-room run | `build.ps1 -Test` (AUTOTEST ROMs) | BGB, all exception breaks, `.gbc` as GBC, `.gb` as DMG and as GBC: no break in 15 s while replaying the run. `scroll-test.py`: 2,500 (DMG) / 2,251 (GBC) frames compared through 30 rooms, **0 wrong background pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame 5,371 on both consoles |
 | | | Owner, by hand | Not yet: play `build\gbc\doors.gbc` and `build\dmg\doors.gb` |
+| 2026-10-18 | Phase 3: closets and beds, Rush, Ambush, Hide, health bar, jumpscares, Guiding Light, hUGEDriver music (the owner's Lobby Theme and Guiding Light MIDIs, a hotel ambience) and sound effects | PyBoy, button scripts | Hiding in the reception closet dims the room; the heartbeat pulses from 7 s; at 12 s "GET OUT!", 40 HP off the bar, that closet refuses ("SOMETHING STOPS ME."). A forced Hide death: the Guiding Light's hint, Title back to the title screen. Both consoles |
+| 2026-10-18 | same | `bot.py`, 40 rooms, both consoles | 5 spawns (Rush and Ambush): the bot hid every time and lost no health; Ambush (room 20) needed stepping out and back in during his rear pause. Screenshots while hidden show Rush crossing from the entry door to the exit and Ambush with the room tinted green (GBC) |
+| 2026-10-18 | same, recorded run (30 rooms + a death) | `build.ps1 -Test` (AUTOTEST ROMs) | **All passed.** BGB, all exception breaks, `.gbc` as GBC, `.gb` as DMG and as GBC: 15 s, which covers the whole replay, the jumpscare, the Guiding Light and the new run (`death_run` reached at about 5 s). `scroll-test.py`: 1,652 (GBC) / 1,707 (DMG) frames compared, **0 wrong background pixels**. VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30; every room change, hide and the death fall on the same input frame on both consoles |
+| 2026-10-18 | same | PyBoy sound | Title RMS 13.8, hotel 6.3 (20 s each, `build/screens/*.wav`): the music plays. Whether it sounds right: for the owner's ears |
+| | | Owner, by hand | Not yet: play both ROMs in BGB with sound; listen to the songs in hUGETracker |
 
 ## Test checklist for new builds
 
@@ -31,6 +36,20 @@
 
 ## Known issues
 
+- **The music arrangements are unheard**: made from the MIDI files and measured as playing, but nobody has
+  listened yet. The Lobby Theme's chords are arpeggios on one channel, and the Guiding Light drops the piano's
+  chord stabs; both may want touching up in hUGETracker.
+- **Sound effects are first drafts** (`src/audio.c`), tuned by numbers, not by ear: door, drawer, key,
+  locked, unlock, hide, heartbeat, "get out", hurt, the flicker's buzz, Ambush's howl, the scream, the
+  typewriter, the menu blip, and the rumble.
+- **Rush and Ambush take the straight line between doors** (the Minecraft version's first design), so they
+  cut through furniture. Fine in the current rectangular rooms.
+- **Ambush's flicker is only green on GBC.** On DMG his howl is the only difference from Rush's warning.
+- **The Guiding Light's lines sit on consecutive rows**, which reads a little cramped.
+- **Bank 0 is 84% full on GBC** (2.6 KB left): hUGEDriver took 1.9 KB. `game`, `run` and `title` moved into
+  banks this phase; `hud.c` and `player.c` could follow (they don't switch banks), or the effect tables in
+  `audio.c` could move.
+
 - **The DMG floor is busy**: the wood-plank pattern in greys is noisy next to the white-headed player. To revisit
   with real art (ASSETS.md).
 - **Tables look like dark blocks** in the placeholder tileset.
@@ -43,8 +62,6 @@
 - **The room order repeats in cycles** (e.g. turn_right → hall_we → left_to_top → bedroom → …): with 9
   templates there are only 2–3 per entry wall, and the no-repeat rule often leaves one choice. More templates
   fix it; aim for at least 4–5 per entry wall.
-- **ROM bank 0 is 74% full on GBC.** Engine code has to start moving into banked ROM (GBDK `__banked`
-  functions or `#pragma bank`) in Phase 3 or 4.
 - **GBC palette writes rely on running in VBlank** (`platform_vblank()` from `bg_flush`); BGB's exception
   breaks don't cover palette RAM, so this isn't machine-checked.
 - **Door numbers are small** (3×5 digits on a 12 px plate): readable on screen, not big. The HUD shows the
@@ -61,14 +78,14 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 0. Toolchain (**done 2026-10-17**) | GBDK-2020, BGB, Python venv, PyBoy, SameBoy, Emulicious in `tools/`; Makefile for both ROMs; a "hello" ROM that boots on DMG and GBC in BGB with every exception break on |
 | 1. Engine core (**done 2026-10-17**, owner's hands-on test pending) | VBlank queue, OAM DMA, joypad, player movement with collision on a metatile map, scrolling camera, one test room from Tiled; asset converter; automated scroll and VBlank tests |
 | 2. Rooms and doors (**done 2026-10-17**, owner's hands-on test pending) | Title with logo, seeded room chaining (reception + 9 templates), door numbers, opening doors, walking back, keys in drawers and in the open, locked doors, the on-demand HUD, fades; the play-testing bot and recorded run |
-| 3. Hiding and Rush/Ambush | Closets, beds, light flicker, Rush and Ambush on the door-to-door path, the health bar (on-demand HUD), death and the Guiding Light screen |
+| 3. Hiding and Rush/Ambush (**done 2026-10-18**, owner's hands-on test pending) | Closets, beds, light flicker, Rush and Ambush on the door-to-door path, Hide (moved here from Phase 5), the health bar (on-demand HUD), jumpscares, death and the Guiding Light screen; hUGEDriver with the title and Guiding Light songs from the owner's MIDIs, a hotel ambience, sound effects (audio moved here from Phase 10) |
 | 4. Darkness, Screech, Eyes | Dark rooms on both consoles, lighter/flashlight, Screech, Eyes |
-| 5. Dupe, Halt, Hide, Timothy | The smaller entities |
+| 5. Dupe, Halt, Timothy | The smaller entities |
 | 6. The Library (50) | Figure, books, the padlock code |
 | 7. Seek | Eyes on the walls, the chase sequences |
 | 8. Courtyard, Greenhouse, Room 100 | Rooms 89–100, the fuses and the escape, the ending |
-| 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items, the on-demand HUD's item and gold parts, SRAM save |
-| 10. Audio | hUGEDriver music and SFX throughout |
+| 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items, the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
+| 10. Audio | The rest: Seek's chase (Here I Come MIDI, Phase 7) and the Ending Theme (Phase 8) when those come; SFX for every entity; a pass by ear over everything |
 | 11. Polish | Title screen extras, achievements (paying Knobs), statistics, Super Game Boy border for the DMG ROM, balance; more room templates (an ongoing job: see known issues) |
 
-Audio can start earlier in parallel once the engine core exists.
+The owner's MIDI files for later phases are in `assets/music/midi/` (ASSETS.md, "Music").

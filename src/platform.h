@@ -18,7 +18,7 @@ void platform_init(void);
 
 #ifdef CGB
 // Sets background / sprite palettes. They're kept in WRAM and written to the hardware in the next
-// VBlank (platform_vblank), with the current fade applied.
+// VBlank (platform_vblank), with the current fade and dimming applied.
 void platform_set_bkg_palettes(uint8_t first, const palette_color_t *colours, uint8_t count);
 void platform_set_sprite_palettes(uint8_t first, const palette_color_t *colours, uint8_t count);
 #endif
@@ -28,7 +28,17 @@ void platform_set_sprite_palettes(uint8_t first, const palette_color_t *colours,
 void platform_set_fade(uint8_t level);
 extern uint8_t platform_fade;
 
-// Called by bg_flush() in VBlank: writes changed palettes
-void platform_vblank(void);
+// Dims the room's background only (not sprites, not the GBC text palette): 0 = normal ... 3 = black.
+// Used for the light flicker and while hiding. TINT_GREEN (GBC only; ignored on DMG) gives Ambush's
+// green flicker. Cheap to call every frame: nothing happens unless the values change.
+#define TINT_NONE  0
+#define TINT_GREEN 1
+void platform_set_dim(uint8_t level, uint8_t tint);
+extern uint8_t platform_dim;   // the current level (scripts/scroll-test.py skips dimmed frames)
+
+// Called by bg_flush() in VBlank: writes changed palettes. All the arithmetic happens in the set_*
+// functions, so this is only a copy. Returns 1 if that took a large part of VBlank (GBC palette RAM), so
+// bg_flush leaves the map writes for the next frame.
+uint8_t platform_vblank(void);
 
 #endif

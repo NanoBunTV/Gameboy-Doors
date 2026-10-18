@@ -4,7 +4,8 @@ Re-records the run AUTOTEST builds replay (tests/autotest_input.c), with scripts
 
 .DESCRIPTION
 Needed after a change that alters the game's behaviour for the same input: room templates, generation
-rules, door positions, walking speed. Steps: write an empty recording, build the AUTOTEST DMG ROM (which
+rules, door positions, walking speed, entity timing. The bot plays -Rooms rooms, then lets Rush or Ambush
+catch it and picks Try again, so the replay covers the death screen too. Steps: write an empty recording, build the AUTOTEST DMG ROM (which
 then reads the joypad), let the bot play -Rooms rooms recording its buttons, rebuild, and check the replay
 on both consoles.
 
@@ -26,7 +27,7 @@ function Quiet([scriptblock] $b) { & $b 2>&1 | Select-String -NotMatch 'UserWarn
 Quiet { & $py scripts\bot.py --reset }
 & $make AUTOTEST=1 dmg | Out-Null
 if ($LASTEXITCODE) { throw 'build failed' }
-Quiet { & $py scripts\bot.py build\dmg-autotest\doors.gb --rooms $Rooms --record }
+Quiet { & $py scripts\bot.py build\dmg-autotest\doors.gb --rooms $Rooms --record --die-at-end }
 if ($LASTEXITCODE) { throw 'the bot failed (see build/screens/bot-fail.png)' }
 & $make AUTOTEST=1 | Out-Null
 if ($LASTEXITCODE) { throw 'build failed' }

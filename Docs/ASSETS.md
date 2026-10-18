@@ -58,6 +58,7 @@ The hotel metatiles:
 | side_door_top, side_door_bottom, side_door_bottom_locked, side_open_top, side_open_bottom | A door in the left or right wall, seen from above (symmetric, so one set serves both walls). side_door_top carries the number plate like door_top |
 | doorway_s | An open doorway in the bottom wall (entries only) |
 | closet_top, closet_bottom, dresser, dresser_open, table, desk_l/m/r | Furniture. dresser_open is a dresser after its drawer was searched |
+| bed_top, bed_bottom | A bed, headboard and pillow above the blanket (Phase 3; metatiles 29 and 30) |
 
 ## Rooms (`assets/rooms/`)
 
@@ -81,10 +82,20 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `drawer` | 1×1 rectangle on a `dresser` metatile | Can be searched with A; may hold the key. At most 8 per room |
   | `keyspot` | point (or 1×1 rectangle) | A place a key can lie in the open. Property `fixed` = true marks the start room's key (always there) |
   | `spawn` | point | Start and test rooms: where the player starts (top left of the 16×16 sprite) |
+  | `closet` | 1×2 rectangle on `closet_top` + `closet_bottom` | A hiding spot (A to get in, A or B to get out) |
+  | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
-  closed-door metatiles there; the game swaps in open/closed/locked versions.
+  closed-door metatiles there; the game swaps in open/closed/locked versions. At most 8 closets and beds
+  together per room.
+
+- **Hiding spots matter for Rush and Ambush**: a spawn waits for a room with a closet or bed (Hide's bans
+  aside), so a room with none is a breather. Every normal template has at least one so far. Leave the cell
+  in front of (or beside) each one walkable.
+- **Rush's route** through a room is the straight line between the centres of its entry and exit doors
+  (reception: spawn to exit). Nothing to draw: the converter works it out. He passes through furniture and
+  walls on the way, as in the Minecraft version.
 
 - **Which way rooms connect** (owner, 2026-10-17): exits go up or sideways, never down. A room entered from
   the bottom follows a room that left through the top; entered from the left follows one that left through
@@ -93,12 +104,13 @@ A room is a Tiled map (`.tmx`) using one tileset:
 **3/4 view convention**: the top edge of a wall is `wall_top`. A wall the player faces from below shows its
 face under it: `wallpaper`, then `wainscot`, then a row of `floor_shadow`. Side walls and the bottom wall are
 only `wall_top`. Furniture is 1 metatile (dresser, table) or 2 tall (closet: `closet_top` above
-`closet_bottom`). Leave the cell in front of each door and drawer walkable: that's where the player stands
+`closet_bottom`; bed: `bed_top` above `bed_bottom`). Leave the cell in front of each door and drawer walkable: that's where the player stands
 to use it.
 
 Current templates: `reception` (start), `hall_ns`, `bedroom`, `lounge` (bottom → top), `turn_left`,
 `turn_right` (bottom → side), `left_to_top`, `right_to_top` (side → top), `hall_we`, `hall_ew` (side →
-side), and `test` (the Phase 1 scrolling test room).
+side), and `test` (the Phase 1 scrolling test room). Hiding spots (Phase 3): two closets in the reception
+and the lounge, two closets and two beds in the bedroom, one closet in every other template.
 
 To preview a room as an image: `F:\Programs\Tiled\tmxrasterizer.exe --scale 2 assets\rooms\lounge.tmx build\preview\lounge.png`.
 
@@ -110,9 +122,10 @@ A sheet is `<name>.gbc.png`, `<name>.dmg.png` and `<name>.json`:
 { "frame_width": 16, "frame_height": 16, "frames": ["down_idle", "down_a", ...] }
 ```
 
-Frames are 16×16, laid out in a grid left to right, top to bottom, in the order of `frames`. Frame names
-become constants (`SPR_PLAYER_DOWN_IDLE`). Each frame is drawn as two 8×16 hardware sprites, the left and
-right half; an empty half costs nothing.
+Frames are laid out in a grid left to right, top to bottom, in the order of `frames`. Frame names become
+constants (`SPR_PLAYER_DOWN_IDLE`). A 16×16 frame is drawn as two 8×16 hardware sprites, the left and right
+half; an empty half costs nothing. Bigger frames (multiples of 16, e.g. 32×32) are cut into 16×16 parts, and
+the constant is the first part's number.
 
 Rules:
 
@@ -121,14 +134,19 @@ Rules:
   has two sprite palettes; the converter picks one per half.
 
 Sheets: `player` (`down_idle`, `down_a`, `down_b`, `up_idle`, `up_a`, `up_b`, `left_idle`, `left_a`,
-`left_b`; right-facing is the left frames mirrored; walk cycle idle → a → idle → b) and `key` (one frame).
+`left_b`; right-facing is the left frames mirrored; walk cycle idle → a → idle → b), `key` (one frame), and
+`rush` and `ambush` (32×32, frames `f0` and `f1`, alternated every 4 frames: the second is the first with
+its smoky edge jittered). Rush and Ambush were pixelated (2026-10-17) from the DOORS wiki pictures the owner
+pointed to (`static.wikitide.net/doorswiki/3/36/Rushvnew.webp`, `.../1/1a/Ambush_sprite.png`): Rush black
+smoke with a grey face and white teeth, Ambush green and white. The art is LSPLASH's.
 
 ## Font (`assets/fonts/`)
 
 `font.gbc.png`, `font.dmg.png`: 8×8 characters in a grid, 8 per row, in the order of `chars` in
 `font.json`. One palette for the whole font (light text on black). Lower case is shown as upper case; any
-character not in the font shows as a space. Two special characters: `=` is the HUD's top border, `~` the key
-icon. At most 64 characters.
+character not in the font shows as a space. Special characters: `=` the HUD's top border, `~` the key icon,
+`@` the heart, `*` `+` `{` `}` `#` the health bar's tiles (empty, 2, 4, 6, 8 px filled), `>` the menu cursor.
+At most 64 characters (54 used).
 
 ## Title picture (`assets/title/`)
 
@@ -136,3 +154,29 @@ icon. At most 64 characters.
 colours per 8×8 tile, up to 7 palettes; at most 184 different tiles. It was made (2026-10-17) by reducing the
 official logo the owner pointed to (`upload.wikimedia.org/wikipedia/commons/2/2f/DOORS_Logo.webp`) to 4
 colours with a 1 px outline. The logo is LSPLASH's; this is a fan project.
+
+## Jumpscares (`assets/scares/`)
+
+`scare_rush` and `scare_ambush` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2× (each art pixel is
+2×2) in 4 shades, from the same wiki pictures as the sprites. Same rules as the title picture: 4 colours per
+8×8 tile on GBC and at most 184 different tiles (Rush uses 115, Ambush 171), since they're loaded over the
+tileset while shown.
+
+## Music (`assets/music/`)
+
+hUGETracker songs (`.uge`, format 6, hUGETracker 1.0.11 in `tools/hugetracker`): open them there, edit, save,
+rebuild. The build converts each with `uge2source` into `music_<name>`. Songs must not use timer-based tempo
+(the game calls the driver once per frame).
+
+| Song | Plays | Made from |
+|---|---|---|
+| `title.uge` | Title screen | The owner's `midi/Lobby Theme (Title Screen).mid`, arranged by hand: CH1 the Scifi lead, CH2 the jazz guitar stabs (and before they start, the cello chords) as arpeggios, CH3 the cello's bass notes, CH4 the drums. 72 bpm: rows alternate 13 and 12 ticks (F0D/F0C on CH4) |
+| `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
+| `hotel.uge` | In the hotel | Claude's: a low drone that drifts and a far-off two-note figure now and then. DOORS has almost no music in rooms |
+
+In all of them a row is a 16th note and a pattern is 4 bars. **Keep CH1, CH2 and CH4 light in the hotel
+song**: sound effects borrow them (CH4 for the whole of a Rush or Ambush pass). The other MIDI files (Elevator
+Jam, Jeff's Shop Jingle, Here I Come, Ending Theme) are for later phases and get arranged when those come.
+
+Sound effects aren't files: they're register scripts in `src/audio.c` (`s_door`, `s_flicker`, …), one table
+of steps each.

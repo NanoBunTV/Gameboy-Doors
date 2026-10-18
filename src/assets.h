@@ -34,6 +34,8 @@ typedef struct {
 #define OBJ_DRAWER  3   // on a dresser: may hold the key
 #define OBJ_KEYSPOT 4   // a place a key can lie in the open; param bit 0: fixed (the start room's key)
 #define OBJ_SPAWN   5   // start / test rooms: where the player starts
+#define OBJ_CLOSET  6   // a hiding spot (1x2, on closet_top/closet_bottom)
+#define OBJ_BED     7   // a hiding spot (1x2, on bed_top/bed_bottom)
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2

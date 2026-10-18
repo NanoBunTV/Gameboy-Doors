@@ -35,16 +35,20 @@ the bottom for a few seconds when something changes, then slides out:
 - messages ("IT'S LOCKED.", "GOT KEY FOR DOOR 012");
 - Select held: everything (health, item, gold, door number).
 
-As built in Phase 2: border line + one text row, " DOOR 012" on the left and a key icon on the right while a
-key is carried. It covers the bottom 16 px of the play field (the window layer can't shrink the background).
-The strip must not show during Halt's and Seek's cutscenes.
+As built (Phase 3): border line + one text row, `DOOR 012`, a heart and an 8-tile health bar (2 px steps),
+and a key icon at the right end while a key is carried. It slides in on entering a room, when health changes,
+with a message, and while Select is held. It covers the bottom 16 px of the play field (the window layer can't
+shrink the background). The strip must not show during Halt's and Seek's cutscenes.
 
 ## Health and death
 
 - **Health is a 100 HP bar**, as in DOORS, so Eyes' slow drain and Screech's 40% hit show exactly.
 - **Death screen: the Guiding Light.** The blue screen with typewriter hint text naming what killed you and how
-  to survive it, one set of lines per entity, as in DOORS. Then "Try again" (new run) or "Lobby". Text comes from
-  the wiki's death messages, written for the Game Boy's 18×16-character text area.
+  to survive it, one set of lines per entity, as in DOORS. Then "Try again" (new run) or "Title". The lines are
+  our own, in the spirit of the wiki's death messages, at most 18 characters each.
+- **Jumpscare first** for entities that have one (owner, 2026-10-17): Rush and Ambush's face fills the
+  screen for a second with a scream and a shake, then the Guiding Light. Hide has none (his "GET OUT!" is
+  the scare).
 
 ## Rooms and generation
 
@@ -69,6 +73,13 @@ The strip must not show during Halt's and Seek's cutscenes.
   or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
   the key, unlocks and opens it and uses the key up. **Drawers** are searched with A: "NOTHING." or the key.
 
+## Hiding (built in Phase 3)
+
+- **Closets and beds** (owner: both). A at one hides: the player sprite disappears and the room darkens
+  (owner's choice over a slats view). A or B gets out.
+- While Rush or Ambush is out, **no door opens or lets you through** (*MC 04*), so hiding is the only answer.
+- Rooms list their closets and beds as objects (ASSETS.md); every normal template has at least one.
+
 ## Light and darkness
 
 Darkness is a core mechanic (dark rooms, Screech, the lighter, the flashlight, Guiding Light).
@@ -82,13 +93,13 @@ Darkness is a core mechanic (dark rooms, Screech, the lighter, the flashlight, G
 
 | Entity | Top-down version | Notes |
 |---|---|---|
-| Rush | Large sprite racing along the door-to-door path (*MC 04*: straight lines, door to door). Lights flicker first (palette flash), then a rumble sound. Hide in a closet or under a bed | Kill test is a radius that ignores walls (*MC 04*) |
-| Ambush | Like Rush, faster, green, passes back and forth several times | Approach cue starts further out (*MC 11*) |
+| Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed | Kill radius 6 blocks (96 px), ignoring walls (*MC 04*). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
+| Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kill radius 8 blocks (128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
 | Screech | In dark rooms: a "psst" and a small sprite appears off to one side; face it within the time limit or take 40 HP | Hiding dismisses him silently (*MC 11*) |
 | Eyes | Appears in a room; facing toward him drains health. Face away | Short grace period before damage (*MC 11*) |
 | Halt | A long hallway; when the screen flashes and "TURN AROUND" shows, walk the other way | |
 | Dupe | Side doors with wrong numbers; opening a wrong one hurts | |
-| Hide | Staying in a closet too long kicks you out with damage; a meter shows on screen | |
+| Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
 | Seek | Eyes appear on walls before the chase; then a scripted chase through several rooms with fallen furniture and hands from the side rooms to avoid | Speed boost during the chase (*MC 11*) |
 | Figure | The Library (50) and Room 100. Blind, hears footsteps: walking makes noise, hiding or standing still doesn't | Library: find the books, read the hints, solve the padlock |
 | Timothy | Jump-scare in a drawer, small damage | |
@@ -146,4 +157,4 @@ sitting, as in DOORS.
 
 - Darkness technique on each console (after a prototype).
 - The list of achievements and their Knob rewards.
-- Title screen and logo art; credits.
+- Credits.

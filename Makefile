@@ -8,6 +8,8 @@
 GBDK    ?= tools/gbdk
 LCC     := $(GBDK)/bin/lcc
 PYTHON  ?= tools/venv/Scripts/python.exe
+HUGE    ?= tools/hugedriver
+UGE2SRC ?= tools/hugetracker/uge2source.exe
 ROMNAME := doors
 TITLE   := DOORS
 
@@ -19,13 +21,17 @@ GEN     := $(OUTDIR)/gen
 TILESETS := $(wildcard assets/tilesets/*.tsx)
 ROOMS    := $(wildcard assets/rooms/*.tmx)
 SPRITES  := $(wildcard assets/sprites/*.json)
+IMAGES   := $(wildcard assets/title/*.gbc.png) $(wildcard assets/scares/*.gbc.png)
+SONGS    := $(wildcard assets/music/*.uge)
 GEN_C := $(patsubst assets/tilesets/%.tsx,$(GEN)/tileset_%.c,$(TILESETS)) \
          $(patsubst assets/rooms/%.tmx,$(GEN)/room_%.c,$(ROOMS)) \
          $(GEN)/room_templates.c \
          $(patsubst assets/sprites/%.json,$(GEN)/sprite_%.c,$(SPRITES)) \
          $(GEN)/font.c \
-         $(patsubst assets/title/%.gbc.png,$(GEN)/image_%.c,$(wildcard assets/title/*.gbc.png))
+         $(patsubst %.gbc.png,$(GEN)/image_%.c,$(notdir $(IMAGES)))
 GEN_H := $(GEN_C:.c=.h)
+# Songs: uge2source writes only a .c (the declarations are in src/audio.c)
+GEN_C += $(patsubst assets/music/%.uge,$(GEN)/music_%.c,$(SONGS))
 ASSET_TOOL := scripts/assets.py
 
 # Shared sources plus the target's own platform folder
@@ -33,7 +39,7 @@ SHARED_C := $(wildcard $(SRCDIR)/*.c)
 CGB_C    := $(SHARED_C) $(wildcard $(SRCDIR)/platform/cgb/*.c)
 DMG_C    := $(SHARED_C) $(wildcard $(SRCDIR)/platform/dmg/*.c)
 
-CFLAGS  := -Wa-l -I$(SRCDIR) -I$(GEN) -Wf--max-allocs-per-node50000
+CFLAGS  := -Wa-l -I$(SRCDIR) -I$(GEN) -I$(HUGE)/include -Wf--max-allocs-per-node50000
 
 # make AUTOTEST=1: the player walks a fixed route by itself (input.c), for scripts/bgb-check.ps1.
 # Built into build/gbc-autotest and build/dmg-autotest so it never mixes with the real ROMs.
@@ -56,7 +62,8 @@ HEADERS := $(wildcard $(SRCDIR)/*.h) $(GEN_H)
 # MBC5 + RAM + battery, 4 RAM banks (32 KB), ROM size picked automatically, .sym file for emulator debuggers.
 # -Wb-ext=.rel: bankpack (autobanking) otherwise overwrites the .o files with banks filled in, and the next
 # link that doesn't recompile everything fails in ihxcheck without a message (found 2026-10-17).
-LDFLAGS := -autobank -Wb-ext=.rel -Wl-m -Wl-j -Wm-yt0x1B -Wm-ya4 -Wm-yoA -Wm-yn"$(TITLE)" -Wm-yS
+# hUGEDriver: the release's prebuilt library for GBDK (Docs/BUILDING.md).
+LDFLAGS := -autobank -Wb-ext=.rel -Wl-m -Wl-j -Wm-yt0x1B -Wm-ya4 -Wm-yoA -Wm-yn"$(TITLE)" -Wm-yS            -Wl-l$(HUGE)/gbdk/hUGEDriver.lib
 
 .PHONY: all gbc dmg assets clean
 
@@ -89,6 +96,15 @@ $(GEN)/room_templates.c $(GEN)/room_templates.h: $(ROOMS) $(TILESETS) $(ASSET_TO
 
 $(GEN)/image_%.c $(GEN)/image_%.h: assets/title/%.gbc.png assets/title/%.dmg.png $(ASSET_TOOL)
 	$(PYTHON) $(ASSET_TOOL) image $< $(GEN)
+
+$(GEN)/image_%.c $(GEN)/image_%.h: assets/scares/%.gbc.png assets/scares/%.dmg.png $(ASSET_TOOL)
+	$(PYTHON) $(ASSET_TOOL) image $< $(GEN)
+
+# hUGETracker songs -> C, banked (-b 255: autobank picks the bank)
+$(GEN)/music_%.c: assets/music/%.uge $(ASSET_TOOL)
+	@mkdir -p $(GEN)/raw
+	$(UGE2SRC) $< -b 255 music_$* $(GEN)/raw/music_$*.c
+	$(PYTHON) $(ASSET_TOOL) songfix $(GEN)/raw/music_$*.c $@
 
 $(GEN)/font.c $(GEN)/font.h: assets/fonts/font.json assets/fonts/font.gbc.png assets/fonts/font.dmg.png $(ASSET_TOOL)
 	$(PYTHON) $(ASSET_TOOL) font $< $(GEN)

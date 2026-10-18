@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="20" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="8">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="20" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="10">
  <properties>
   <property name="kind" value="normal"/>
   <property name="allow_lock" type="bool" value="true"/>
@@ -45,5 +45,7 @@
   <object id="7" name="keyspot" x="256" y="112">
    <point/>
   </object>
+  <object id="8" name="closet" x="288" y="64" width="16" height="32"/>
+  <object id="9" name="closet" x="16" y="192" width="16" height="32"/>
  </objectgroup>
 </map>

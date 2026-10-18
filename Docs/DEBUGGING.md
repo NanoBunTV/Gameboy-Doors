@@ -64,8 +64,12 @@ Run a build by hand: `tools\bgb\bgb64.exe build\gbc\doors.gbc` (`-watch` reloads
    right ones (same run), so it's only the counter that's off. Use it as "somewhere later in the run".
 
 Headless BGB can't press buttons, so `build.ps1 -Test` checks the **AUTOTEST** builds, which replay a
-recorded run (below): title, 30 rooms, keys, locked doors, walking back once. That way all the VRAM writing
-(scrolling, door and drawer changes, HUD text, plates, tileset reloads) runs under the exception breaks.
+recorded run (below): title, 30 rooms, keys, locked doors, walking back once, hiding from Rush and Ambush,
+then a death, the jumpscare, the Guiding Light and Try again. That way all the VRAM writing (scrolling, door
+and drawer changes, HUD text, plates, tileset reloads, jumpscare and screen fills) and the palette changes
+run under the exception breaks. Headless BGB is fast enough that 15 s covers all of it: it reaches the first
+hide in under 2 s and `death_run` in about 5 s (checked 2026-10-18 with `-br _hide_try` and
+`-br _death_run`: a breakpoint makes headless BGB exit, so the time it exits is when the code was reached).
 
 Checked on 2026-10-17 with a deliberately bad ROM (writes VRAM in a loop with the LCD on): it fails in under a
 second, while the real ROMs pass, so the breaks really are active.
@@ -97,21 +101,33 @@ tools\venv\Scripts\python.exe scripts\bot.py build\gbc-autotest\doors.gbc --chec
 ```
 
 The bot plays like a person: it reads the game's state from WRAM by symbol (`room_map`, `mt_flags`,
-`room_objs`, `run_flags`, `run_drawers`, `run_key_slot`, `run_key_door`, `player_x/y`, `game_state`,
-`input_frame`), finds paths with a breadth-first search over walkable metatiles, searches drawers in order
-until the key turns up, picks up keys in the open, unlocks and opens doors and walks through. At room 3 it goes
-back to room 2 and returns, to test walking back. `--shots` saves a screenshot on entering each room
-(`build/screens/bot-room-NNN.png`); a failure saves `bot-fail.png` and names the room and template.
+`room_objs`, `run_flags`, `run_drawers`, `run_key_slot`, `run_key_door`, `run_banned`, `player_x/y`,
+`game_state`, `entity_state`, `hide_hidden`, `hide_frames`, `input_frame`), finds paths with a breadth-first
+search over walkable metatiles, searches drawers in order until the key turns up, picks up keys in the open,
+unlocks and opens doors and walks through. At room 3 it goes back to room 2 and returns, to test walking
+back. **When Rush or Ambush is announced** it drops what it's doing, walks to the nearest closet or bed Hide
+hasn't banned, hides, and stays until he's gone; after 9 s hidden, while Ambush waits at the rear, it steps
+out and straight back in, which restarts Hide's clock. It taps A until each step shows in WRAM, since a tap
+can land on a frame the game didn't read the joypad. Dying fails the run.
+
+`--shots` saves a screenshot on entering each room (`build/screens/bot-room-NNN.png`); `--entity-shots` every
+6th frame while hidden (`ent-<hide>-<frame>.png`: Rush and Ambush crossing, the flicker); a failure saves
+`bot-fail.png` and names the room and template. `--die-at-end` (used by `record-run.ps1`): after the last
+room, play on until something comes, stand still to be caught, skip the Guiding Light's typing with A and
+pick Try again.
 
 `--record` writes the buttons it pressed, for every `input_update()` call, run-length coded, to
-`tests/autotest_input.c` (598 bytes for 30 rooms). AUTOTEST builds replay that instead of reading the joypad,
-with the fixed seed `0xC0DE`. **The game is deterministic in its input**: the replay reaches room 30 at the same
-input frame (5,371) in PyBoy as DMG and as GBC, and BGB plays the same rooms. `--check N` replays and fails if
-room N isn't reached; `build.ps1 -Test` runs it.
+`tests/autotest_input.c` (726 bytes for 30 rooms and the death). AUTOTEST builds replay that instead of reading
+the joypad, with the fixed seed `0xC0DE` (Try again also uses it). **The game is deterministic in its input**:
+on DMG and GBC every room change, hide and the death happen at the same input frame (death at 7,626, the new
+run at 7,639; checked 2026-10-18). `--check N` replays and fails if room N isn't reached; `build.ps1 -Test`
+runs it. It reports 7,275 on DMG and 7,274 on GBC: PyBoy samples WRAM once per emulated frame and the GBC,
+at double speed, has finished more of the frame by then, so state that changes mid-frame is seen one input
+frame apart. Compare events (room changes), not per-frame snapshots, between consoles.
 
 **Re-record after any change that alters what the same buttons do** (rooms, generation, door positions,
-speed): `.\scripts\record-run.ps1`. It writes an empty recording first, because the bot needs an AUTOTEST ROM
-that reads the joypad.
+speed, entity timing, interaction): `.\scripts\record-run.ps1`. It writes an empty recording first, because
+the bot needs an AUTOTEST ROM that reads the joypad.
 
 ### Background correctness: `scripts/scroll-test.py`
 
@@ -122,7 +138,8 @@ tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb
 Runs an AUTOTEST ROM (playing its recorded run) and every 2nd frame compares the whole screen with a reference
 picture of the current room built from the game's own `room_map` in WRAM and the tileset PNG, at the camera
 position. Not compared: sprites (from OAM), the HUD window, door-number plates (runtime metatiles), fades and
-room loads, and 12 frames after any metatile change (a door or drawer opening is redrawn a frame or two later
+room loads, frames with the room dimmed (hiding, the flicker: `platform_dim` is not 0), and 12 frames after
+any metatile change (a door or drawer opening is redrawn a frame or two later
 on purpose). It first learns which screen colour each art colour becomes (PyBoy's DMG greys and GBC colour
 conversion differ from the PNG), then counts wrong pixels. Failing frames are saved as
 `build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`.
@@ -140,7 +157,9 @@ conversion differ from the PNG), then counts wrong pixels. Failing frames are sa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 2: bank 0 74% (GBC) / 67% (DMG), bank 1 48%; DMG WRAM about 4.9 of 8 KB.
+As of Phase 3: bank 0 84% (GBC) / 75% (DMG), banks 1 and 2 full / 74–81%, 64 KB ROM; DMG WRAM about 5.2 of
+8 KB. Phase 2 was 74% / 67% before hUGEDriver (1.9 KB, bank 0) and the moving of `game`, `run` and `title`
+into banks.
 
 ### VBlank budget: `scripts/vblank-budget.py`
 
@@ -152,6 +171,19 @@ AUTOTEST builds record how many scanlines into VBlank `bg_flush()` finished, wor
 (`autotest_flush_lines` in `game.c`). The script runs the ROM and reads it out; 10 or more means it overran
 VBlank, and the script fails. PyBoy's timing is close but not exact. As of Phase 2 (over the 30-room run,
 including single-tile batches): **DMG 8 of 10, GBC 6 of 10** (ARCHITECTURE.md, "Scrolling", for the history).
+Phase 3's flicker briefly made it 12 on GBC (palette upload + a column in one VBlank) until map writes were
+made to wait a frame after a palette upload.
+
+**Lag frames** (frames where the game didn't call `input_update`) show slow logic. Count them by comparing
+`input_frame` before and after each PyBoy tick; this found the GBC's palette recomputation during Ambush's
+flicker (92 of 332 frames, ARCHITECTURE.md "Fades, dimming and palettes"). Now 4 frames per pass.
+
+### Audio
+
+PyBoy can emulate sound (`sound_emulated=True`; `pyboy.sound.ndarray` after each tick, signed 8-bit stereo).
+On 2026-10-18 20 s of the title measured RMS 13.8 / peak 36, the hotel 6.3 / 12 (quieter on purpose), saved
+as `build/screens/title.wav` and `hotel.wav`. That proves the driver runs and the song plays, not that it
+sounds right: listen in BGB or hUGETracker.
 
 ## SameBoy and Emulicious (accuracy cross-checks)
 
@@ -172,3 +204,12 @@ its own uninitialised-memory and VRAM access checks.
 - PyBoy only renders the screen on ticks with `render=True`; screenshots after unrendered ticks are blank.
 - The room order repeats in cycles with the current 9 templates: with 2–3 templates per entry wall and the
   no-repeat rule, there's often only one choice (STATUS.md, known issues).
+- Banked code (`#pragma bank 255`) must not `SWITCH_ROM`: it would switch itself out. Anything that reads
+  banked assets stays in bank 0 (`image_show()` exists so `title.c` and `death.c` can be banked). Passing a
+  banked file's string literal to a bank-0 function is fine (it's read while the caller's bank is still in);
+  passing it to another banked file isn't.
+- hUGETracker's `uge2source` picks its output format from the file extension (`.c` or `.asm`), so it can't
+  write to a `.tmp` file; and it writes `{ }` for an instrument kind a song never uses, which SDCC rejects
+  (`assets.py songfix` fixes it up).
+- Writing Python that contains `\1` or `\w` through a Bash heredoc mangled the backslashes (a raw control
+  character ended up in `assets.py`). Write such scripts to a file first.

@@ -41,6 +41,14 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   walking back, the on-demand HUD, fades. The wallpaper became the Minecraft version's green diamond texture
   (owner's request). A play-testing bot records a 30-room run that AUTOTEST builds replay, so BGB checks the
   whole game, not just a walk around one room.
+- **2026-10-17/18**: **Phase 3 done** (hiding, Rush, Ambush): third round of questions (sound, closet view,
+  beds, Hide, sprite size, Ambush's cue, death, music; answers below). Closets and beds, Hide, Rush and Ambush
+  on the door-to-door route with the light flicker and rumble, the health bar, jumpscares pixelated from the
+  wiki pictures the owner linked, the Guiding Light with Try again / Title. hUGEDriver and hUGETracker came in
+  early: the owner supplied six MIDI files (`assets/music/midi/`); the Lobby Theme and the Guiding Light were
+  arranged by hand into `.uge` songs (owner's choice over a converter script), the rest wait for their phases.
+  `game`, `run` and `title` moved into banked ROM to make room for the driver. The bot learned to hide, and
+  the recorded run now ends with a death and a new run, so BGB checks the death screen too.
 
 ## Decisions and why
 
@@ -84,6 +92,14 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Title screen with the DOORS logo, pixelated | Owner's request (2026-10-17), from the logo URL they gave. The logo belongs to LSPLASH; this is a fan project |
 | Title screen and seed from the player's timing | A Game Boy powers on identically, so the frame count and divider register when Start is pressed are the only randomness |
 | A play-testing bot and a recorded run for AUTOTEST builds | Lets BGB, which can't press buttons, check the whole game under its hardware-rule breaks, and catches anything that breaks a full playthrough |
+| hUGEDriver brought in at Phase 3, not Phase 10 | Owner's choice (2026-10-17): Rush and Ambush need sound cues, and SFX written for the real driver don't need redoing. Phase 3 has SFX, a quiet hotel ambience and a short title theme |
+| Hiding darkens the room (no slats overlay) | Owner's choice (2026-10-17) over a slats view or just hiding the sprite |
+| Closets and beds both hide the player from Phase 3 | Owner's choice (2026-10-17) |
+| Hide (the entity) moved into Phase 3 | Owner's choice (2026-10-17): otherwise a closet is always safe. MC numbers: 12 s, heartbeat from 7 s, 40 HP, banned from that closet |
+| Rush and Ambush are 32×32 sprites | Owner's choice (2026-10-17): twice the player's size, 8 hardware sprites, leaves room per scanline for other entities |
+| Ambush: green-tinted flicker plus his own sound | Owner's choice (2026-10-17), as in DOORS (the Minecraft version gives him no flicker). On DMG the flicker can't be green, so his sound is what tells them apart |
+| Death: jumpscare, then the Guiding Light, then Try again / Title | Owner's choice (2026-10-17) |
+| The owner's MIDI files become the music, arranged by hand per song | Owner (2026-10-17): supplied `Lobby Theme (Title Screen)`, `Guiding Light (Death Theme)`, `Elevator Jam`, `Jeff's Shop Jingle`, `Here I Come (Seek Chase)`, `Ending Theme`. Chose a hand arrangement per song (4 channels, SFX borrowing three) over a reusable converter. Each lands in the phase that uses it |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

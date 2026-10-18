@@ -397,6 +397,14 @@ void bg_draw_full(int16_t x, int16_t y) {
 
 void bg_set_camera(int16_t x, int16_t y) {
     int16_t l = x >> 3, t = y >> 3;
+    cam_x = x;
+    cam_y = y;
+    scx = (uint8_t)x;
+    scy = (uint8_t)y;
+    // Last frame's writes are still waiting (bg_flush gave VBlank to the palettes): build nothing new over
+    // them. The one-tile margin covers a frame's delay.
+    if (bg_col_n || bg_row_n || bg_vq_n)
+        return;
     // Forget what's outside the wanted region (visible + margin). Nothing to write: the slots are reused.
     if (ld_l < l - 1) ld_l = l - 1;
     if (ld_r > l + VIS_COLS) ld_r = l + VIS_COLS;
@@ -428,11 +436,6 @@ void bg_set_camera(int16_t x, int16_t y) {
         build_row(ld_l, ++ld_b, cols);
     else if (ld_t > t - 1)
         build_row(ld_l, --ld_t, cols);
-
-    cam_x = x;
-    cam_y = y;
-    scx = (uint8_t)x;
-    scy = (uint8_t)y;
 }
 
 void bg_set_scroll(int16_t x, int16_t y) {
@@ -443,7 +446,7 @@ void bg_set_scroll(int16_t x, int16_t y) {
 }
 
 void bg_idle(void) {
-    if (vq_head != vq_tail)
+    if (vq_head != vq_tail && !bg_vq_n)
         vq_prepare();
 }
 
@@ -451,6 +454,8 @@ void bg_flush(void) {
     SCX_REG = scx;
     SCY_REG = scy;
     WY_REG = bg_wy;
-    platform_vblank();
-    bg_flush_vram();
+    // GBC palette RAM can only be written in VBlank, so the palettes go first; on a frame they take up much
+    // of it, the map writes wait for the next one (they're STAT-safe anyway, but would run past VBlank)
+    if (!platform_vblank())
+        bg_flush_vram();
 }

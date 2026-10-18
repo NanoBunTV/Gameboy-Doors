@@ -1,3 +1,4 @@
+#pragma bank 255
 #include <gb/gb.h>
 #include "game.h"
 #include "run.h"
@@ -8,6 +9,10 @@
 #include "player.h"
 #include "sprites.h"
 #include "platform.h"
+#include "audio.h"
+#include "entity.h"
+#include "hide.h"
+#include "death.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "sprite_key.h"
@@ -25,6 +30,7 @@
 #define HUD_MESSAGE_FRAMES 120
 
 uint8_t game_state;
+uint8_t game_death;
 
 static spr_sheet_t key_sheet;
 static uint8_t key_frames[SPR_KEY_FRAME_COUNT * 4];
@@ -45,18 +51,21 @@ static void measure_flush(void) {
 #define measure_flush()
 #endif
 
-void game_wait_frames(uint8_t n) {
+void game_wait_frames(uint8_t n) BANKED {
     while (n--) {
         vsync();
         bg_flush();
         bg_idle();
+        audio_frame();
     }
 }
 
-void game_init(void) {
+void game_init(void) BANKED {
     player_load();
-    // Player: sprite tiles 0-35, palette 0. Key: tiles from 36, palette 1.
-    spr_sheet_load(&key_sheet, BANK(sprite_key), &sprite_key, 36, 1, key_frames);
+    // Player: sprite tiles 0-35, palette 0. Key: tiles from 36, palette 1. Rush and Ambush after it,
+    // palettes 2 and 3.
+    uint8_t t = 36 + spr_sheet_load(&key_sheet, BANK(sprite_key), &sprite_key, 36, 1, key_frames);
+    entity_load(t, 2);
 }
 
 // ------------------------------------------------------------------------------------------ camera
@@ -192,13 +201,15 @@ static void place_at_door(const room_obj_t *o) {
 
 static void draw_sprites(void) {
     spr_begin();
-    player_draw();
+    if (!hide_hidden)
+        player_draw();
+    entity_draw();
     if (key_spot)
         spr_draw(&key_sheet, SPR_KEY_KEY, ((int16_t)key_spot->x << 4) - cam_x, ((int16_t)key_spot->y << 4) - cam_y, 0);
     spr_end();
 }
 
-static void fade(uint8_t from, uint8_t to) {
+void game_fade(uint8_t from, uint8_t to) BANKED {
     while (from != to) {
         from = from < to ? from + 1 : from - 1;
         platform_set_fade(from);
@@ -210,13 +221,18 @@ static void fade(uint8_t from, uint8_t to) {
 static void enter_room(uint8_t n, uint8_t via) {
     game_state = GAME_TRANSITION;
     if (platform_fade != FADE_BLACK)
-        fade(platform_fade, FADE_BLACK);
+        game_fade(platform_fade, FADE_BLACK);
     hud_hide_now();
+    hide_reset();
+    platform_set_dim(0, TINT_NONE);
     spr_begin();
     spr_end();
 
     run_plan(n + 1);
     run_room = n;
+    uint8_t first_time = n > run_max_room;
+    if (first_time)
+        run_max_room = n;
     uint8_t bank;
     const room_def_t *def = room_template(run_template[n], &bank);
     room_load(bank, def);
@@ -229,13 +245,17 @@ static void enter_room(uint8_t n, uint8_t via) {
     bg_draw_full(camera_target_x(), camera_target_y());
     draw_sprites();
     hud_show(HUD_ENTER_FRAMES);
+    entity_room_entered(first_time);
     game_wait_frames(1);
-    fade(FADE_BLACK, 0);
+    game_fade(FADE_BLACK, 0);
     game_state = GAME_PLAYING;
 }
 
-void game_start(uint16_t seed) {
+void game_start(uint16_t seed) BANKED {
     run_start(seed);
+    entity_reset();
+    hide_reset();
+    music_play(MUSIC_HOTEL);
     enter_room(0, VIA_START);
 }
 
@@ -266,6 +286,7 @@ static void message_key(void) {
 }
 
 static void take_key(void) {
+    sfx_play(SFX_KEY);
     run_flags[run_room] |= RF_KEY_TAKEN;
     run_key_door = run_room + 1;
     key_spot = 0;
@@ -276,6 +297,11 @@ static void use_exit(void) {
     uint8_t *f = &run_flags[run_room];
     if (*f & RF_EXIT_OPEN)
         return;
+    if (entity_active()) {   // Minecraft docs 04: no door opens while something is travelling
+        hud_message("IT WON'T BUDGE.", HUD_MESSAGE_FRAMES);
+        sfx_play(SFX_LOCKED);
+        return;
+    }
     if (*f & RF_FINAL) {
         hud_message("TO BE CONTINUED...", HUD_MESSAGE_FRAMES);
         return;
@@ -283,10 +309,14 @@ static void use_exit(void) {
     if (*f & RF_LOCKED) {
         if (run_key_door != run_room + 1) {
             hud_message("IT'S LOCKED.", HUD_MESSAGE_FRAMES);
+            sfx_play(SFX_LOCKED);
             return;
         }
         run_key_door = 0;  // the key is used up (Minecraft version: "Take the key when it turns")
         hud_message("UNLOCKED.", HUD_MESSAGE_FRAMES);
+        sfx_play(SFX_UNLOCK);
+    } else {
+        sfx_play(SFX_DOOR);
     }
     *f |= RF_EXIT_OPEN;
     door_set(exit_door, DOOR_OPEN, 0);
@@ -298,6 +328,7 @@ static void use_drawer(const room_obj_t *o) {
         return;
     run_drawers[run_room] |= bit;
     room_set_metatile(o->x, o->y, MT_HOTEL_DRESSER_OPEN);
+    sfx_play(SFX_DRAWER);
     uint8_t f = run_flags[run_room];
     if ((f & (RF_LOCKED | RF_KEY_DRAWER | RF_KEY_TAKEN)) == (RF_LOCKED | RF_KEY_DRAWER) &&
         drawer_index(o) == run_key_slot[run_room])
@@ -306,43 +337,74 @@ static void use_drawer(const room_obj_t *o) {
         hud_message("NOTHING.", 60);
 }
 
-// Pressing A: whatever is in front of the player (12 px ahead of the feet, in the facing direction)
-static void interact(void) {
-    static const int8_t ahead_x[8] = { 0, -9, -12, -9, 0, 9, 12, 9 };
-    static const int8_t ahead_y[8] = { 12, 9, 0, -9, -12, -9, 0, 9 };
-    int16_t px = player_x + PLAYER_FEET_X + ahead_x[player_facing];
-    int16_t py = player_y + PLAYER_FEET_Y + ahead_y[player_facing];
+// Uses whatever is at room pixel (px, py). Returns 1 if there was something.
+static uint8_t interact_at(int16_t px, int16_t py) {
     if (px < 0 || py < 0)
-        return;
+        return 0;
     uint8_t mx = (uint8_t)(px >> 4), my = (uint8_t)(py >> 4);
-
     if (key_spot && inside(key_spot, mx, my)) {
         take_key();
-        return;
+        return 1;
     }
     for (uint8_t i = 0; i < room_obj_count; i++) {
         const room_obj_t *o = &room_objs[i];
         if (!inside(o, mx, my))
             continue;
-        if (o->type == OBJ_EXIT) {
+        switch (o->type) {
+        case OBJ_EXIT:
             use_exit();
-            return;
-        }
-        if (o->type == OBJ_DRAWER) {
+            return 1;
+        case OBJ_DRAWER:
             use_drawer(o);
-            return;
+            return 1;
+        case OBJ_CLOSET:
+        case OBJ_BED:
+            hide_try(o);
+            return 1;
         }
     }
+    return 0;
 }
 
-void game_frame(void) {
+// Pressing A: whatever is in front of the player (12 px ahead of the feet, in the facing direction), or
+// failing that 6 px to either side of that point: walls and furniture nudge the player off the line of
+// what they're facing (player.c), and lining up to the pixel shouldn't be needed.
+static void interact(void) {
+    static const int8_t ahead_x[8] = { 0, -9, -12, -9, 0, 9, 12, 9 };
+    static const int8_t ahead_y[8] = { 12, 9, 0, -9, -12, -9, 0, 9 };
+    int8_t ax = ahead_x[player_facing], ay = ahead_y[player_facing];
+    int16_t px = player_x + PLAYER_FEET_X + ax;
+    int16_t py = player_y + PLAYER_FEET_Y + ay;
+    int8_t sx = -ay >> 1, sy = ax >> 1;   // sideways, half the distance ahead
+    if (!interact_at(px, py) && !interact_at(px + sx, py + sy))
+        interact_at(px - sx, py - sy);
+}
+
+void game_frame(void) BANKED {
     measure_flush();
     input_update();
-    player_update();
-    if (check_doors())
+    uint8_t death;
+    if (hide_hidden) {
+        death = hide_update();
+    } else {
+        player_update();
+        // No door takes you anywhere while Rush or Ambush is out (the open ones too)
+        if (!entity_active() && check_doors())
+            return;
+        if (input_pressed & J_A)
+            interact();
+        death = DEATH_NONE;
+    }
+    if (!death)
+        death = entity_update();
+    if (death) {
+        game_death = death;
+        game_state = GAME_DEAD;
         return;
-    if (input_pressed & J_A)
-        interact();
+    }
+    uint8_t dim, tint, hd = hide_dim();
+    entity_lights(&dim, &tint);
+    platform_set_dim(hd > dim ? hd : dim, tint);
     hud_update();
     bg_set_camera(step_toward(cam_x, camera_target_x()), step_toward(cam_y, camera_target_y()));
     draw_sprites();

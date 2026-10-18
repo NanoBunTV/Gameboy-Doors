@@ -6,7 +6,9 @@ The ROM must be an AUTOTEST build (fixed seed) with an empty recording (tests/au
 written by --reset, or replay finished). The bot reads the game's state from WRAM by symbol (room map,
 objects, run flags, player), walks with a breadth-first search over metatiles, opens drawers until it has
 the key, unlocks and opens doors, and walks through them. At room 3 it goes back to room 2 and returns, to
-test walking back through a door.
+test walking back through a door. When Rush or Ambush is announced it drops what it's doing and hides in
+the nearest closet or bed it isn't banned from, stays until he's gone, and during Ambush's pauses steps out
+and straight back in so Hide doesn't throw it out.
 
 --record writes tests/autotest_input.c: the buttons for every input_update() call, run-length coded.
 AUTOTEST builds replay it, so BGB (which can't press buttons) plays the same run under its hardware checks.
@@ -23,9 +25,15 @@ from pyboy import PyBoy
 ROOT = Path(__file__).resolve().parent.parent
 
 J = {"right": 0x01, "left": 0x02, "up": 0x04, "down": 0x08, "a": 0x10, "b": 0x20, "select": 0x40, "start": 0x80}
-OBJ_ENTRY, OBJ_EXIT, OBJ_DRAWER, OBJ_KEYSPOT = 1, 2, 3, 4
+OBJ_ENTRY, OBJ_EXIT, OBJ_DRAWER, OBJ_KEYSPOT, OBJ_CLOSET, OBJ_BED = 1, 2, 3, 4, 6, 7
 RF_LOCKED, RF_KEY_DRAWER, RF_KEY_TAKEN, RF_EXIT_OPEN, RF_FINAL, RF_KEY_FIXED = 1, 2, 4, 8, 16, 32
-GAME_TITLE, GAME_PLAYING, GAME_TRANSITION = 0, 1, 2
+GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD = 0, 1, 2, 3
+ENT_IDLE, ENT_WAIT, ENT_WARN, ENT_MOVE, ENT_PAUSE = 0, 1, 2, 3, 4
+REHIDE_AFTER = 540   # frames hidden before stepping out and back in (Hide throws you out at 720)
+
+
+class Danger(Exception):
+    """Rush or Ambush was announced while the bot was doing something else"""
 FEET_X, FEET_Y = 8, 12
 # Facing used for interacting toward a neighbour cell
 DIRS = {(0, -1): "up", (0, 1): "down", (-1, 0): "left", (1, 0): "right"}
@@ -101,6 +109,12 @@ class Game:
     def flags(self):
         return self.u8("_run_flags", self.room())
 
+    def entity(self):
+        return self.u8("_entity_state")
+
+    def hidden(self):
+        return self.u8("_hide_hidden")
+
 
 def bfs(solid, w, h, start, goals):
     """Shortest 4-way path over walkable cells from start to any goal cell (goals may be walkable or not;
@@ -129,10 +143,74 @@ class Bot:
         self.g = game
         self.verbose = verbose
         self.backtrack_done = False
+        self.hides = 0
+        self.entity_shots = False
 
     def log(self, *a):
         if self.verbose:
             print(f"[frame {self.g.frames} room {self.g.room()}]", *a)
+
+    def step(self, mask=0):
+        """One frame of the bot's own actions; stops them when something is coming"""
+        self.g.tick(mask)
+        if self.g.state() == GAME_DEAD:
+            raise RuntimeError(f"died (cause {self.g.u8('_game_death')})")
+        if self.g.entity() != ENT_IDLE and not self.g.hidden() and self.g.state() == GAME_PLAYING:
+            raise Danger()
+
+    def press_a_until(self, cond, tries=8):
+        """Taps A until cond() holds (a tap can fall on a frame the game skipped reading the joypad)"""
+        for _ in range(tries):
+            self.g.tick(J["a"])
+            self.g.tick(0)
+            if cond():
+                return True
+        return False
+
+    def hide(self):
+        """Hides until Rush / Ambush is gone"""
+        self.hides += 1
+        objs = self.g.objects()
+        banned = self.g.u8("_run_banned", self.g.room())
+        spots = [o for o in objs if o[0] in (OBJ_CLOSET, OBJ_BED)]
+        free = [o for i, o in enumerate(spots) if not banned & (1 << i)]
+        if not free:
+            raise RuntimeError("something is coming and there's nowhere to hide")
+        w, h, solid = self.g.grid()
+        here = self.g.cell()
+
+        def distance(o):
+            cellpos, _ = self.approach(o)
+            return len(bfs(solid, w, h, here, {cellpos}) or [0] * 999)
+        spot = min(free, key=distance)
+        cellpos, face = self.approach(spot)
+        self.log("hiding in", spot, "entity state", self.g.entity())
+        if not self.walk_to(cellpos, check=False):
+            raise RuntimeError(f"stuck walking to hiding spot {spot}")
+        for _ in range(3):
+            self.g.tick(J[face])
+        self.g.tick(0)
+        if not self.press_a_until(lambda: self.g.hidden(), tries=3):
+            raise RuntimeError(f"pressed A at {spot} but didn't hide")
+        while self.g.entity() != ENT_IDLE:
+            if self.g.state() == GAME_DEAD:
+                raise RuntimeError(f"died while hidden (cause {self.g.u8('_game_death')})")
+            if not self.g.hidden():
+                raise RuntimeError("thrown out of hiding")
+            # Ambush waiting at the rear: step out and back in, which restarts Hide's clock
+            if self.g.u16("_hide_frames") > REHIDE_AFTER and self.g.entity() in (ENT_PAUSE, ENT_WAIT, ENT_WARN):
+                self.log("out and back in")
+                if not self.press_a_until(lambda: not self.g.hidden()) or                         not self.press_a_until(lambda: self.g.hidden()):
+                    raise RuntimeError("couldn't get back into hiding")
+                continue
+            shot = self.entity_shots and self.g.frames % 6 == 0 and self.g.entity() != ENT_WAIT
+            self.g.tick(0, render=shot)
+            if shot:
+                self.g.pyboy.screen.image.save(ROOT / "build" / "screens" /
+                                               f"ent-{self.hides:02d}-{self.g.frames:06d}.png")
+        if not self.press_a_until(lambda: not self.g.hidden()):   # out
+            raise RuntimeError("couldn't get out of hiding")
+        self.log("out of hiding")
 
     def wait_playing(self, limit=600):
         for _ in range(limit):
@@ -145,7 +223,7 @@ class Bot:
                 self.g.tick(0)
         raise RuntimeError("game never got to PLAYING")
 
-    def walk_to(self, target, limit=900):
+    def walk_to(self, target, limit=900, check=True):
         """Walks the feet to the centre of a walkable cell along a BFS path. Returns False if stuck."""
         room = self.g.room()
         stuck, last = 0, None
@@ -180,7 +258,10 @@ class Bot:
                     mask |= J["right"] if fx < tx else J["left"]
                 if abs(fy - ty) > 1:
                     mask |= J["down"] if fy < ty else J["up"]
-            self.g.tick(mask)
+            if check:
+                self.step(mask)
+            else:
+                self.g.tick(mask)
             pos = self.g.feet()
             stuck = stuck + 1 if pos == last else 0
             last = pos
@@ -215,10 +296,10 @@ class Bot:
         if not self.walk_to(cellpos):
             raise RuntimeError(f"stuck walking to {cellpos} for {obj}")
         for _ in range(3):
-            self.g.tick(J[face])      # turn to face it (walking into it is harmless)
-        self.g.tick(0)
-        self.g.tick(J["a"])
-        self.g.tick(0)
+            self.step(J[face])      # turn to face it (walking into it is harmless)
+        self.step(0)
+        self.step(J["a"])
+        self.step(0)
 
     def go_through(self, obj):
         """Walks into an open door until the room changes."""
@@ -235,12 +316,22 @@ class Bot:
                 break
             # keep pushing outward through the door
             wall = obj[5]
-            self.g.tick({1: J["up"], 2: J["down"], 3: J["left"], 4: J["right"]}[wall])
+            self.step({1: J["up"], 2: J["down"], 3: J["left"], 4: J["right"]}[wall])
         if self.g.room() == room:
             raise RuntimeError(f"walked into {obj} but stayed in room {room}")
         self.wait_playing()
 
     def play_room(self):
+        """Plays the room until it goes through the exit; hides whenever something comes"""
+        while True:
+            try:
+                if self.g.entity() != ENT_IDLE and not self.g.hidden():
+                    self.hide()
+                return self.play_room_once()
+            except Danger:
+                self.hide()
+
+    def play_room_once(self):
         objs = self.g.objects()
         exit_ = next(o for o in objs if o[0] == OBJ_EXIT)
         entry = next((o for o in objs if o[0] == OBJ_ENTRY), None)
@@ -282,6 +373,34 @@ class Bot:
         raise RuntimeError("couldn't get the exit open")
 
 
+def die_and_retry(g: Game, bot: Bot):
+    """Plays on until Rush or Ambush comes, stands still to be caught, then gets through the Guiding Light
+    (A skips the typing, A again picks Try again) into a new run"""
+    for _ in range(40):
+        if g.entity() != ENT_IDLE:
+            break
+        # play the room without hiding: Danger only interrupts, so finish rooms until something comes
+        try:
+            bot.play_room_once()
+        except Danger:
+            break
+    bot.log("standing still to be caught")
+    for _ in range(4000):
+        g.tick(0)
+        if g.state() == GAME_DEAD:
+            break
+    else:
+        raise RuntimeError("nothing came to kill the player")
+    cause = g.u8("_game_death")
+    for i in range(4000):
+        g.tick(J["a"] if i % 10 == 0 else 0)
+        if g.state() == GAME_PLAYING and g.room() == 0:
+            break
+    else:
+        raise RuntimeError("never got from the death screen into a new run")
+    print(f"died (cause {cause}), went through the Guiding Light and started a new run")
+
+
 def write_recording(record, path: Path):
     pairs = []
     for b in record:
@@ -314,6 +433,11 @@ def main():
     ap.add_argument("--reset", action="store_true", help="write an empty tests/autotest_input.c and stop")
     ap.add_argument("--check", type=int, metavar="ROOM", help="replay only: expect to reach ROOM")
     ap.add_argument("--shots", action="store_true", help="screenshot each room on entering it")
+    ap.add_argument("--die-at-end", action="store_true",
+                    help="after the last room, stand still until something kills the player, then Try again "
+                         "(so the recording covers the jumpscare and the Guiding Light)")
+    ap.add_argument("--entity-shots", action="store_true",
+                    help="screenshot every 6th frame while hidden (build/screens/ent-*.png)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     rec_path = ROOT / "tests" / "autotest_input.c"
@@ -337,6 +461,7 @@ def main():
         sys.exit(f"replay never reached room {args.check} (stuck in room {g.room()})")
 
     bot = Bot(g, args.verbose)
+    bot.entity_shots = args.entity_shots
     for _ in range(60):
         g.tick(0)
     bot.wait_playing()
@@ -357,11 +482,20 @@ def main():
         print("screen saved to build/screens/bot-fail.png")
         g.pyboy.stop(save=False)
         sys.exit(1)
+    if args.die_at_end:
+        try:
+            die_and_retry(g, bot)
+        except RuntimeError as e:
+            print(f"BOT FAILED: {e}")
+            g.pyboy.stop(save=False)
+            sys.exit(1)
     g.pyboy.screen.image.save(ROOT / "build" / "screens" / "bot-end.png")
     templates = [g.u8("_run_template", i) for i in range(g.room() + 1)]
     locked = sum(1 for i in range(g.room() + 1) if g.u8("_run_flags", i) & RF_LOCKED)
+    spawns = sum(1 for i in range(g.room() + 1) if g.u8("_run_flags", i) & 0x40)
     print(f"reached room {g.room()} in {g.frames} frames ({len(g.record)} input frames); "
-          f"{locked} locked doors; templates {templates}")
+          f"{locked} locked doors; {spawns} spawn rolls; hid {bot.hides} times; HP {g.u8('_run_hp')}; "
+          f"templates {templates}")
     if args.record:
         n = write_recording(g.record, rec_path)
         print(f"wrote {rec_path} ({n} bytes)")
