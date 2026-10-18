@@ -1,0 +1,15 @@
+{
+  "frame_width": 16,
+  "frame_height": 16,
+  "frames": [
+    "down_idle",
+    "down_a",
+    "down_b",
+    "up_idle",
+    "up_a",
+    "up_b",
+    "left_idle",
+    "left_a",
+    "left_b"
+  ]
+}
