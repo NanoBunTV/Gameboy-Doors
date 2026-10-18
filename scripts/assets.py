@@ -1,17 +1,22 @@
 """Converts the art and Tiled files in assets/ into C source for GBDK. Run by the Makefile.
 
-    python scripts/assets.py tileset assets/tilesets/hotel.tsx build/gen
-    python scripts/assets.py room    assets/rooms/test.tmx     build/gen
-    python scripts/assets.py sprite  assets/sprites/player.json build/gen
+    python scripts/assets.py tileset  assets/tilesets/hotel.tsx  build/gen
+    python scripts/assets.py room     assets/rooms/hall_ns.tmx  build/gen
+    python scripts/assets.py roomlist build/gen assets/rooms/*.tmx
+    python scripts/assets.py sprite   assets/sprites/player.json build/gen
+    python scripts/assets.py font     assets/fonts/font.json    build/gen
+    python scripts/assets.py image    assets/title/logo.gbc.png build/gen
 
 Every graphic exists twice (owner's decision, Docs/PROJECT.md): `<name>.gbc.png` in colour for the GBC ROM
 and `<name>.dmg.png` in the four DMG greys, with the same layout. The generated .c file holds both versions
 behind `#ifdef CGB`, so each ROM only links its own.
 
 Rules the art has to follow (the converter stops with a message naming the place that breaks one):
-  GBC background: at most 4 colours per 8x8 tile, at most 8 palettes for the whole tileset.
+  GBC background: at most 4 colours per 8x8 tile, at most 7 palettes for a tileset (palette 7 is the font's).
   GBC sprites:    at most 3 colours (+ transparency) per 8x16 hardware sprite, at most 8 palettes.
+  GBC font:       one palette (at most 4 colours) for the whole font.
   DMG:            only the 4 greys (FF, AA, 55, 00); a sprite column uses white or light grey, not both.
+Rooms: see Docs/ASSETS.md (doors, drawers, key spots, map properties).
 """
 import json
 import re
@@ -24,6 +29,19 @@ from PIL import Image
 DMG_LEVELS = [255, 170, 85, 0]  # shade 0..3
 # DMG sprite palettes, which must match platform_dmg.c: index 1..3 -> shade
 DMG_OBP = {0: (0, 2, 3), 1: (1, 2, 3)}  # OBP0: white, dark, black. OBP1: light, dark, black
+
+# Background VRAM plan, which must match src/room.h: tileset tiles from 0, generated door-plate tiles at
+# 184-191, the font at 192-255. Metatiles 120-127 are made at runtime (door plates).
+TILESET_MAX_TILES = 184
+TILESET_MAX_METATILES = 120
+TILESET_MAX_PALETTES = 7
+FONT_FIRST_TILE = 192
+FONT_MAX_TILES = 64
+
+# Room objects (src/assets.h OBJ_*, WALL_*)
+OBJ_TYPES = {"entry": 1, "exit": 2, "drawer": 3, "keyspot": 4, "spawn": 5}
+WALLS = {"top": 1, "bottom": 2, "left": 3, "right": 4}
+ROOM_KINDS = {"normal": 0, "start": 1, "test": 2}
 
 
 class AssetError(Exception):
@@ -158,7 +176,9 @@ def convert_tileset(tsx: Path, out: Path):
             raise AssetError(f"{image.name}: metatile {m} ({props[m].get('name', '?')}), 8x8 tile at "
                              f"({x}, {y}) has {len(s)} colours; the GBC allows 4")
         colour_sets.append(s)
-    palettes, assign = pack_palettes(colour_sets, 4, 8, image.name)
+    if count > TILESET_MAX_METATILES:
+        raise AssetError(f"{tsx.name}: {count} metatiles; the limit is {TILESET_MAX_METATILES}")
+    palettes, assign = pack_palettes(colour_sets, 4, TILESET_MAX_PALETTES, image.name)
 
     def dedupe(entries):
         tiles, index, refs = [], {}, []
@@ -179,8 +199,9 @@ def convert_tileset(tsx: Path, out: Path):
                             for i in range(8)] for j in range(8)]) for (m, x, y) in cells]
     dmg_tiles, dmg_refs = dedupe(dmg_data)
     for label, tiles in (("GBC", gbc_tiles), ("DMG", dmg_tiles)):
-        if len(tiles) > 256:
-            raise AssetError(f"{tsx.name}: {len(tiles)} unique {label} tiles; the background has room for 256")
+        if len(tiles) > TILESET_MAX_TILES:
+            raise AssetError(f"{tsx.name}: {len(tiles)} unique {label} tiles; a tileset has room for "
+                             f"{TILESET_MAX_TILES} (the rest of VRAM is door plates and the font)")
 
     flags = [(1 if props[m].get("solid") else 0) for m in range(count)]
     names = [props[m].get("name", f"mt{m}") for m in range(count)]
@@ -215,9 +236,8 @@ def convert_tileset(tsx: Path, out: Path):
 
 # ---------------------------------------------------------------------------------------------- room
 
-def convert_room(tmx: Path, out: Path):
+def parse_room(tmx: Path):
     root = ET.parse(tmx).getroot()
-    sym = ident(tmx.stem)
     w, h = int(root.get("width")), int(root.get("height"))
     if root.get("infinite") == "1":
         raise AssetError(f"{tmx}: infinite maps aren't supported")
@@ -228,7 +248,8 @@ def convert_room(tmx: Path, out: Path):
         raise AssetError(f"{tmx}: a room uses exactly one tileset")
     firstgid = int(ts[0].get("firstgid"))
     tsx = (tmx.parent / ts[0].get("source")).resolve()
-    ts_name, _, _, ts_count, _ = tsx_tiles(tsx)
+    ts_name, _, _, ts_count, ts_props = tsx_tiles(tsx)
+    ts_names = [p.get("name", f"mt{i}") for i, p in enumerate(ts_props)]
     layers = root.findall("layer")
     if len(layers) != 1:
         raise AssetError(f"{tmx}: a room has exactly one tile layer (objects go in an object layer)")
@@ -244,23 +265,183 @@ def convert_room(tmx: Path, out: Path):
         if not 0 <= m < ts_count:
             raise AssetError(f"{tmx}: tile id {g} at ({i % w}, {i // w}) is outside the tileset")
         cells.append(m)
+
+    def prop(el, name, default=None):
+        for p in el.findall("properties/property"):
+            if p.get("name") == name:
+                v = p.get("value")
+                return (v == "true") if p.get("type") == "bool" or v in ("true", "false") else v
+        return default
+
+    kind = prop(root, "kind", "normal")
+    if kind not in ROOM_KINDS:
+        raise AssetError(f"{tmx}: map property kind = '{kind}'; use one of {', '.join(ROOM_KINDS)}")
+    allow_lock = bool(prop(root, "allow_lock", False))
+
+    # Objects, in metatile units. Rectangles must sit on the metatile grid.
+    objects = []
     spawn = None
     for obj in root.iter("object"):
-        if obj.get("name") == "spawn" or obj.get("type") == "spawn" or obj.get("class") == "spawn":
-            spawn = (int(float(obj.get("x"))), int(float(obj.get("y"))))
-    if spawn is None:
-        raise AssetError(f"{tmx}: no object named 'spawn' (the player's start point)")
+        name = obj.get("name") or obj.get("type") or obj.get("class") or ""
+        where = f"{tmx.name}: object '{name}' (id {obj.get('id')})"
+        if name not in OBJ_TYPES:
+            raise AssetError(f"{where}: unknown name; use one of {', '.join(OBJ_TYPES)}")
+        px, py = float(obj.get("x")), float(obj.get("y"))
+        if name == "spawn":
+            spawn = (int(px), int(py))
+            objects.append((OBJ_TYPES[name], int(px) // 16, int(py) // 16, 1, 1, 0))
+            continue
+        if obj.find("point") is not None:
+            pw = ph = 16
+        else:
+            pw, ph = float(obj.get("width", 16)), float(obj.get("height", 16))
+        if px % 16 or py % 16 or pw % 16 or ph % 16:
+            raise AssetError(f"{where}: must line up with the 16x16 grid (hold Ctrl while drawing in Tiled)")
+        x, y, ow, oh = int(px) // 16, int(py) // 16, int(pw) // 16, int(ph) // 16
+        if not (0 <= x and x + ow <= w and 0 <= y and y + oh <= h):
+            raise AssetError(f"{where}: outside the map")
+        param = 0
+        if name in ("entry", "exit"):
+            wall = prop(obj, "wall")
+            if wall not in WALLS:
+                raise AssetError(f"{where}: needs a property wall = top, bottom, left or right")
+            if name == "exit" and wall == "bottom":
+                raise AssetError(f"{where}: exits can be on the top, left or right wall (owner's rule, DESIGN.md)")
+            if name == "entry" and wall == "top":
+                raise AssetError(f"{where}: an entry can't be on the top wall (exits only go up or sideways)")
+            expect = {"top": (1, 2), "bottom": (1, 1), "left": (1, 2), "right": (1, 2)}[wall]
+            if (ow, oh) != expect:
+                raise AssetError(f"{where}: a {wall}-wall door is {expect[0]}x{expect[1]} metatiles, not {ow}x{oh}")
+            edge = {"top": y == 1, "bottom": y + oh == h, "left": x == 0, "right": x + ow == w}[wall]
+            if not edge:
+                raise AssetError(f"{where}: a {wall}-wall door must be in that wall "
+                                 "(top: rows 1-2; bottom: last row; left/right: first/last column)")
+            param = WALLS[wall]
+        elif name == "keyspot":
+            param = 1 if prop(obj, "fixed", False) else 0
+        elif name == "drawer":
+            if (ow, oh) != (1, 1):
+                raise AssetError(f"{where}: a drawer is one metatile")
+            if ts_names[cells[y * w + x]] != "dresser":
+                raise AssetError(f"{where}: must sit on a 'dresser' metatile, not '{ts_names[cells[y * w + x]]}'")
+        objects.append((OBJ_TYPES[name], x, y, ow, oh, param))
 
+    def count(t):
+        return sum(1 for o in objects if o[0] == OBJ_TYPES[t])
+
+    entry_wall = next((o[5] for o in objects if o[0] == OBJ_TYPES["entry"]), 0)
+    exit_wall = next((o[5] for o in objects if o[0] == OBJ_TYPES["exit"]), 0)
+    if kind == "normal" and (count("entry") != 1 or count("exit") != 1):
+        raise AssetError(f"{tmx.name}: a normal room needs exactly one 'entry' and one 'exit' object")
+    if kind == "start" and (count("exit") != 1 or spawn is None):
+        raise AssetError(f"{tmx.name}: the start room needs an 'exit' and a 'spawn' object")
+    if kind == "start" and not any(o[0] == OBJ_TYPES["keyspot"] and o[5] for o in objects):
+        raise AssetError(f"{tmx.name}: the start room's door is always locked, so it needs a keyspot with fixed = true")
+    if kind == "test" and spawn is None:
+        raise AssetError(f"{tmx.name}: no object named 'spawn' (the player's start point)")
+    if allow_lock and kind == "normal" and count("drawer") + count("keyspot") == 0:
+        raise AssetError(f"{tmx.name}: allow_lock is on but there is nowhere to put the key "
+                         "(add a 'drawer' or 'keyspot' object): a locked door with no key ends the run")
+    if count("drawer") > 8:
+        raise AssetError(f"{tmx.name}: at most 8 drawers per room (their state is one byte)")
+    # Spawn objects are only used by start/test rooms; keep them out of the object list's way
+    objects.sort(key=lambda o: o[0])
+    return dict(sym=ident(tmx.stem), w=w, h=h, cells=cells, ts_name=ts_name, kind=kind, allow_lock=allow_lock,
+                objects=objects, spawn=spawn or (0, 0), entry_wall=entry_wall, exit_wall=exit_wall,
+                drawers=count("drawer"), keyspots=sum(1 for o in objects if o[0] == OBJ_TYPES["keyspot"] and not o[5]))
+
+
+def convert_room(tmx: Path, out: Path):
+    r = parse_room(tmx)
+    sym, w, h = r["sym"], r["w"], r["h"]
+    objs = "\n".join("    { " + ", ".join(str(v) for v in o) + " }," for o in r["objects"])
     hd = [f"// Generated by scripts/assets.py from {tmx.as_posix()}. Do not edit.",
           f"#ifndef ROOM_{sym.upper()}_H", f"#define ROOM_{sym.upper()}_H", '#include "assets.h"',
           f"BANKREF_EXTERN(room_{sym})", f"extern const room_def_t room_{sym};", "#endif"]
     c = [f"// Generated by scripts/assets.py from {tmx.as_posix()}. Do not edit.",
          "#pragma bank 255", f'#include "room_{sym}.h"', f"BANKREF(room_{sym})",
-         f"static const uint8_t map[] = {{\n{c_bytes(cells, w if w <= 32 else 16)}\n}};",
-         f"const room_def_t room_{sym} = {{ {w}, {h}, TILESET_{ident(ts_name).upper()}, "
-         f"{spawn[0]}, {spawn[1]}, map }};"]
+         f"static const uint8_t map[] = {{\n{c_bytes(r['cells'], w if w <= 32 else 16)}\n}};",
+         "// type, x, y, w, h, param (metatiles; OBJ_* in assets.h)",
+         f"static const room_obj_t objects[] = {{\n{objs or '    { 0, 0, 0, 0, 0, 0 },'}\n}};",
+         f"const room_def_t room_{sym} = {{ {w}, {h}, TILESET_{ident(r['ts_name']).upper()}, "
+         f"{r['spawn'][0]}, {r['spawn'][1]}, map, {len(r['objects'])}, objects }};"]
     write(out, f"room_{sym}", hd, c)
-    print(f"{tmx.name}: {w}x{h} metatiles, tileset {ts_name}, spawn {spawn}")
+    print(f"{tmx.name}: {w}x{h} metatiles, {r['kind']}, {len(r['objects'])} objects")
+
+
+def convert_roomlist(out: Path, tmxs):
+    """All room templates in one table the generator (src/run.c) can read without switching banks."""
+    rooms = [parse_room(t) for t in sorted(tmxs, key=lambda p: p.stem)]
+    starts = [r for r in rooms if r["kind"] == "start"]
+    if len(starts) != 1:
+        raise AssetError(f"assets/rooms: exactly one room must have kind = start, found {len(starts)}")
+    normal = [r for r in rooms if r["kind"] == "normal"]
+    # Every exit must lead somewhere: an exit on the top wall needs a room entered from the bottom, etc.
+    needed = {WALLS["top"]: WALLS["bottom"], WALLS["left"]: WALLS["right"], WALLS["right"]: WALLS["left"]}
+    names = {v: k for k, v in WALLS.items()}
+    for r in starts + normal:
+        if not any(n["entry_wall"] == needed[r["exit_wall"]] for n in normal):
+            raise AssetError(f"{r['sym']}.tmx exits through the {names[r['exit_wall']]} wall, but no normal room "
+                             f"is entered from the {names[needed[r['exit_wall']]]} wall")
+    h = ["// Generated by scripts/assets.py from assets/rooms/*.tmx. Do not edit.",
+         "#ifndef ROOM_TEMPLATES_H", "#define ROOM_TEMPLATES_H", '#include "assets.h"',
+         f"#define ROOM_TEMPLATE_COUNT {len(rooms)}"]
+    for i, r in enumerate(rooms):
+        h.append(f"#define ROOM_T_{r['sym'].upper()} {i}")
+    h += ["// Per template: kind, entry wall, exit wall, flags (bit 0 allow_lock), drawers, free key spots",
+          "extern const uint8_t room_template_info[ROOM_TEMPLATE_COUNT][6];",
+          "// The template's data and its ROM bank",
+          "const room_def_t *room_template(uint8_t id, uint8_t *bank);", "#endif"]
+    c = ["// Generated by scripts/assets.py from assets/rooms/*.tmx. Do not edit.",
+         '#include "room_templates.h"'] + [f'#include "room_{r["sym"]}.h"' for r in rooms]
+    c.append("const uint8_t room_template_info[ROOM_TEMPLATE_COUNT][6] = {")
+    for r in rooms:
+        c.append(f"    {{ {ROOM_KINDS[r['kind']]}, {r['entry_wall']}, {r['exit_wall']}, {1 if r['allow_lock'] else 0}, "
+                 f"{r['drawers']}, {r['keyspots']} }},  // {r['sym']}")
+    c += ["};", "const room_def_t *room_template(uint8_t id, uint8_t *bank) {", "    switch (id) {"]
+    for i, r in enumerate(rooms):
+        c.append(f"    case {i}: *bank = BANK(room_{r['sym']}); return &room_{r['sym']};")
+    c += [f"    default: *bank = BANK(room_{starts[0]['sym']}); return &room_{starts[0]['sym']};", "    }", "}"]
+    write(out, "room_templates", h, c)
+    print(f"room list: {len(rooms)} templates ({len(normal)} normal)")
+
+
+# ---------------------------------------------------------------------------------------------- font
+
+def convert_font(js: Path, out: Path):
+    meta = json.loads(js.read_text(encoding="utf-8"))
+    chars = meta["chars"]
+    if len(chars) > FONT_MAX_TILES:
+        raise AssetError(f"{js}: {len(chars)} characters; the font has room for {FONT_MAX_TILES}")
+    gbc, dmg = load_pair(js.with_name(js.stem + ".gbc.png"))
+    cols = gbc.size[0] // 8
+    cells = [((i % cols) * 8, (i // cols) * 8) for i in range(len(chars))]
+    colours = {rgb15(gbc.getpixel((x + i, y + j))) for x, y in cells for j in range(8) for i in range(8)}
+    if len(colours) > 4:
+        raise AssetError(f"{js.stem}.gbc.png: {len(colours)} colours; the font shares one 4-colour palette")
+    pal = sorted(colours, key=luminance, reverse=True)
+    gbc_tiles = b"".join(tile_2bpp([[pal.index(rgb15(gbc.getpixel((x + i, y + j)))) for i in range(8)]
+                                    for j in range(8)]) for x, y in cells)
+    dmg_tiles = b"".join(tile_2bpp([[dmg_shade(dmg.getpixel((x + i, y + j)), f"{js.stem}.dmg.png ({x + i}, {y + j})")
+                                     for i in range(8)] for j in range(8)]) for x, y in cells)
+    # ASCII 32-127 -> tile number; lower case maps to upper case, unknown characters to the first (space)
+    amap = []
+    for code in range(32, 128):
+        ch = chr(code).upper()
+        amap.append(FONT_FIRST_TILE + (chars.index(ch) if ch in chars else 0))
+    h = [f"// Generated by scripts/assets.py from {js.as_posix()}. Do not edit.",
+         "#ifndef FONT_H", "#define FONT_H", '#include "assets.h"', "BANKREF_EXTERN(font)",
+         "extern const font_t font;", f"#define FONT_FIRST_TILE {FONT_FIRST_TILE}", "#endif"]
+    c = [f"// Generated by scripts/assets.py from {js.as_posix()}. Do not edit.",
+         "#pragma bank 255", '#include "font.h"', "BANKREF(font)",
+         "#ifdef CGB", f"static const uint8_t tiles[] = {{\n{c_bytes(gbc_tiles)}\n}};",
+         f"static const palette_color_t palette[] = {{\n{c_palettes([pal])}\n}};",
+         "#else", f"static const uint8_t tiles[] = {{\n{c_bytes(dmg_tiles)}\n}};", "#endif",
+         "// Tile for each ASCII code from 32 to 127",
+         f"static const uint8_t ascii[] = {{\n{c_bytes(amap)}\n}};",
+         f"const font_t font = {{ {len(chars)}, tiles, ascii,", "#ifdef CGB", "    palette,", "#endif", "};"]
+    write(out, "font", h, c)
+    print(f"{js.name}: {len(chars)} characters")
 
 
 # ---------------------------------------------------------------------------------------------- sprite
@@ -358,6 +539,63 @@ def convert_sprite(js: Path, out: Path):
     print(f"{js.name}: {len(frames)} frames, GBC {g_count} tiles / {len(palettes)} palettes, DMG {d_count} tiles")
 
 
+# ---------------------------------------------------------------------------------------------- image
+
+def convert_image(png_gbc: Path, out: Path):
+    """A still picture (the title logo): its own tiles, a tile map and, on GBC, per-tile palettes.
+    Loaded over the tileset's VRAM while it's shown, so it can use up to TILESET_MAX_TILES tiles."""
+    sym = ident(png_gbc.name.replace(".gbc.png", ""))
+    gbc, dmg = load_pair(png_gbc)
+    w, h = gbc.size
+    if w % 8 or h % 8:
+        raise AssetError(f"{png_gbc.name}: {w}x{h}; width and height must be multiples of 8")
+    cells = [(x, y) for y in range(0, h, 8) for x in range(0, w, 8)]
+    sets = []
+    for x, y in cells:
+        s = {rgb15(gbc.getpixel((x + i, y + j))) for j in range(8) for i in range(8)}
+        if len(s) > 4:
+            raise AssetError(f"{png_gbc.name}: 8x8 tile at ({x}, {y}) has {len(s)} colours; the GBC allows 4")
+        sets.append(s)
+    palettes, assign = pack_palettes(sets, 4, TILESET_MAX_PALETTES, png_gbc.name)
+
+    def build(datas):
+        tiles, index, refs = [], {}, []
+        for d in datas:
+            if d not in index:
+                index[d] = len(tiles)
+                tiles.append(d)
+            refs.append(index[d])
+        if len(tiles) > TILESET_MAX_TILES:
+            raise AssetError(f"{png_gbc.name}: {len(tiles)} unique tiles; at most {TILESET_MAX_TILES}")
+        return tiles, refs
+
+    g_tiles, g_map = build([tile_2bpp([[palettes[p].index(rgb15(gbc.getpixel((x + i, y + j)))) for i in range(8)]
+                                       for j in range(8)]) for (x, y), p in zip(cells, assign)])
+    d_tiles, d_map = build([tile_2bpp([[dmg_shade(dmg.getpixel((x + i, y + j)), f"{png_gbc.name.replace('.gbc', '.dmg')} ({x + i}, {y + j})")
+                                        for i in range(8)] for j in range(8)]) for x, y in cells])
+    hd = [f"// Generated by scripts/assets.py from {png_gbc.as_posix()}. Do not edit.",
+          f"#ifndef IMAGE_{sym.upper()}_H", f"#define IMAGE_{sym.upper()}_H", '#include "assets.h"',
+          f"BANKREF_EXTERN(image_{sym})", f"extern const image_t image_{sym};", "#endif"]
+    c = [f"// Generated by scripts/assets.py from {png_gbc.as_posix()}. Do not edit.",
+         "#pragma bank 255", f'#include "image_{sym}.h"', f"BANKREF(image_{sym})",
+         "#ifdef CGB",
+         f"static const uint8_t tiles[] = {{\n{c_bytes(b''.join(g_tiles))}\n}};",
+         f"static const uint8_t map[] = {{\n{c_bytes(g_map, w // 8)}\n}};",
+         f"static const uint8_t attrs[] = {{\n{c_bytes(assign, w // 8)}\n}};",
+         f"static const palette_color_t palettes[] = {{\n{c_palettes(palettes)}\n}};",
+         f"#define TILE_COUNT {len(g_tiles)}", f"#define PALETTE_COUNT {len(palettes)}",
+         "#else",
+         f"static const uint8_t tiles[] = {{\n{c_bytes(b''.join(d_tiles))}\n}};",
+         f"static const uint8_t map[] = {{\n{c_bytes(d_map, w // 8)}\n}};",
+         f"#define TILE_COUNT {len(d_tiles)}",
+         "#endif",
+         f"const image_t image_{sym} = {{ {w // 8}, {h // 8}, TILE_COUNT, tiles, map,",
+         "#ifdef CGB", "    attrs, PALETTE_COUNT, palettes,", "#endif", "};"]
+    write(out, f"image_{sym}", hd, c)
+    print(f"{png_gbc.name}: {w // 8}x{h // 8} tiles, GBC {len(g_tiles)} unique / {len(palettes)} palettes, "
+          f"DMG {len(d_tiles)} unique")
+
+
 # ---------------------------------------------------------------------------------------------- output
 
 def write(out: Path, stem: str, header, source):
@@ -367,11 +605,15 @@ def write(out: Path, stem: str, header, source):
 
 
 def main():
-    if len(sys.argv) != 4 or sys.argv[1] not in ("tileset", "room", "sprite"):
-        sys.exit(__doc__)
-    kind, src, out = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
+    kinds = {"tileset": convert_tileset, "room": convert_room, "sprite": convert_sprite, "font": convert_font,
+             "image": convert_image}
     try:
-        {"tileset": convert_tileset, "room": convert_room, "sprite": convert_sprite}[kind](src, out)
+        if len(sys.argv) >= 3 and sys.argv[1] == "roomlist":
+            convert_roomlist(Path(sys.argv[2]), [Path(p) for p in sys.argv[3:]])
+            return
+        if len(sys.argv) != 4 or sys.argv[1] not in kinds:
+            sys.exit(__doc__)
+        kinds[sys.argv[1]](Path(sys.argv[2]), Path(sys.argv[3]))
     except AssetError as e:
         sys.exit(f"error: {e}")
 

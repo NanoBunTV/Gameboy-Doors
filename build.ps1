@@ -38,14 +38,18 @@ if ($Test) {
     foreach ($r in ($roms -replace '\\(gbc|dmg)\\', '\$1-autotest\')) {
         if ($r -like '*.gbc') { $modes = @('gbc') } else { $modes = @('dmg', 'gbc') }
         foreach ($m in $modes) {
-            & .\scripts\bgb-check.ps1 $r -Mode $m -Frames 900
+            & .\scripts\bgb-check.ps1 $r -Mode $m -Frames 900 -Seconds 15
             if ($LASTEXITCODE) { $failed = $true }
         }
         # PyBoy: is every background pixel right while scrolling, and does the VRAM work fit in VBlank?
         # (PyBoy prints a harmless SDL2 UserWarning on start; filtered out.)
-        & .\tools\venv\Scripts\python.exe scripts\scroll-test.py $r 4000 --every 2 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        & .\tools\venv\Scripts\python.exe scripts\scroll-test.py $r 6500 --every 2 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
-        & .\tools\venv\Scripts\python.exe scripts\vblank-budget.py $r 4000 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        & .\tools\venv\Scripts\python.exe scripts\vblank-budget.py $r 6500 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
+        # The recorded run (tests/autotest_input.c) must still play through: a changed room or rule that
+        # breaks it shows up here. Re-record with scripts/record-run.ps1 after deliberate changes.
+        & .\tools\venv\Scripts\python.exe scripts\bot.py $r --check 30 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
     }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }

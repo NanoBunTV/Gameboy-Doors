@@ -17,9 +17,18 @@ extern const char platform_name[];
 void platform_init(void);
 
 #ifdef CGB
-// Loads background / sprite palettes starting at palette 0 / first
-void platform_set_bkg_palettes(const palette_color_t *colours, uint8_t count);
+// Sets background / sprite palettes. They're kept in WRAM and written to the hardware in the next
+// VBlank (platform_vblank), with the current fade applied.
+void platform_set_bkg_palettes(uint8_t first, const palette_color_t *colours, uint8_t count);
 void platform_set_sprite_palettes(uint8_t first, const palette_color_t *colours, uint8_t count);
 #endif
+
+// Fade to black: 0 = normal ... FADE_BLACK = everything black. Takes effect in the next VBlank.
+#define FADE_BLACK 3
+void platform_set_fade(uint8_t level);
+extern uint8_t platform_fade;
+
+// Called by bg_flush() in VBlank: writes changed palettes
+void platform_vblank(void);
 
 #endif

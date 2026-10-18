@@ -54,16 +54,18 @@ Run a build by hand: `tools\bgb\bgb64.exe build\gbc\doors.gbc` (`-watch` reloads
 .\build.ps1 -Test                                                  # all three combinations, AUTOTEST ROMs
 ```
 
-1. **Rule check**: runs the ROM headless at full speed (`-hf`) for 10 s with all the breaks above passed as
-   `-set` options. Headless BGB exits as soon as it would break to the debugger, so **still running at the end
-   = pass; exited early = a hardware rule was broken** (the screen at that moment is saved as `…-FAIL.bmp`).
-   BGB runs about 1,100 frames a second headless, so 10 s is about 11,000 frames.
-2. **Screenshot**: breaks on the Nth call of GBDK's `_vsync` (`-br _vsync/..N`, `-Frames`, default 300;
-   `build.ps1` uses 900) and saves `build/screens/bgb-<build folder>-<mode>.png`.
+1. **Rule check**: runs the ROM headless at full speed (`-hf`) for `-Seconds` (default 10; `build.ps1` uses
+   15) with all the breaks above passed as `-set` options. Headless BGB exits as soon as it would break to the
+   debugger, so **still running at the end = pass; exited early = a hardware rule was broken** (the screen at
+   that moment is saved as `…-FAIL.bmp`). BGB runs about 1,100 frames a second headless.
+2. **Screenshot**: a breakpoint `-br _vsync/..N` (`-Frames`) and the screen saved to
+   `build/screens/bgb-<build folder>-<mode>.png`. **N isn't a frame count**: at N = 300 and 900 BGB showed
+   rooms 3 and 11 of the recorded run, which PyBoy reaches only around frames 900 and 2,600. The rooms were the
+   right ones (same run), so it's only the counter that's off. Use it as "somewhere later in the run".
 
-Headless BGB can't press buttons, so `build.ps1 -Test` checks the **AUTOTEST** builds, where the player walks
-a fixed route by itself (`src/input.c`) through both halves of the test room, in all 8 directions. That way the
-scrolling code, which does most of the VRAM writing, runs under the exception breaks.
+Headless BGB can't press buttons, so `build.ps1 -Test` checks the **AUTOTEST** builds, which replay a
+recorded run (below): title, 30 rooms, keys, locked doors, walking back once. That way all the VRAM writing
+(scrolling, door and drawer changes, HUD text, plates, tileset reloads) runs under the exception breaks.
 
 Checked on 2026-10-17 with a deliberately bad ROM (writes VRAM in a loop with the LCD on): it fails in under a
 second, while the real ROMs pass, so the breaks really are active.
@@ -86,23 +88,59 @@ Boots a ROM (GBC mode for `.gbc`, DMG for `.gb`, `--dmg` to force DMG), plays a 
 screenshots to `build/screens/`. Unlike BGB it can press buttons, so it's for "does input do the right thing".
 PyBoy is less accurate than BGB: never treat a PyBoy pass as a hardware pass.
 
-### Scrolling correctness: `scripts/scroll-test.py`
+### The bot and the recorded run: `scripts/bot.py`, `scripts/record-run.ps1`
 
 ```
-tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 4000 --every 2
+tools\venv\Scripts\python.exe scripts\bot.py build\dmg-autotest\doors.gb --rooms 40 --shots -v
+.\scripts\record-run.ps1                      # re-record tests\autotest_input.c (30 rooms)
+tools\venv\Scripts\python.exe scripts\bot.py build\gbc-autotest\doors.gbc --check 30
 ```
 
-Runs an AUTOTEST ROM and every 2nd frame compares the whole screen, minus sprites, with a reference picture of
-the room built from the tileset PNG. It first learns which screen colour each art colour becomes (PyBoy's
-DMG greys and GBC colour conversion differ from the PNG), then counts wrong pixels. Failing frames are saved
-as `build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`.
+The bot plays like a person: it reads the game's state from WRAM by symbol (`room_map`, `mt_flags`,
+`room_objs`, `run_flags`, `run_drawers`, `run_key_slot`, `run_key_door`, `player_x/y`, `game_state`,
+`input_frame`), finds paths with a breadth-first search over walkable metatiles, searches drawers in order
+until the key turns up, picks up keys in the open, unlocks and opens doors and walks through. At room 3 it goes
+back to room 2 and returns, to test walking back. `--shots` saves a screenshot on entering each room
+(`build/screens/bot-room-NNN.png`); a failure saves `bot-fail.png` and names the room and template.
 
-- **PyBoy timing**: when `tick()` returns, the game's VBlank code has already run, so SCX/SCY and OAM hold the
-  *next* frame's values. The script uses the values read after the previous tick. Without this, every frame
-  looked wrong.
+`--record` writes the buttons it pressed, for every `input_update()` call, run-length coded, to
+`tests/autotest_input.c` (598 bytes for 30 rooms). AUTOTEST builds replay that instead of reading the joypad,
+with the fixed seed `0xC0DE`. **The game is deterministic in its input**: the replay reaches room 30 at the same
+input frame (5,371) in PyBoy as DMG and as GBC, and BGB plays the same rooms. `--check N` replays and fails if
+room N isn't reached; `build.ps1 -Test` runs it.
+
+**Re-record after any change that alters what the same buttons do** (rooms, generation, door positions,
+speed): `.\scripts\record-run.ps1`. It writes an empty recording first, because the bot needs an AUTOTEST ROM
+that reads the joypad.
+
+### Background correctness: `scripts/scroll-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\scroll-test.py build\dmg-autotest\doors.gb 6500 --every 2
+```
+
+Runs an AUTOTEST ROM (playing its recorded run) and every 2nd frame compares the whole screen with a reference
+picture of the current room built from the game's own `room_map` in WRAM and the tileset PNG, at the camera
+position. Not compared: sprites (from OAM), the HUD window, door-number plates (runtime metatiles), fades and
+room loads, and 12 frames after any metatile change (a door or drawer opening is redrawn a frame or two later
+on purpose). It first learns which screen colour each art colour becomes (PyBoy's DMG greys and GBC colour
+conversion differ from the PNG), then counts wrong pixels. Failing frames are saved as
+`build/screens/scroll-fail-<frame>.png`. Part of `build.ps1 -Test`.
+
+- **PyBoy timing**: when `tick()` returns, the game's VBlank code has already run, so SCX/SCY, OAM and the map
+  hold the *next* frame's values. The script uses what it read after the previous tick. Without this, every
+  frame looked wrong.
 - **It catches real bugs**: with the column write's map wrap deliberately broken (`cp #0x9C` → `#0x9D` in
-  `bg.c`), 382 of 924 frames failed. Removing the one-tile margin was *not* caught: tiles written earlier stay
-  in the 32×32 ring, so a late margin rarely shows on the test route.
+  `bg.c`), 382 of 924 frames failed (Phase 1) and 405 of 1,088 (Phase 2 version). Removing the one-tile margin
+  was *not* caught: tiles written earlier stay in the 32×32 ring, so a late margin rarely shows.
+
+### ROM and RAM use
+
+```
+tools\gbdk\bin\romusage.exe build\gbc\doors.map
+```
+
+As of Phase 2: bank 0 74% (GBC) / 67% (DMG), bank 1 48%; DMG WRAM about 4.9 of 8 KB.
 
 ### VBlank budget: `scripts/vblank-budget.py`
 
@@ -111,9 +149,9 @@ tools\venv\Scripts\python.exe scripts\vblank-budget.py build\dmg-autotest\doors.
 ```
 
 AUTOTEST builds record how many scanlines into VBlank `bg_flush()` finished, worst case
-(`autotest_flush_lines` in `main.c`). The script runs the ROM and reads it out; 10 or more means it overran
-VBlank, and the script fails. PyBoy's timing is close but not exact. As of Phase 1: **DMG 8 of 10, GBC 6 of
-10** (ARCHITECTURE.md, "Scrolling", for the history).
+(`autotest_flush_lines` in `game.c`). The script runs the ROM and reads it out; 10 or more means it overran
+VBlank, and the script fails. PyBoy's timing is close but not exact. As of Phase 2 (over the 30-room run,
+including single-tile batches): **DMG 8 of 10, GBC 6 of 10** (ARCHITECTURE.md, "Scrolling", for the history).
 
 ## SameBoy and Emulicious (accuracy cross-checks)
 
@@ -130,3 +168,7 @@ its own uninitialised-memory and VRAM access checks.
 - `BANK(x)` isn't a constant expression for SDCC: it can't go in a static initializer (`room.c`).
 - Inline assembly (`__asm`) goes through the C preprocessor, so `#ifdef CGB` works inside it. Avoid
   apostrophes in its comments (the preprocessor may treat them as an open character literal).
+- An array of structs in generated C needs braces per element (`{ {1,2}, {3,4} }`); SDCC rejects a flat list.
+- PyBoy only renders the screen on ticks with `render=True`; screenshots after unrendered ticks are blank.
+- The room order repeats in cycles with the current 9 templates: with 2–3 templates per entry wall and the
+  no-repeat rule, there's often only one choice (STATUS.md, known issues).

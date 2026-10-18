@@ -11,12 +11,6 @@
 #define WALK_SPEED      0x0140
 #define WALK_SPEED_DIAG 0x00E2
 
-// Collision box: the feet, relative to the sprite's top left (3/4 view: the head may overlap walls)
-#define HB_L 3
-#define HB_R 12
-#define HB_T 10
-#define HB_B 15
-
 // Walk cycle: idle, step A, idle, step B; each for 8 frames
 #define ANIM_SHIFT 3
 
@@ -29,14 +23,20 @@ static uint8_t moving;
 static spr_sheet_t sheet;
 static uint8_t frame_buf[SPR_PLAYER_FRAME_COUNT * 4];
 
-void player_init(uint16_t x, uint16_t y) {
+// How far (px) the player is slid sideways when walking into the edge of a gap, such as a doorway
+#define NUDGE_MAX 6
+
+void player_load(void) {
+    spr_sheet_load(&sheet, BANK(sprite_player), &sprite_player, 0, 0, frame_buf);
+}
+
+void player_place(int16_t x, int16_t y, uint8_t facing) {
     player_x = x;
     player_y = y;
     sub_x = sub_y = 0x80;
-    player_facing = DIR_DOWN;
+    player_facing = facing;
     anim_timer = 0;
     moving = 0;
-    spr_sheet_load(&sheet, BANK(sprite_player), &sprite_player, 0, 0, frame_buf);
 }
 
 static uint8_t blocked(int16_t x, int16_t y) {
@@ -44,30 +44,62 @@ static uint8_t blocked(int16_t x, int16_t y) {
            room_solid_at(x + HB_L, y + HB_B) || room_solid_at(x + HB_R, y + HB_B);
 }
 
-// Moves one axis by speed (1/256 px) in direction dir (-1 or 1), one pixel at a time, stopping at walls
-static void move_x(int8_t dir, uint16_t speed) {
+// Moves one axis by speed (1/256 px) in direction dir (-1 or 1), one pixel at a time, stopping at walls.
+// Returns 1 if a wall stopped it.
+static uint8_t move_x(int8_t dir, uint16_t speed) {
     uint16_t acc = (dir > 0 ? sub_x : (uint8_t)~sub_x) + speed;
     uint8_t steps = acc >> 8;
     sub_x = dir > 0 ? (uint8_t)acc : (uint8_t)~(uint8_t)acc;
     while (steps--) {
         if (blocked(player_x + dir, player_y)) {
             sub_x = dir > 0 ? 0xFF : 0x00;  // pressed against the wall
-            return;
+            return 1;
         }
         player_x += dir;
     }
+    return 0;
 }
 
-static void move_y(int8_t dir, uint16_t speed) {
+static uint8_t move_y(int8_t dir, uint16_t speed) {
     uint16_t acc = (dir > 0 ? sub_y : (uint8_t)~sub_y) + speed;
     uint8_t steps = acc >> 8;
     sub_y = dir > 0 ? (uint8_t)acc : (uint8_t)~(uint8_t)acc;
     while (steps--) {
         if (blocked(player_x, player_y + dir)) {
             sub_y = dir > 0 ? 0xFF : 0x00;
-            return;
+            return 1;
         }
         player_y += dir;
+    }
+    return 0;
+}
+
+// Walking straight into a wall next to a gap (a doorway, the space between two dressers): if the gap is
+// within NUDGE_MAX px to one side, slide 1 px toward it. Saves lining up a 10 px wide player with a
+// 16 px door by hand.
+static void nudge_sideways_for_y(int8_t dy) {
+    for (int8_t k = 1; k <= NUDGE_MAX; k++) {
+        if (!blocked(player_x - k, player_y + dy) && !blocked(player_x - 1, player_y)) {
+            player_x--;
+            return;
+        }
+        if (!blocked(player_x + k, player_y + dy) && !blocked(player_x + 1, player_y)) {
+            player_x++;
+            return;
+        }
+    }
+}
+
+static void nudge_sideways_for_x(int8_t dx) {
+    for (int8_t k = 1; k <= NUDGE_MAX; k++) {
+        if (!blocked(player_x + dx, player_y - k) && !blocked(player_x, player_y - 1)) {
+            player_y--;
+            return;
+        }
+        if (!blocked(player_x + dx, player_y + k) && !blocked(player_x, player_y + 1)) {
+            player_y++;
+            return;
+        }
     }
 }
 
@@ -105,8 +137,10 @@ void player_update(void) {
     moving = dx || dy;
     if (moving) {
         uint16_t speed = (dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED;
-        if (dx) move_x(dx, speed);
-        if (dy) move_y(dy, speed);
+        if (dx && move_x(dx, speed) && !dy)
+            nudge_sideways_for_x(dx);
+        if (dy && move_y(dy, speed) && !dx)
+            nudge_sideways_for_y(dy);
         anim_timer++;
     } else {
         anim_timer = 0;

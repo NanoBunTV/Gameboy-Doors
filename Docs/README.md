@@ -10,7 +10,7 @@ person or an AI assistant in a new chat.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Source layout, the two ROM targets, memory map, the frame loop, scrolling, sprites, the player, the asset converter |
 | [ASSETS.md](ASSETS.md) | How to edit the art (separate GBC and DMG PNGs), tilesets and rooms in Tiled, sprite sheets, and the limits the converter checks |
 | [BUILDING.md](BUILDING.md) | Toolchain (GBDK-2020, Python), build steps, asset conversion, ROM header settings |
-| [DEBUGGING.md](DEBUGGING.md) | Testing in BGB, PyBoy, SameBoy and Emulicious, and the rules that keep the ROM working on real hardware |
+| [DEBUGGING.md](DEBUGGING.md) | Testing in BGB, PyBoy, SameBoy and Emulicious, the play-testing bot and recorded run, and the rules that keep the ROM working on real hardware |
 | [STATUS.md](STATUS.md) | What works, test results, known issues and the roadmap |
 
 Keep these files up to date when something important changes. In particular, record anything learned about

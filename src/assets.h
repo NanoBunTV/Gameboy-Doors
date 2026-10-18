@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 // Tilesets, numbered for room_def_t.tileset. Add one here when adding assets/tilesets/<name>.tsx,
-// and a case to tileset_load() in bg.c.
+// and a case to tileset_load() in room.c.
 #define TILESET_HOTEL 0
 
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
@@ -28,12 +28,34 @@ typedef struct {
 #endif
 } tileset_t;
 
-// A room from Tiled
+// Room objects from the Tiled object layer (ASSETS.md), in metatile units
+#define OBJ_ENTRY   1   // the door you come in by; param = WALL_*
+#define OBJ_EXIT    2   // the door to the next room; param = WALL_*
+#define OBJ_DRAWER  3   // on a dresser: may hold the key
+#define OBJ_KEYSPOT 4   // a place a key can lie in the open; param bit 0: fixed (the start room's key)
+#define OBJ_SPAWN   5   // start / test rooms: where the player starts
+
+#define WALL_TOP    1
+#define WALL_BOTTOM 2
+#define WALL_LEFT   3
+#define WALL_RIGHT  4
+
+#define ROOM_KIND_NORMAL 0
+#define ROOM_KIND_START  1
+#define ROOM_KIND_TEST   2
+
+typedef struct {
+    uint8_t type, x, y, w, h, param;
+} room_obj_t;
+
+// A room template from Tiled
 typedef struct {
     uint8_t width, height;       // in metatiles
     uint8_t tileset;             // TILESET_*
-    uint16_t spawn_x, spawn_y;   // player start, pixels
+    uint16_t spawn_x, spawn_y;   // player start (start/test rooms), pixels
     const uint8_t *map;          // width * height metatile numbers, row by row
+    uint8_t obj_count;
+    const room_obj_t *objects;   // sorted by type
 } room_def_t;
 
 // A sprite sheet of 16x16 frames, each drawn as two 8x16 hardware sprites
@@ -47,5 +69,28 @@ typedef struct {
     const palette_color_t *palettes;  // 4 colours each, colour 0 unused (transparent)
 #endif
 } sprite_sheet_t;
+
+// A still picture (the title logo): tiles, a tile map, GBC palettes per tile
+typedef struct {
+    uint8_t width, height;       // in tiles
+    uint8_t tile_count;
+    const uint8_t *tiles;
+    const uint8_t *map;          // width * height tile numbers (from 0)
+#ifdef CGB
+    const uint8_t *attrs;        // width * height palette numbers
+    uint8_t palette_count;
+    const palette_color_t *palettes;
+#endif
+} image_t;
+
+// The font: 8x8 tiles loaded at FONT_FIRST_TILE
+typedef struct {
+    uint8_t tile_count;
+    const uint8_t *tiles;
+    const uint8_t *ascii;        // tile number for ASCII 32..127
+#ifdef CGB
+    const palette_color_t *palette;   // loaded as BG palette 7
+#endif
+} font_t;
 
 #endif

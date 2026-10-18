@@ -21,7 +21,10 @@ ROOMS    := $(wildcard assets/rooms/*.tmx)
 SPRITES  := $(wildcard assets/sprites/*.json)
 GEN_C := $(patsubst assets/tilesets/%.tsx,$(GEN)/tileset_%.c,$(TILESETS)) \
          $(patsubst assets/rooms/%.tmx,$(GEN)/room_%.c,$(ROOMS)) \
-         $(patsubst assets/sprites/%.json,$(GEN)/sprite_%.c,$(SPRITES))
+         $(GEN)/room_templates.c \
+         $(patsubst assets/sprites/%.json,$(GEN)/sprite_%.c,$(SPRITES)) \
+         $(GEN)/font.c \
+         $(patsubst assets/title/%.gbc.png,$(GEN)/image_%.c,$(wildcard assets/title/*.gbc.png))
 GEN_H := $(GEN_C:.c=.h)
 ASSET_TOOL := scripts/assets.py
 
@@ -36,13 +39,16 @@ CFLAGS  := -Wa-l -I$(SRCDIR) -I$(GEN) -Wf--max-allocs-per-node50000
 # Built into build/gbc-autotest and build/dmg-autotest so it never mixes with the real ROMs.
 ifdef AUTOTEST
 VARIANT := -autotest
-CFLAGS  += -DAUTOTEST
+CFLAGS  += -DAUTOTEST -Itests
+TEST_C  := $(wildcard tests/*.c)   # the recorded run (scripts/bot.py)
 endif
 CGB_DIR := $(OUTDIR)/gbc$(VARIANT)
 DMG_DIR := $(OUTDIR)/dmg$(VARIANT)
 
-CGB_O := $(patsubst $(SRCDIR)/%.c,$(CGB_DIR)/obj/%.o,$(CGB_C)) $(patsubst $(GEN)/%.c,$(CGB_DIR)/obj/gen/%.o,$(GEN_C))
-DMG_O := $(patsubst $(SRCDIR)/%.c,$(DMG_DIR)/obj/%.o,$(DMG_C)) $(patsubst $(GEN)/%.c,$(DMG_DIR)/obj/gen/%.o,$(GEN_C))
+CGB_O := $(patsubst $(SRCDIR)/%.c,$(CGB_DIR)/obj/%.o,$(CGB_C)) $(patsubst $(GEN)/%.c,$(CGB_DIR)/obj/gen/%.o,$(GEN_C)) \
+         $(patsubst tests/%.c,$(CGB_DIR)/obj/tests/%.o,$(TEST_C))
+DMG_O := $(patsubst $(SRCDIR)/%.c,$(DMG_DIR)/obj/%.o,$(DMG_C)) $(patsubst $(GEN)/%.c,$(DMG_DIR)/obj/gen/%.o,$(GEN_C)) \
+         $(patsubst tests/%.c,$(DMG_DIR)/obj/tests/%.o,$(TEST_C))
 CGB_ROM := $(CGB_DIR)/$(ROMNAME).gbc
 DMG_ROM := $(DMG_DIR)/$(ROMNAME).gb
 
@@ -77,6 +83,16 @@ $(GEN)/room_%.c $(GEN)/room_%.h: assets/rooms/%.tmx $(TILESETS) $(ASSET_TOOL)
 $(GEN)/sprite_%.c $(GEN)/sprite_%.h: assets/sprites/%.json assets/sprites/%.gbc.png assets/sprites/%.dmg.png $(ASSET_TOOL)
 	$(PYTHON) $(ASSET_TOOL) sprite $< $(GEN)
 
+# Every room template in one table for the generator (src/run.c)
+$(GEN)/room_templates.c $(GEN)/room_templates.h: $(ROOMS) $(TILESETS) $(ASSET_TOOL)
+	$(PYTHON) $(ASSET_TOOL) roomlist $(GEN) $(ROOMS)
+
+$(GEN)/image_%.c $(GEN)/image_%.h: assets/title/%.gbc.png assets/title/%.dmg.png $(ASSET_TOOL)
+	$(PYTHON) $(ASSET_TOOL) image $< $(GEN)
+
+$(GEN)/font.c $(GEN)/font.h: assets/fonts/font.json assets/fonts/font.gbc.png assets/fonts/font.dmg.png $(ASSET_TOOL)
+	$(PYTHON) $(ASSET_TOOL) font $< $(GEN)
+
 # --- compiling (every object depends on every header: simple, and the project is small)
 $(CGB_DIR)/obj/%.o: $(SRCDIR)/%.c $(HEADERS)
 	@mkdir -p $(dir $@)
@@ -91,6 +107,14 @@ $(CGB_DIR)/obj/gen/%.o: $(GEN)/%.c $(HEADERS)
 	$(LCC) $(CFLAGS) -DCGB -c -o $@ $<
 
 $(DMG_DIR)/obj/gen/%.o: $(GEN)/%.c $(HEADERS)
+	@mkdir -p $(dir $@)
+	$(LCC) $(CFLAGS) -DDMG -c -o $@ $<
+
+$(CGB_DIR)/obj/tests/%.o: tests/%.c $(HEADERS) $(wildcard tests/*.h)
+	@mkdir -p $(dir $@)
+	$(LCC) $(CFLAGS) -DCGB -c -o $@ $<
+
+$(DMG_DIR)/obj/tests/%.o: tests/%.c $(HEADERS) $(wildcard tests/*.h)
 	@mkdir -p $(dir $@)
 	$(LCC) $(CFLAGS) -DDMG -c -o $@ $<
 

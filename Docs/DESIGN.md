@@ -31,10 +31,13 @@ the bottom for a few seconds when something changes, then slides out:
 - health changes (hit, heal): health bar;
 - held item changes or is used: item icon, plus its fuel/battery meter or uses left;
 - gold picked up: gold count;
-- Select pressed: everything (health, item, gold, door number).
+- entering a room: the door number;
+- messages ("IT'S LOCKED.", "GOT KEY FOR DOOR 012");
+- Select held: everything (health, item, gold, door number).
 
-**Open**: whether the strip should cover the play field or push it up (it covers it in the first version, since
-the window layer can't shrink the background). The strip must not show during Halt's and Seek's cutscenes.
+As built in Phase 2: border line + one text row, " DOOR 012" on the left and a key icon on the right while a
+key is carried. It covers the bottom 16 px of the play field (the window layer can't shrink the background).
+The strip must not show during Halt's and Seek's cutscenes.
 
 ## Health and death
 
@@ -48,12 +51,23 @@ the window layer can't shrink the background). The strip must not show during Ha
 - Rooms are Tiled maps (`assets/rooms/*.tmx`) on a shared metatile set, with an object layer for: entry
   and exit doors, closets, beds, drawers/chests, light sources, lever gates, Dupe's side doors, and Halt and
   Seek markers. The room schema follows the Minecraft version's `RoomDefinition` (*MC README*, "Authoring a room").
-- A run is generated from a seed: the next room is chosen as the player approaches its door, so only the
-  current room, the previous room (for backtracking) and the next room are in memory.
-- Fixed rooms: lobby/elevator (0), the Library (50), **Jeff's Shop (55)**, the Courtyard and Greenhouse
-  (89–99), Room 100. Seek's chases (between roughly 30–45 and 80–89) and Halt's hallway are scripted sequences
-  of rooms. Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52.
-- Every door shows its number, as in DOORS.
+- **Rooms are separate maps** with a quick fade to black between them (owner, 2026-10-17). Going back through
+  the door you came in by returns to the previous room as you left it.
+- A run is generated from a seed: each room's template, lock and key place are decided from (seed, room
+  number), in order, because a room must be entered through the wall opposite the previous room's exit.
+  Exits go **up or sideways** (owner): top-wall exits lead to rooms entered from the bottom, side exits to
+  rooms entered from the opposite side. No template repeats within 3 rooms.
+- **Room 0 is the reception**: door 1 is always locked and its key hangs on the wall behind the desk (DOORS'
+  tutorial). The elevator before it comes with the economy phase.
+- Fixed rooms still to come: the Library (50), **Jeff's Shop (55)**, the Courtyard and Greenhouse (89–99),
+  Room 100. Seek's chases (between roughly 30–45 and 80–89) and Halt's hallway are scripted sequences of rooms.
+  Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
+  door says "TO BE CONTINUED...".
+- **Doors**: every closed door shows its number on a brass plate (and the HUD shows it on entering). **A**
+  opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
+- **Locked doors**: 18% of rooms that allow it lock their exit; the key is in that room, in a drawer (mostly)
+  or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
+  the key, unlocks and opens it and uses the key up. **Drawers** are searched with A: "NOTHING." or the key.
 
 ## Light and darkness
 
@@ -131,6 +145,5 @@ sitting, as in DOORS.
 ## Still open
 
 - Darkness technique on each console (after a prototype).
-- The HUD strip covering vs pushing the play field.
 - The list of achievements and their Knob rewards.
 - Title screen and logo art; credits.

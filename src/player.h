@@ -10,7 +10,17 @@ enum { DIR_DOWN, DIR_DOWN_LEFT, DIR_LEFT, DIR_UP_LEFT, DIR_UP, DIR_UP_RIGHT, DIR
 extern int16_t player_x, player_y;   // top left of the 16x16 sprite, room pixels
 extern uint8_t player_facing;        // DIR_*
 
-void player_init(uint16_t x, uint16_t y);
+// Collision box (the feet), relative to the sprite's top left
+#define HB_L 3
+#define HB_R 12
+#define HB_T 10
+#define HB_B 15
+// The middle of the feet, which decides which metatile the player stands on
+#define PLAYER_FEET_X 8
+#define PLAYER_FEET_Y 12
+
+void player_load(void);                                  // sprite tiles, once
+void player_place(int16_t x, int16_t y, uint8_t facing); // put the player somewhere, standing
 void player_update(void);
 void player_draw(void);
 

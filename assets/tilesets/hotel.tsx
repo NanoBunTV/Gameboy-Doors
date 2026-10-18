@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="16" columns="8">
- <image source="hotel.gbc.png" width="128" height="32"/>
+<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="29" columns="8">
+ <image source="hotel.gbc.png" width="128" height="64"/>
  <tile id="0">
   <properties>
    <property name="name" value="void"/>
@@ -89,6 +89,79 @@
  <tile id="15">
   <properties>
    <property name="name" value="wallpaper_shadow"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="16">
+  <properties>
+   <property name="name" value="door_open_top"/>
+  </properties>
+ </tile>
+ <tile id="17">
+  <properties>
+   <property name="name" value="door_open_bottom"/>
+  </properties>
+ </tile>
+ <tile id="18">
+  <properties>
+   <property name="name" value="door_bottom_locked"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="19">
+  <properties>
+   <property name="name" value="side_door_top"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="20">
+  <properties>
+   <property name="name" value="side_door_bottom"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="21">
+  <properties>
+   <property name="name" value="side_door_bottom_locked"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="22">
+  <properties>
+   <property name="name" value="side_open_top"/>
+  </properties>
+ </tile>
+ <tile id="23">
+  <properties>
+   <property name="name" value="side_open_bottom"/>
+  </properties>
+ </tile>
+ <tile id="24">
+  <properties>
+   <property name="name" value="doorway_s"/>
+  </properties>
+ </tile>
+ <tile id="25">
+  <properties>
+   <property name="name" value="desk_l"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="26">
+  <properties>
+   <property name="name" value="desk_m"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="27">
+  <properties>
+   <property name="name" value="desk_r"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="28">
+  <properties>
+   <property name="name" value="dresser_open"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>

@@ -53,7 +53,12 @@ The `Makefile` compiles `src/*.c` plus `src/platform/cgb/*.c` with `-DCGB`, or `
 too (every `assets/tilesets/*.tsx`, `assets/rooms/*.tmx`, `assets/sprites/*.json`). Every object depends on
 every header, which is simple and fast enough at this size.
 
-**Assets** are converted by `scripts/assets.py` (ARCHITECTURE.md, ASSETS.md), run with the venv's Python.
+**Assets** are converted by `scripts/assets.py` (ARCHITECTURE.md, ASSETS.md), run with the venv's Python:
+one `.c/.h` pair per tileset, room, sprite sheet, title image and the font, plus `room_templates.c/.h` for all
+rooms together.
+
+**AUTOTEST builds** also compile `tests/*.c`: the recorded run (`tests/autotest_input.c`, written by
+`scripts/bot.py`; DEBUGGING.md). It's committed, so the tests work from a fresh checkout.
 
 **Autobanking** (`-autobank`): GBDK's bankpack assigns ROM banks to `#pragma bank 255` files at link time. It
 must write its output to separate files (`-Wb-ext=.rel`). By default it overwrites the `.o` files, and the

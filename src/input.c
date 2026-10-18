@@ -3,36 +3,31 @@
 
 uint8_t input_held;
 uint8_t input_pressed;
+uint16_t input_frame;   // input_update() calls so far; the replay and scripts/bot.py count in these
 
 #ifdef AUTOTEST
-// AUTOTEST builds (make AUTOTEST=1) ignore the joypad and repeat this route, so headless emulator checks
-// (scripts/bgb-check.ps1) exercise scrolling in every direction. It's laid out for assets/rooms/test.tmx,
-// starting at the spawn on the carpet: { buttons, frames }.
-static const uint8_t route[][2] = {
-    { 0, 30 },
-    { J_UP, 250 },                // up the carpet, through the doorway, to the north wall
-    { J_LEFT, 200 },              // to the west wall
-    { J_DOWN | J_RIGHT, 120 },    // diagonal into the inner wall
-    { J_RIGHT, 250 },
-    { J_RIGHT, 200 },             // to the east wall
-    { J_UP | J_LEFT, 80 },
-    { J_LEFT, 120 },              // back to the doorway
-    { J_DOWN, 250 },              // down through the doorway to the south wall
-    { J_LEFT | J_DOWN, 100 },
-    { J_UP | J_RIGHT, 160 },
-    { J_RIGHT, 100 },
-    { J_LEFT, 110 },
-};
-static uint8_t route_step, route_timer;
+// AUTOTEST builds (make AUTOTEST=1) replay a recorded run, so headless emulators (BGB, which can't press
+// buttons) play the game too. tests/autotest_input.c is written by scripts/bot.py: pairs of
+// { buttons, count } in input_update() calls. After the end, or if it's empty, the joypad is read.
+#include "autotest_input.h"
+static uint16_t replay_pos;
+static uint8_t replay_left;
 
 static uint8_t read_buttons(void) {
-    if (route_timer >= route[route_step][1]) {
-        route_timer = 0;
-        if (++route_step == sizeof(route) / sizeof(route[0]))
-            route_step = 0;
+    uint8_t saved = CURRENT_BANK, buttons;
+    SWITCH_ROM(BANK(autotest_input));
+    while (!replay_left) {
+        if (replay_pos >= autotest_input_len) {
+            SWITCH_ROM(saved);
+            return joypad();
+        }
+        replay_left = autotest_input[replay_pos + 1];
+        replay_pos += 2;
     }
-    route_timer++;
-    return route[route_step][0];
+    replay_left--;
+    buttons = autotest_input[replay_pos - 2];
+    SWITCH_ROM(saved);
+    return buttons;
 }
 #else
 #define read_buttons joypad
@@ -42,4 +37,5 @@ void input_update(void) {
     uint8_t now = read_buttons();
     input_pressed = now & ~input_held;
     input_held = now;
+    input_frame++;
 }

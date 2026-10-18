@@ -36,6 +36,11 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   tests: an AUTOTEST build that walks by itself, checked in BGB with every exception break, a pixel-exact
   scroll test and a VBlank budget measurement in PyBoy. The first scrolling version overran VBlank and was
   redesigned (ARCHITECTURE.md).
+- **2026-10-17**: **Phase 2 done** (rooms and doors): title screen with a pixel version of the DOORS logo, the
+  reception and 9 room templates chained by a seeded generator, numbered doors, drawers, keys, locked doors,
+  walking back, the on-demand HUD, fades. The wallpaper became the Minecraft version's green diamond texture
+  (owner's request). A play-testing bot records a 30-room run that AUTOTEST builds replay, so BGB checks the
+  whole game, not just a walk around one room.
 
 ## Decisions and why
 
@@ -68,6 +73,17 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Separate art per console (`.gbc.png` colour, `.dmg.png` greys, same layout) | Owner's choice (2026-10-17) over grey art + palettes or automatic greys: the best result on each console, at the cost of drawing everything twice |
 | Player: blocky Roblox avatar, 16×16, 3/4 view, walk cycle of 2 frames + idle | Owner's choices (2026-10-17). 16×16 is 2 hardware sprites, leaving room on each scanline for entities |
 | Camera centred on the player, stopping at room edges | Owner's choices (2026-10-17): "always centred" over a dead zone or look-ahead; stop at walls over showing void |
+| Separate rooms with a quick fade between them | Owner's choice (2026-10-17) over a Zelda slide or a seamless corridor: fits memory, any room shape. Entities that travel between rooms (Rush) will be tracked by distance off-screen |
+| Doors open with A | Owner's choice (2026-10-17) over opening automatically |
+| Door numbers on the door's plate and in the HUD | Owner's choice (2026-10-17) |
+| Keys in drawers or lying in the open, mostly drawers (75%) | Owner's choice (2026-10-17). Lock chance 18% and no template repeated within 3 rooms, both from the Minecraft config |
+| Exits go up or sideways, never down | Owner's choice (2026-10-17): doors read clearly in 3/4 view and progress is always "onward" |
+| The reception (room 0) now, the elevator later | Owner's choice (2026-10-17). Door 1 always locked, key on the wall behind the desk |
+| About 8 room templates to start | Owner's choice (2026-10-17); 9 plus the reception were made. More are needed for variety (STATUS.md) |
+| Wallpaper = the Minecraft version's `green_terracotta` diamond texture | Owner's request (2026-10-17) |
+| Title screen with the DOORS logo, pixelated | Owner's request (2026-10-17), from the logo URL they gave. The logo belongs to LSPLASH; this is a fan project |
+| Title screen and seed from the player's timing | A Game Boy powers on identically, so the frame count and divider register when Start is pressed are the only randomness |
+| A play-testing bot and a recorded run for AUTOTEST builds | Lets BGB, which can't press buttons, check the whole game under its hardware-rule breaks, and catches anything that breaks a full playthrough |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)
