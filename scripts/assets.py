@@ -41,12 +41,23 @@ FONT_MAX_TILES = 64
 
 # Room objects (src/assets.h OBJ_*, WALL_*)
 OBJ_TYPES = {"entry": 1, "exit": 2, "drawer": 3, "keyspot": 4, "spawn": 5, "closet": 6, "bed": 7, "paper": 8,
-             "figure": 9, "seek": 10, "snare": 11}
+             "figure": 9, "seek": 10, "snare": 11, "lever": 12, "breaker": 13, "breaker_door": 14,
+             "figure_door": 15, "lift": 16, "light": 17, "safe": 18}
 # Hiding spots and the metatiles they must cover (top, bottom)
 HIDING = {"closet": ("closet_top", "closet_bottom"), "bed": ("bed_top", "bed_bottom")}
+# Room 100's fixtures (src/electrical.c): their size and the metatiles they must cover, row by row
+FIXTURES = {"lever": ((1, 2), ("lever_top", "lever_bottom")),
+            "breaker": ((1, 2), ("breaker_top", "breaker_bottom")),
+            "breaker_door": ((1, 2), ("breaker_door_top", "breaker_door_bottom")),
+            "figure_door": ((1, 2), ("copper_top", "copper_bottom")),
+            "lift": ((2, 2), ("lift_tl", "lift_tr", "lift_bl", "lift_br"))}
+ELECTRICAL_ONE_EACH = ("lever", "breaker", "breaker_door", "figure_door", "lift", "figure", "safe")
+FUSES = 10             # src/electrical.h FUSES
+LIGHTS_MAX = 6         # pools of light in Room 100 (electrical.c LIGHTS_MAX) ...
+LIGHT_CELLS_MAX = 16   # ... and the cells in each (each blink queues 4 tile writes a cell)
 WALLS = {"top": 1, "bottom": 2, "left": 3, "right": 4}
 ROOM_KINDS = {"normal": 0, "start": 1, "test": 2, "halt": 3, "library": 4,
-              "seek_start": 5, "seek_4way": 6, "seek_end": 7, "courtyard": 8, "greenhouse": 9}
+              "seek_start": 5, "seek_4way": 6, "seek_end": 7, "courtyard": 8, "greenhouse": 9, "electrical": 10}
 # Seek's chases (src/run.c, seek.c, Minecraft docs 08): a start hallway, four-way rooms, an end hallway
 SEEK_KINDS = ("seek_start", "seek_4way", "seek_end")
 # The Courtyard (room 89) and the Greenhouse (90-99) (src/run.c, garden.c, Minecraft docs 09)
@@ -60,8 +71,11 @@ SHARED_METATILES = ("void", "floor", "door_top", "door_bottom", "door_open_top",
 SNARES_PER_ROOM = 3
 # The Library (src/library.c, figure.c): Figure's route search uses the room map's unused tail, one byte a
 # cell plus a 512-byte queue (figure.c QUEUE_BYTES), so a library may use at most this much of ROOM_MAX
-ROOM_MAX = 2816        # src/room.h
+ROOM_MAX = 2560        # src/room.h
 LIBRARY_MAX_CELLS = (ROOM_MAX - 512) // 2
+# Room 100: the same, less 256 bytes for electrical.c's own scratch after the route search's queue
+ELECTRICAL_MAX_CELLS = (ROOM_MAX - 512 - 256) // 2
+ROOM_OBJ_MAX = 24      # src/room.h
 LIBRARY_BOOKS = 8      # books placed per run (library.c LIB_BOOKS)
 EXITS_MAX = 3   # a Dupe room has up to 3 exits, one real per run (run_exit in src/run.c)
 
@@ -228,9 +242,11 @@ def convert_tileset(tsx: Path, out: Path):
     # MTF_SOLID, MTF_BOOKCASE, MTF_FIRE, MTF_WALL, MTF_SNARE (assets.h): a bookcase is where the Library's books
     # can be; fire kills whoever walks into it (Seek's end hallway); a wall can show Seek's eyes before a chase;
     # a snare is the Greenhouse's trap (the run draws it on a 'floor' cell, garden.c)
+    # Room 100 (electrical.c): a shelf a fuse can be put on, bars the lever removes, the sliding door
     flags = [(1 if props[m].get("solid") else 0) | (2 if props[m].get("bookcase") else 0) |
              (4 if props[m].get("fire") else 0) | (8 if props[m].get("wall") else 0) |
-             (16 if props[m].get("snare") else 0) for m in range(count)]
+             (16 if props[m].get("snare") else 0) | (32 if props[m].get("shelf") else 0) |
+             (64 if props[m].get("gate") else 0) | (128 if props[m].get("slide") else 0) for m in range(count)]
     for m in range(count):
         if props[m].get("fire") and props[m].get("solid"):
             raise AssetError(f"{tsx.name}: metatile {m} is fire and solid; fire must be walkable (it kills)")
@@ -384,6 +400,19 @@ def parse_room(tmx: Path):
                 raise AssetError(f"{where}: the paper is one metatile on a 'desk_paper' metatile")
         elif name == "snare":
             pass   # candidate cells: counted below
+        elif name in FIXTURES:
+            size, want = FIXTURES[name]
+            if (ow, oh) != size:
+                raise AssetError(f"{where}: a {name} is {size[0]}x{size[1]} metatiles, not {ow}x{oh}")
+            found = tuple(ts_names[cells[(y + j) * w + x + i]] for j in range(oh) for i in range(ow))
+            if found != want:
+                raise AssetError(f"{where}: must cover the metatiles {want}, not {found}")
+        elif name == "light":
+            if ow * oh > LIGHT_CELLS_MAX:
+                raise AssetError(f"{where}: a light pool is at most {LIGHT_CELLS_MAX} cells (it blinks by redrawing "
+                                 f"them), not {ow * oh}")
+        elif name == "safe":
+            pass   # checked with the room (electrical)
         elif name in HIDING:
             if (ow, oh) != (1, 2):
                 raise AssetError(f"{where}: a {name} is 1x2 metatiles (its top and bottom halves)")
@@ -476,8 +505,15 @@ def parse_room(tmx: Path):
         if not LIBRARY_BOOKS <= books <= 255:
             raise AssetError(f"{tmx.name}: {books} bookcase metatiles with floor below; the books need "
                              f"{LIBRARY_BOOKS} to 255")
+    elif kind == "electrical":
+        books = check_electrical(tmx, w, h, cells, ts_props, objects, count, entry_wall)
     elif count("paper") or count("figure"):
         raise AssetError(f"{tmx.name}: 'paper' and 'figure' objects are for the Library (kind = library)")
+    if kind != "electrical" and any(count(n) for n in list(FIXTURES) + ["light", "safe"]):
+        raise AssetError(f"{tmx.name}: lever, breaker, breaker_door, figure_door, lift, light and safe objects are "
+                         "for Room 100 (kind = electrical)")
+    if len(objects) > ROOM_OBJ_MAX:
+        raise AssetError(f"{tmx.name}: {len(objects)} objects; a room may have at most {ROOM_OBJ_MAX} (room.h)")
     if kind == "start" and (count("exit") != 1 or spawn is None):
         raise AssetError(f"{tmx.name}: the start room needs an 'exit' and a 'spawn' object")
     if kind == "start" and not any(o[0] == OBJ_TYPES["keyspot"] and o[5] for o in objects):
@@ -513,6 +549,53 @@ def parse_room(tmx: Path):
                 exit_walls=exit_walls,
                 drawers=count("drawer"), keyspots=sum(1 for o in objects if o[0] == OBJ_TYPES["keyspot"] and not o[5]),
                 hiding=count("closet") + count("bed"), routes=routes, books=books, snare_cells=len(snare_cells))
+
+
+def check_electrical(tmx, w, h, cells, ts_props, objects, count, entry_wall):
+    """Room 100's rules (src/electrical.c, figure.c). Returns how many shelves a fuse can be put on."""
+    if count("entry") != 1 or entry_wall != WALLS["bottom"] or count("exit"):
+        raise AssetError(f"{tmx.name}: Room 100 has one 'entry' on the bottom wall (room 99 has one door, on top) and "
+                         "no exit: the lift is the way out")
+    for n in ELECTRICAL_ONE_EACH:
+        if count(n) != 1:
+            raise AssetError(f"{tmx.name}: Room 100 needs exactly one '{n}' object, not {count(n)}")
+    if not any(o[0] == OBJ_TYPES["keyspot"] and not o[5] for o in objects):
+        raise AssetError(f"{tmx.name}: Room 100 needs a 'keyspot' (not fixed) for the breaker room's key (the run "
+                         "picks one; put them in far corners)")
+    if count("light") > LIGHTS_MAX:
+        raise AssetError(f"{tmx.name}: at most {LIGHTS_MAX} 'light' pools, not {count('light')}")
+    if w * h > ELECTRICAL_MAX_CELLS:
+        raise AssetError(f"{tmx.name}: {w * h} metatiles; Room 100 may have at most {ELECTRICAL_MAX_CELLS} (Figure's "
+                         "route search and electrical.c use the rest of the room map)")
+    entry = next(o for o in objects if o[0] == OBJ_TYPES["entry"])
+    for i, m in enumerate(cells):
+        x, y = i % w, i // w
+        if (x in (0, w - 1) or y in (0, h - 1)) and not ts_props[m].get("solid") and (x, y) != entry[1:3]:
+            raise AssetError(f"{tmx.name}: ({x}, {y}) is on the map's edge and isn't solid (Figure, figure.c)")
+    one = {n: next(o for o in objects if o[0] == OBJ_TYPES[n]) for n in ELECTRICAL_ONE_EACH}
+    safe = one["safe"]
+
+    def in_safe(x, y):
+        return safe[1] <= x < safe[1] + safe[3] and safe[2] <= y < safe[2] + safe[4]
+    bd = one["breaker_door"]
+    if not (in_safe(bd[1], bd[2]) and in_safe(bd[1], bd[2] + 1)) or in_safe(bd[1], bd[2] + 2):
+        raise AssetError(f"{tmx.name}: the 'safe' rectangle (the breaker room) must cover the breaker door's two cells "
+                         "(Figure can't stand in its doorway) and not the cell below it (the warehouse side)")
+    for n in ("breaker", "figure_door"):
+        o = one[n]
+        if not in_safe(o[1], o[2] + 2) or (ts_props[cells[(o[2] + 2) * w + o[1]]].get("solid")):
+            raise AssetError(f"{tmx.name}: the {n} must be in the breaker room's wall, with a floor cell in front of it "
+                             "inside the 'safe' rectangle")
+    for o in objects:
+        if o[0] in (OBJ_TYPES["figure"], OBJ_TYPES["keyspot"]) and in_safe(o[1], o[2]):
+            raise AssetError(f"{tmx.name}: Figure's start and the key can't be in the breaker room ('safe')")
+    # Fuses go on 'shelf' metatiles with floor below them, where the player stands to take one
+    shelves = sum(1 for i, m in enumerate(cells) if ts_props[m].get("shelf") and i + w < len(cells)
+                  and not ts_props[cells[i + w]].get("solid") and not in_safe(i % w, i // w))
+    if not FUSES <= shelves <= 255:
+        raise AssetError(f"{tmx.name}: {shelves} 'shelf' metatiles with floor below (outside the breaker room); the "
+                         f"fuses need {FUSES} to 255")
+    return shelves
 
 
 def convert_room(tmx: Path, out: Path):
@@ -600,11 +683,24 @@ def convert_roomlist(out: Path, tmxs):
             if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in normal):
                 raise AssetError(f"assets/rooms: the room before a chase or the Courtyard needs one door, on the "
                                  f"top wall, but no normal room entered from the {names[wall]} wall has only that")
+    # Room 100 (Phase 8b): at most one; room 99 (a Greenhouse room, or a normal one without them) has one door,
+    # on top, into it, so for every wall room 99 can be entered from there must be such a room
+    electrical = [r for r in rooms if r["kind"] == "electrical"]
+    if len(electrical) > 1:
+        raise AssetError("assets/rooms: at most one room can have kind = electrical")
+    if electrical:
+        before = garden["greenhouse"] if all(garden.values()) else normal
+        for wall in sorted({n["entry_wall"] for n in before}):
+            if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in before):
+                raise AssetError(f"assets/rooms: room 99 leads into Room 100 by one door on the top wall, but no "
+                                 f"{'greenhouse' if all(garden.values()) else 'normal'} room entered from the "
+                                 f"{names[wall]} wall has only that")
     h = ["// Generated by scripts/assets.py from assets/rooms/*.tmx. Do not edit.",
          "#ifndef ROOM_TEMPLATES_H", "#define ROOM_TEMPLATES_H", '#include "assets.h"',
          f"#define ROOM_TEMPLATE_COUNT {len(rooms)}",
          f"#define ROOM_HAS_SEEK {1 if all(pools.values()) else 0}   // seek_start, seek_4way and seek_end rooms exist",
-         f"#define ROOM_HAS_GARDEN {1 if all(garden.values()) else 0}   // courtyard and greenhouse rooms exist"]
+         f"#define ROOM_HAS_GARDEN {1 if all(garden.values()) else 0}   // courtyard and greenhouse rooms exist",
+         f"#define ROOM_HAS_ELECTRICAL {1 if electrical else 0}   // Room 100 exists (else room 100 is ordinary)"]
     for i, r in enumerate(rooms):
         h.append(f"#define ROOM_T_{r['sym'].upper()} {i}")
     h += [f"#define ROOM_EXITS_MAX {EXITS_MAX}",

@@ -29,8 +29,8 @@ is drawn a shade darker than a straight conversion so the wall stays dark.
 
 A tileset is a grid of **16×16 metatiles** (one DOORS "block"): `<name>.gbc.png`, `<name>.dmg.png` and
 `<name>.tsx` (the Tiled tileset). The image width must stay a multiple of 16; the `.tsx` says how many columns.
-There are two: `hotel` (everything but rooms 89–99) and `garden` (the Courtyard and the Greenhouse, Phase 8a).
-A room's tileset is loaded in the fade when the previous room used the other one.
+There are three: `hotel` (everything but rooms 89–100), `garden` (the Courtyard and the Greenhouse, Phase 8a)
+and `electrical` (Room 100, Phase 8b). A room's tileset is loaded in the fade when the previous room used another.
 
 **Every tileset keeps the hotel's numbers for the metatiles the code names**: void, floor, the door, side
 door and doorway metatiles, wall_top and dresser_open (`SHARED_METATILES` in `scripts/assets.py`, which checks
@@ -58,6 +58,9 @@ Metatile properties, set in Tiled (select the tile in the tileset, Properties pa
 | `fire` | bool | Walking into it kills (Seek's end hallway, but it works in any room). Must not be `solid` |
 | `wall` | bool | A wall Seek's eyes can appear on before a chase (wall_top, wallpaper, wallpaper_shadow, wainscot) |
 | `snare` | bool | The metatile a Snare is drawn with (at most one per tileset; `garden`'s `snare`). The run puts it on `floor` cells (Rooms, below) |
+| `shelf` | bool | Room 100: a shelf a fuse can be put on, if there's floor below it (`electrical`'s `shelf_bottom`; the run swaps in `shelf_fuse`) |
+| `gate` | bool | Room 100: bars the lever takes away (those in the row just below the lift go when the power comes back) |
+| `slide` | bool | Room 100: the sliding door Figure waits behind; the lever parts it from the middle outward |
 
 Metatile 0 must stay the **void** (solid black). It's used outside the room and for empty cells.
 
@@ -75,7 +78,7 @@ The hotel metatiles:
 | shelf_top_a/b/c, shelf_bottom_a/b/c | The Library's bookcases (Phase 6), 1×2: a top above a bottom, three mixes of spine colours each (two new palettes: red and cream, green and blue; the door palette's brown and gold). The bottoms are `bookcase`. All solid |
 | desk_paper | The desk's middle with the paper on it (the Library's `paper` object sits on it) |
 | door_bottom_padlock | A top-wall door's bottom half with the combination padlock (the Library's exit while it's locked; the game swaps it in) |
-| fire_a, fire_b | Fire (Phase 7, owner's pick from mock-ups): red and cream flames on dark ground, in the carpet's palette (no new palette). `fire`; alternate them so a patch doesn't look tiled |
+| fire_a, fire_b | Fire (Phase 7, owner's pick from mock-ups): red and cream flames on dark ground, in the carpet's palette (no new palette). `fire`; alternate them so a patch doesn't look tiled. In game every one on screen swaps to the other every 12 frames (the flicker), so they must stay a pair |
 
 The garden metatiles (Phase 8a, owner's picks from mock-ups, 2026-10-18; drawn by a script, edit the PNGs to
 change them). 93 GBC tiles in exactly 7 palettes (metal, Greenhouse floor, Snare, wood, grass, brick, trunk),
@@ -94,13 +97,32 @@ so a new colour means sharing one of those:
 | brick_top, brick_wall | The Courtyard's red-brick walls (owner: red brick): the top edge and the face (both solid) |
 | tree_tl, tree_tr, tree_bl, tree_br | A tree, 2×2: canopy above, the trunk standing on grass (solid) |
 
+The electrical metatiles (Phase 8b, owner's picks from mock-ups, 2026-10-18; drawn by a script, edit the PNGs
+to change them). 105 GBC tiles in exactly 7 palettes (floor, lit floor, metal, shelf/fuse/lever, copper, wood,
+the lift car). Slots 0–40 keep the hotel's names; the ones Room 100 doesn't use are blank `unused_*`, and the
+door slots carry the copper door's art (Room 100 has no ordinary doors but its entry):
+
+| Metatiles | Notes |
+|---|---|
+| floor, floor_shadow, floor_lit | A dark speckled concrete floor; `floor_lit` is a light pool's floor while it's on (sand-coloured) |
+| wall_top, wallpaper, wainscot, wallpaper_shadow | Concrete-block walls with a pipe along the wainscot |
+| closet_top, closet_bottom | The hotel's closets, redrawn in the room's wood palette |
+| shelf_top, shelf_bottom, shelf_fuse | Grey steel shelving with cardboard boxes (yellow tape), 1×2 like the bookcases; `shelf_fuse` is the bottom with a big bright yellow fuse on it (owner: brighter and bigger than the mock-up). `shelf_bottom` has `shelf` |
+| gate | Bars over a dark ground (`gate`, solid) |
+| lever_top, lever_bottom, lever_pulled | The lever's plate on a wall (handle up / down) |
+| breaker_top, breaker_bottom | The breaker box on a wall |
+| breaker_door_top, breaker_door_bottom | The breaker room's copper door: a warning sign above, a padlock below |
+| copper_top, copper_bottom, copper_open_top, copper_open_bottom | A plain copper door (Figure's, and the breaker room's once shut again) and its open doorway |
+| lift_tl/tr/bl/br, lift_open_tl/tr/bl/br | The lift's two doors in a top wall, 2×2, shut and open (the car lit) |
+| slide | The sliding metal door (`slide`, solid) |
+
 ## Rooms (`assets/rooms/`)
 
 A room is a Tiled map (`.tmx`) using one tileset:
 
 - One tile layer, saved as **CSV** (Map → Map Properties → Tile Layer Format). Don't flip or rotate tiles.
-- Size: up to 127 metatiles per side and 2,816 in total (WRAM limit, `ROOM_MAX` in `src/room.h`; 3,072 until
-  Phase 6 needed the WRAM).
+- Size: up to 127 metatiles per side and 2,560 in total (WRAM limit, `ROOM_MAX` in `src/room.h`; 3,072 until
+  Phase 6 and 2,816 until Phase 8b needed the WRAM).
 - **Map properties** (Map → Map Properties → Custom Properties):
 
   | Property | Type | Meaning |
@@ -123,6 +145,13 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `figure` | point | The Library: where Figure starts |
   | `seek` | point | A `seek_start` hallway (optional): where Seek rises; he does once the player is 4 metatiles past it along the route. Without one, he rises 4 metatiles behind the player at three quarters of the way |
   | `snare` | rectangle (any size) | A Greenhouse room: where Snares may be. Every `floor` cell inside counts; the run picks 3 per room. Needs a tileset with a `snare` metatile; rectangles mustn't overlap or cover the cell just inside a door |
+  | `lever` | 1×2 on `lever_top` + `lever_bottom` | Room 100: the lever (in a wall face; the player stands below it) |
+  | `breaker` | 1×2 on `breaker_top` + `breaker_bottom` | Room 100: the breaker box, in the breaker room's wall |
+  | `breaker_door` | 1×2 on `breaker_door_top` + `breaker_door_bottom` | Room 100: the breaker room's locked door (entered going up) |
+  | `figure_door` | 1×2 on `copper_top` + `copper_bottom` | Room 100: the door Figure comes out of after the power, in the breaker room's wall |
+  | `lift` | 2×2 on `lift_tl`, `lift_tr`, `lift_bl`, `lift_br` | Room 100: the lift. Put two `gate` cells in the row just below it |
+  | `safe` | rectangle | Room 100: the breaker room, where Figure never goes: its floor and the breaker door's two cells, not the cell below the door |
+  | `light` | rectangle, at most 16 cells | Room 100: a pool of light (its `floor` cells blink); at most 6 |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
@@ -197,6 +226,20 @@ They use the `garden` tileset:
   each; `greenhouse_4way_s` / `_w` / `_e` (15×13, three exits as the Seek four-ways), eight closets each;
   planters in all.
 
+Phase 8b, **Room 100** (kind `electrical`, at most one; without it room 100 is an ordinary room). It uses the
+`electrical` tileset. The converter checks: one `entry` on the bottom wall and no `exit`; exactly one `lever`,
+`breaker`, `breaker_door`, `figure_door`, `lift`, `figure` (his start, in his cage behind the `slide` cells)
+and `safe`; at least one non-fixed `keyspot` (the run picks one for the breaker key: put them in far corners);
+the breaker door's two cells inside `safe` and the cell below it outside; a floor cell inside `safe` in front
+of the box and of Figure's door; Figure's start and the key spots outside `safe`; 10–255 `shelf` cells with
+floor below, outside `safe`; at most 6 `light`s; a solid edge (Figure's search); at most 896 metatiles
+(`(ROOM_MAX − 768) / 2`: the search and `electrical.c`'s scratch use the rest of the room map); at most 24
+objects. For every wall room 99 can be entered from, a Greenhouse room with one door, on top, must exist
+(`greenhouse_turn_w` / `_e`, 12×11, were added for that). Default: `electrical` (28×32, made by a script):
+the lift at the top behind two gates, the storage's shelving behind a line of gates, Figure's cage on the left
+with the lever on its south wall, the breaker room on the right (the box and Figure's door in its top wall,
+its locked door in its south wall), a short shelf and closets in the open, six pools of light.
+
 To preview a room as an image: `F:\Programs\Tiled\tmxrasterizer.exe --scale 2 assets\rooms\lounge.tmx build\preview\lounge.png`.
 
 ## Sprites (`assets/sprites/`)
@@ -227,7 +270,8 @@ pack's `halt.png` to navy, cyan and white, the eyes painted back in (they vanish
 `timothy` (an 8×8 spider in the top left of a 16×16 frame) from the pack's `timothypet.png`, legs drawn
 back in; `letters` (16×16 frames `tu`, `rn`, `ar`, `ou`, `nd`: TURN AROUND as 8×16 letters, white with a
 navy outline). They were made by a script from the pack textures; to change them, edit the PNGs. Phase 6 (owner's picks from mock-ups): `figure` (32×48 frames
-`f0`/`f1`, the left leg lifted in the second), drawn by hand after the DOORS wiki render the owner pointed
+`f0`/`f1`/`f2`: standing, the left leg lifted, the right leg lifted (`f1`'s legs mirrored, 2026-10-18); played
+f0, f1, f0, f2), drawn by hand after the DOORS wiki render the owner pointed
 to (`static.wikitide.net/doorswiki/thumb/6/67/Figure_render.png/939px-Figure_render.png`): red-orange body,
 navy outline, a pale ring of teeth for a head and his hand over his ribs; `marks` (16×16 frames, the art in
 the top-left 8×8: `glint`, the book's sparkle; `arrow_l`, `arrow_u`, `arrow_d`, the edge arrow; right is
@@ -286,12 +330,15 @@ rebuild. The build converts each with `uge2source` into `music_<name>`. Songs mu
 |---|---|---|
 | `title.uge` | Title screen | The owner's `midi/Lobby Theme (Title Screen).mid`, arranged by hand: CH1 the Scifi lead, CH2 the jazz guitar stabs (and before they start, the cello chords) as arpeggios, CH3 the cello's bass notes, CH4 the drums. 72 bpm: rows alternate 13 and 12 ticks (F0D/F0C on CH4) |
 | `library.uge` | The Library (room 50), from entering until you walk out | The owner's `midi/Unhinged (Library Theme).mid`: CH1 the muted guitar's ostinato, CH2 the strings' upper three voices as an arpeggio, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
+| `seek.uge` | Seek's chases, from his rise to the door slamming | The owner's `midi/Here I Come (Seek Chase).mid` (Phase 7) |
+| `electrical.uge` | Room 100, from 2 s after the lever to the lift | The owner's `midi/Unhinged II (Electrical Theme).mid`: CH1 the piano's top line (both guitars double it), CH2 the muted guitar's ostinato, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
+| `ending.uge` | The results after the lift | `midi/Ending Theme.mid`: CH1 the Scifi lead (the synth pluck doubles it) and the jazz guitar where it rests, CH2 the piano's chords as arpeggios, CH3 the strings' lowest voice, CH4 the 808 hats (a 32nd roll in the MIDI, played as 16ths). 70 bpm: 13 ticks a row, every 7th 12 (F0D/F0C on CH4) |
 | `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
 
 In both a row is a 16th note and a pattern is 4 bars. The rooms have no music: the hotel ambience
 (`hotel.uge`) was removed at the owner's request (2026-10-18). Sound effects borrow CH1, CH2 and CH4 (CH4 for
 the whole of a Rush or Ambush pass), so any song that plays during a run must leave them light. The other MIDI files (Elevator
-Jam, Jeff's Shop Jingle, Here I Come, Ending Theme, Unhinged II for Room 100) are for later phases and get arranged when those come.
+Jam, Jeff's Shop Jingle) are for Phase 9 and get arranged then.
 
 Sound effects aren't files: they're register scripts in `src/sfx_data.c` (`s_door`, `s_flicker`, …), one table
 of steps each. The rain in the Courtyard and the Greenhouse (Phase 8a, owner) isn't a file either: `audio.c` plays soft

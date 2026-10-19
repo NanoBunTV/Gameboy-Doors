@@ -3,7 +3,8 @@
 #include "light.h"
 
 // Builds the light shapes once at boot (a few frames of work, while the LCD is off): the glow and the
-// lighter are rounded squares, the flashlight is the glow plus a cone in each of the 8 facing directions.
+// lighter are rounded squares, the flashlight is the glow plus a cone in each of the 8 facing directions, and
+// the doorway is a door's 2x4 tiles.
 // Distances in 16ths of a tile.
 
 // Facing (player.h DIR_*, clockwise from down) as a step
@@ -16,6 +17,8 @@ static const int8_t dir_y[8] = { 1, 1, 0, -1, -1, -1, 0, 1 };
 // Half-width 0.5 tile at the source, 2.5 at the far end: lateral <= 8 + along * 2 / 7 (in 16ths)
 
 static uint8_t lit(uint8_t shape, int8_t dx, int8_t dy) {
+    if (shape == LIGHT_DOORWAY)
+        return dx >= 0 && dx <= 1 && dy >= 0 && dy <= 3;
     int16_t d2 = dx * dx + dy * dy;
     if (shape == LIGHT_LIGHTER)
         return d2 <= LIGHTER_R2;

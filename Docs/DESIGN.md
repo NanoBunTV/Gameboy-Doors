@@ -69,10 +69,9 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
 - **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
 - **Seek's chases are rooms 30–35 and 70–79** (Phase 7, below). Rooms 29 and 69 always have one door, on top.
 - **The Courtyard is room 89 and the Greenhouse 90–99** (Phase 8a, below). Room 88 always has one door, on top.
-- Fixed rooms still to come: **Jeff's Shop (55)** and Room 100 (Phase 8b). Halt's hallway is a scripted
-  sequence of its own.
-  Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
-  door says "TO BE CONTINUED...".
+- **Room 100 is the warehouse** (Phase 8b, below). Room 99 always has one door, on top.
+- Fixed room still to come: **Jeff's Shop (55)**. Halt's hallway is a scripted sequence of its own.
+  Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52.
 - **Doors**: every door shows its number in brass on a dark header above it, open or shut (the HUD doesn't:
   owner, 2026-10-18, it gave Dupe away). An open side door looks like an open top-wall door, number kept (owner, 2026-10-18). **A**
   opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
@@ -157,6 +156,38 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 09*):
   (no walking, no A). For 4 s after it lets go no Snare catches you. Rush or Screech can still get you while
   you're held: that's the trap.
 
+## Room 100 and the ending (built in Phase 8b)
+
+Owner's choices (2026-10-18), after the Minecraft version (*MC 10*), on **one floor**:
+
+- **The warehouse**, entered from the bottom (room 99 has one door, on top). Dim (a dark speckled floor), with
+  **pools of light** that blink on now and then and die again, each on its own clock. Grey steel shelving
+  with cardboard boxes; a line of **bar gates** holds the storage (where most shelves are), and Figure waits
+  behind a **sliding metal door** (out of sight, as upstairs in the Minecraft version).
+- **The lever** beside his cage is the one irreversible decision: the gates go (all but two in front of the
+  lift), **door 100 seals**, "SOMETHING'S COMING.", the sliding door parts from the middle outward, and
+  **Figure comes at once** toward where it was pulled. His Library rules: walking is heard anywhere, **B held
+  sneaks** (until the escape), closets hide you. *Unhinged II* starts 2 s after.
+- **Ten fuses** on shelves (picked per run from the room's shelves) and **the breaker room's key** on one of
+  its key spots (far corners). Fuses are carried (an "F" count on the status line, "A FUSE. 5 OF 10.") and
+  **A at the breaker box puts in all you carry** ("FUSES IN: 7 OF 10."). The key opens the breaker room's
+  copper door (warning sign, padlock) and is spent.
+- **The breaker room is where Figure never goes**, doorway included, and he can't hear into it.
+- **The tenth fuse**: Figure is gone, without a scene, and the breaker room's door shuts behind you.
+- **The Circuit Breaker** (A at the box): a panel over the bottom of the screen. The display shows one switch
+  number at a time, ON or OFF, through all ten in a shuffled order, then a pause and the same again. Ten
+  switches in two rows of five (D-pad, A flips, B leaves; I on, O off). Nothing is checked until all ten
+  match; three rounds, each faster; a solved round blanks the display 3 s and turns the switches off halfway.
+  The display beeps high for on and low for off, so the pattern can be learned by ear.
+- **The power**: "THE POWER IS BACK.", the lift's gates go and its doors open, the breaker room opens, and
+  you **run** (1.4× walking). 3 s later **Figure comes out of the door beside the box** and follows your trail
+  at 0.75 of your speed (Seek's numbers): stopping is what gets you caught, and **closets don't save you**
+  ("NO TIME TO HIDE."). Caught: his face, then a hint about running.
+- **The lift**: walk into it. The doors shut, Figure slams into them, the car shakes and falls, a crash in
+  the dark. Then **the results**: "YOU ESCAPED THE HOTEL.", the time, the damage taken over the run, the seed,
+  over the **Ending Theme** until Start, and the title. Knobs and achievements join the results in Phases 9
+  and 11.
+
 ## Hiding (built in Phase 3)
 
 - **Closets and beds** (owner: both). A at one hides: the player sprite disappears and the room darkens
@@ -176,20 +207,22 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 09*):
   Greenhouse is the exception for Rush (above). A sound marks the lights going out (once
   for a run of dark rooms).
 - **Eyes glows**: he lights a lighter-sized area around himself.
+- **Doors you're near light up** (owner, 2026-10-18): within 3 metatiles of a door, its top half (the
+  number and the upper door) is lit, so its number reads; the glow alone didn't reach a top-wall door's header.
 
 ## Entities (Hotel)
 
 | Entity | Top-down version | Notes |
 |---|---|---|
-| Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed. In the Greenhouse: no flicker, the rumble from the start (Phase 8a) | Kill radius 6 blocks (96 px), ignoring walls (*MC 04*). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
-| Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kill radius 8 blocks (128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
+| Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed. In the Greenhouse: no flicker, the rumble from the start (Phase 8a) | Kills anyone not hidden he can see: a straight line to them crossing no wall, at any distance in the room (owner, 2026-10-18; it was *MC 04*'s 6-block radius through walls, which left far corners safe). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
+| Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kills by line of sight like Rush (it was 8 blocks, 128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
 | Screech | **Built (Phase 4).** Dark rooms only: a "psst", and a 16×16 grin hangs just outside your glow, in a direction you're not facing. Walk his way (facing him) for 0.3 s and he leaves with a squeak; after 3 s (owner) he bites for 40 HP with a full-screen face. The chance rises the longer you stay in the dark (~45% for 8 s in a room) | Hiding dismisses him silently (*MC 11*). 20 s cooldown. He picks a spot on screen |
 | Eyes | **Built (Phase 4).** 5% of rooms from room 8: a 32×32 cluster of eyes at the room's middle, glowing in the dark. Facing exactly his direction (one of 8, ±22.5°; owner) drains 5 HP every 0.25 s after 0.5 s. Look away, walk round. Gone when the exit door opens; never blocks a door | Hidden, he can't hurt you. Independent of Rush and Ambush |
 | Halt | **Phase 5.** 3% per room arms the next (plain) door, once a run. It leads into a sideways, blue-lit hallway (owner) about 8 turn-arounds long; Halt walks at you, and when the screen flashes and big "TURN AROUND" text shows, he's in front of you instead: walk the other way. Forward legs are 35% longer. The far door returns you to the corridor at the door that started it | 60 HP a hit; he goes back to the leg's start. Nothing else (Rush, Screech, Eyes) runs while he does (*MC 06*) |
 | Dupe | **Phase 5.** New rooms with 2–3 doors (top plus sides); which is real is picked per run. 35% per such room from room 6: the wrong doors show wrong numbers (one below or up to two above), and opening one is a full-screen jumpscare and 40 HP, then the door shows a garbled number. On a miss the wrong doors have no number and say "IT'S FAKE." | Ignores the lock, spends no key (*MC 06*) |
 | Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
 | Seek | **Phase 7** (above): eyes on the walls before; the rise; a chase through four-way rooms (one real, glowing door) to an end hallway with fire; caught by touch or by being behind him | Speed boost during the chase (*MC 08*, *MC 11*); he runs at 0.75 of it |
-| Figure | **Phase 6 in the Library** (above); Room 100 in Phase 8. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
+| Figure | **Phase 6 in the Library** and **Phase 8b in Room 100** (above), where he also chases you to the lift. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
 | Snare | **Phase 8a** (above): three floor traps per Greenhouse room, seen only in your light; 20 HP (never below 10) and held 5 s | The 4 s grace starts when the hold ends, so it can't catch you again as you step off (*MC 09*) |
 | Timothy | **Phase 5.** 1 drawer in 200, once a run: a small spider jumps out of the drawer at you, 10 HP, and the drawer is empty after (owner) | Never lethal: leaves at least 1 HP (*MC 12*); never in a drawer holding the key |
 
@@ -229,13 +262,14 @@ sitting, as in DOORS.
 |---|---|
 | D-pad | Walk (8 directions); the facing direction is where you look |
 | A | Interact: open a door, drawer, closet; pick up |
-| B | Use the held item. **In the Library, held: sneak** (owner: items aren't needed there) |
+| B | Use the held item. **In the Library and in Room 100 until the escape, held: sneak** (owner: items aren't needed in the Library; Room 100 follows it, to revisit with Phase 9's items) |
 | Select | Tap: cycle held item. The HUD shows while it's held |
 | Start | Pause / inventory grid. **In the Library: the notes** (no pause) |
 
 ## Menus and extras
 
-- Title screen → elevator (pre-run shop) → run. Death or escape → results → title.
+- Title screen → elevator (pre-run shop) → run. Death → the Guiding Light; escape → the lift → results →
+  title (built in Phase 8b; the elevator shop comes with Phase 9).
 - **Achievements**, listed from the title screen, with a small pop-up when earned; each pays Knobs once.
 - **Statistics** in SRAM: runs, deaths by entity, best door, total Knobs earned.
 - **Super Game Boy border** and SGB palette for the DMG ROM.

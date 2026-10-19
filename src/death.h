@@ -17,6 +17,7 @@
 #define DEATH_FIGURE 8
 #define DEATH_SEEK   9    // caught in a chase (seek.c)
 #define DEATH_FIRE   10   // walked into fire (MTF_FIRE; game.c): his face too
+#define DEATH_ESCAPE 11   // Figure caught you running for Room 100's lift (electrical.c): his face
 
 #define DEATH_TRY_AGAIN 0
 #define DEATH_TITLE     1

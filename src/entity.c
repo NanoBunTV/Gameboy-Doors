@@ -19,8 +19,6 @@
 // Numbers from the Minecraft config (rush, ambush, entities), one block = 16 px, 20 ticks = 60 frames
 #define RUSH_SPEED    0x0555   // 1 block/tick = 5.33 px/frame (8.8 fixed point)
 #define AMBUSH_SPEED  0x0888   // 1.6 blocks/tick
-#define RUSH_RADIUS   96       // kill-radius 6 blocks
-#define AMBUSH_RADIUS 128      // 8 blocks
 #define RUSH_WARN     120      // warning-seconds 2
 #define AMBUSH_WARN   240      // 4
 #define AMBUSH_PAUSE  300      // rear-pause-seconds 5
@@ -122,8 +120,8 @@ void entity_room_entered(uint8_t first_time) BANKED {
         patience = QUEUE_PATIENCE;
     }
     if (!entity_queued || run_room == RUN_LIBRARY_ROOM || ROOM_KIND_IS_CHASE(kind) ||
-        kind == ROOM_KIND_COURTYARD || run_room == RUN_GREENHOUSE_LAST)
-        return;   // nothing follows you into the Library, a chase or a safe room: the spawn waits (docs 07-09)
+        kind == ROOM_KIND_COURTYARD || run_room == RUN_GREENHOUSE_LAST || kind == ROOM_KIND_ELECTRICAL)
+        return;   // nothing follows you into the Library, a chase, a safe room or Room 100: the spawn waits (docs 07-10)
     // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits. The
     // Greenhouse is the exception: dark throughout, and Rush comes anyway, heard but not flickered (docs 09).
     if (hide_free_spots() && (!light_dark || kind == ROOM_KIND_GREENHOUSE))
@@ -209,14 +207,39 @@ static uint16_t route_distance(void) {
     return d;
 }
 
+// Does a straight line from him to the player cross no wall? A line of metatiles (Bresenham) from his cell
+// to the player's feet, his own cell and theirs not counted (his route cuts through anything). Only walls
+// (MTF_WALL) and void block it, never furniture: in a big room the far corner isn't safe (owner, 2026-10-18;
+// it was a 96/128 px circle through walls, the Minecraft kill radius).
+static uint8_t sees_player(void) {
+    if (entity_x < 0 || entity_y < 0)
+        return 0;
+    uint8_t x = (uint8_t)(entity_x >> 4), y = (uint8_t)(entity_y >> 4);
+    uint8_t tx = (uint8_t)((player_x + 8) >> 4), ty = (uint8_t)((player_y + 12) >> 4);
+    uint8_t dx, dy;
+    int8_t sx, sy;
+    if (tx >= x) { dx = tx - x; sx = 1; } else { dx = x - tx; sx = -1; }
+    if (ty >= y) { dy = ty - y; sy = 1; } else { dy = y - ty; sy = -1; }
+    int16_t err = (int16_t)dx - dy;
+    for (;;) {
+        int16_t e2 = err << 1;
+        if (e2 > -(int16_t)dy) { err -= dy; x += sx; }
+        if (e2 < (int16_t)dx) { err += dx; y += sy; }
+        if (x == tx && y == ty)
+            return 1;
+        uint8_t mt = room_map[room_row[y] + x];
+        if (!mt || (mt_flags[mt] & MTF_WALL))
+            return 0;
+    }
+}
+
 static uint8_t caught(void) {
     if (entity_room != run_room || hide_hidden)
         return 0;
-    int16_t dx = abs(entity_x - (player_x + 8)), dy = abs(entity_y - (player_y + 8));
-    uint8_t radius = entity_kind == ENTITY_AMBUSH ? AMBUSH_RADIUS : RUSH_RADIUS;
-    if (dx >= radius || dy >= radius)
+    // Every 4th frame: up to a room's width of lookups costs DMG scanlines, and he moves 21 px meanwhile
+    if (anim & 3)
         return 0;
-    return (uint16_t)(dx * dx) + (uint16_t)(dy * dy) < (uint16_t)radius * radius;
+    return sees_player();
 }
 
 static void finish(void) {

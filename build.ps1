@@ -67,6 +67,8 @@ if ($Test) {
         if ($LASTEXITCODE) { $failed = $true }
         & .\tools\venv\Scripts\python.exe scripts\garden-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
+        & .\tools\venv\Scripts\python.exe scripts\electrical-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
     }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }
     Write-Host 'All tests passed'

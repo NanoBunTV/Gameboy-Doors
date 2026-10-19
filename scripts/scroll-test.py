@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MT_DYN_FIRST = 120          # src/room.h
 GAME_PLAYING, GAME_HALT = 1, 4   # src/game.h
 SETTLE_FRAMES = 12          # skip this long after a fade or a metatile change
-LIGHT_SHAPES, LIGHT_ROWS, LIGHT_REACH, LIGHT_OFF = 10, 17, 8, 0xFF   # src/light.h
+LIGHT_SHAPES, LIGHT_ROWS, LIGHT_REACH, LIGHT_OFF = 11, 17, 8, 0xFF   # src/light.h
 # Reference colour of an unlit tile (the font's blank): one no art uses, so it learns its own screen colour
 # (on GBC the font's black isn't the wall art's black)
 DARK = np.array([1, 2, 3], dtype=np.uint8)
@@ -97,7 +97,7 @@ def main():
         ok = (state in (GAME_PLAYING, GAME_HALT) and u8("_platform_fade") == 0 and u8("_platform_dim") == 0
               and u8("_platform_flash") == 0 and ("_platform_tint" not in sym or u8("_platform_tint") != 1))
         dark = u8("_light_dark")
-        sources = [(u8("_light_src_shape", i), u8("_light_src_x", i), u8("_light_src_y", i)) for i in range(2)]
+        sources = [(u8("_light_src_shape", i), u8("_light_src_x", i), u8("_light_src_y", i)) for i in range(3)]
         pending = u8("_vq_head") != u8("_vq_tail") or u8("_bg_vq_n") != 0 or u8("_light_pending") != 0
         return dict(x=full(mem[0xFF43], s16("_cam_x")), y=full(mem[0xFF42], s16("_cam_y")), w=w, h=h,
                     room=room, mask=mask, ok=ok, dark=dark, sources=sources, pending=pending, state=state)

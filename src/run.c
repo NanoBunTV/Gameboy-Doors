@@ -21,6 +21,7 @@ uint8_t run_timothy;
 uint16_t run_seconds;
 uint16_t run_clock_last;
 uint8_t run_clock_frames;
+uint16_t run_damage;
 #if defined(AUTOTEST) || defined(DEBUG)
 uint8_t run_force_timothy;   // scripts poke 1: the next drawer opened (not the key's) holds Timothy
 #endif
@@ -69,6 +70,10 @@ uint8_t run_kind_at(uint8_t n) BANKED {
         return ROOM_KIND_START;
     if (n == RUN_LIBRARY_ROOM)
         return ROOM_KIND_LIBRARY;
+#if ROOM_HAS_ELECTRICAL
+    if (n == RUN_LAST_ROOM)
+        return ROOM_KIND_ELECTRICAL;
+#endif
 #if ROOM_HAS_SEEK
     for (uint8_t c = 0; c < RUN_CHASES; c++) {
         if (n == RUN_CHASE_START(c))
@@ -114,6 +119,7 @@ void run_start(uint16_t seed) BANKED {
     memset(run_exit, 0, sizeof(run_exit));
     run_timothy = 0;
     run_seconds = 0;
+    run_damage = 0;
     run_clock_last = sys_time;
     run_clock_frames = 0;
     halt_planned = 0;
@@ -129,10 +135,11 @@ static void plan_room(uint8_t n) {
     // The Courtyard and the Greenhouse (Minecraft docs 09); room 99 is safe
     uint8_t garden = kind == ROOM_KIND_COURTYARD || kind == ROOM_KIND_GREENHOUSE;
     uint8_t safe = kind == ROOM_KIND_COURTYARD || (kind == ROOM_KIND_GREENHOUSE && n == RUN_GREENHOUSE_LAST);
-    // The room before the Library, a chase or the Courtyard: one door, on the top wall, and no Halt on it
+    // The room before the Library, a chase, the Courtyard or Room 100: one door, on the top wall, and no Halt
     uint8_t next = n < RUN_LAST_ROOM ? run_kind_at(n + 1) : ROOM_KIND_NORMAL;
-    uint8_t before_fixed = next == ROOM_KIND_LIBRARY || next == ROOM_KIND_SEEK_START || next == ROOM_KIND_COURTYARD;
-    if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY) {
+    uint8_t before_fixed = next == ROOM_KIND_LIBRARY || next == ROOM_KIND_SEEK_START || next == ROOM_KIND_COURTYARD ||
+                           next == ROOM_KIND_ELECTRICAL;
+    if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY || kind == ROOM_KIND_ELECTRICAL) {
         for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
             if (room_template_info[i][0] == kind)
                 t = i;

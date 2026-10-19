@@ -41,6 +41,9 @@
 | 2026-10-18 | same | Lag frames in a chase (bot, 30–35) | GBC: 1 per room. DMG: 1–6 per room (the start hallway 6 of 61, the end hallway 3 of 279) |
 | 2026-10-18 | Phase 8a: the Courtyard (89) and the Greenhouse (90–99), Snares, rain, Rush in the dark, metal doors, the `garden` tileset | `garden-test.py` (new, DEBUG builds), both consoles, before the HUD change | **All passed.** `plan.py` matches the ROM for rooms 0–100 (two seeds). 88 one top door; 89 lit, nothing planned, 7 sprites of rain; 90–98 dark with 3 Snares each in their rectangles, four-ways Dupe; 99 safe; no Halt. Snare: 100 → 80 HP, held (no movement for 120 frames of pushing and A), let go, not caught in the grace, 15 → 10. A queued Ambush comes as Rush in the dark; the bot hid. The bot walked 89 → 100 (DMG hid twice). Found and fixed: Seek's sheet loading in the Greenhouse overran the frame pool into `room_w`; the default rooms were tight enough for three Snares to wall a corner off |
 | 2026-10-18 | The HUD's door number replaced by the run's time; "GOT THE KEY."; no slide-in on entering | Build only (owner: the suite on this build deferred to the next phase's) | Both ROMs, release and debug, build without warnings. GBC stack 301 bytes (release). **Not run**: `build.ps1 -Test` (BGB had passed all three combinations on it when the run was stopped) |
+| 2026-10-18 | Rush/Ambush kill by line of sight (no radius; walls block, furniture doesn't); also the first suite on the HUD timer build | `build.ps1 -Test` | **All passed** after one test fix: BGB all three combinations, 15 s; scroll-test 3,969 (GBC) / 4,179 (DMG) frames, 0 wrong pixels; VBlank DMG 8 of 10, GBC 6 of 10; replay reaches room 30 at input frame 10,287 on both; sprite-test, library-test, seek-test pass. garden-test's Snare part failed on DMG: a Rush passing through room 90 now saw and killed the rooted player from across the room (the old 96 px circle never reached them). The test now keeps Rush away as it already kept Screech; all passed on both. Frame cost of the line test not measured (it runs only while he's in the room and you're not hidden) |
+| 2026-10-18 | Figure's 3-frame walk, A takes a key underfoot, the fire flickers, a door you're near lights up in the dark (a third light source) | PyBoy, scripted (DEBUG builds), both consoles | Key: standing on a key in the open and pressing A takes it. Dark room 20 (forced): within 3 metatiles of the exit its top half is lit (light source 2 on the door), door 021 readable on screen; walking off, it goes. Room 35: the visible fire cells flip between `fire_a` and `fire_b` every 12 frames. Figure walks in the Library |
+| 2026-10-18 | same | `build.ps1 -Test` | **All passed.** BGB all three combinations, 15 s; scroll-test (now with the third source) 3,954 (GBC) / 4,147 (DMG) frames, 0 wrong pixels; VBlank DMG 8 of 10, GBC 6 of 10; replay reaches room 30 at input frame 10,287 on both; sprite-test, library-test, seek-test, garden-test pass. GBC WRAM bank 1: 257 bytes free (was 301) |
 | | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library; Phase 7's chase; Phase 8a's Courtyard and Greenhouse and the HUD's timer (in a DEBUG build, poke `game_warp` to 50, 30 or 89, or play there) |
 
 ## Test checklist for new builds
@@ -49,7 +52,7 @@
    passes (`doors.gbc` as GBC, `doors.gb` as DMG and as GBC), `scroll-test.py` finds no wrong pixels,
    `vblank-budget.py` stays under 10 lines, the recorded run still reaches room 30 and `sprite-test.py`
    finds every drawn sprite's sheet in VRAM; on the DEBUG ROMs `library-test.py` (room 50), `seek-test.py`
-   (30–36) and `garden-test.py` (88–100) pass. Look at
+   (30–36), `garden-test.py` (88–100) and `electrical-test.py` (Room 100, the ending, the stack's depth) pass. Look at
    the screenshots
    in `build/screens/`. If the recorded run fails after a deliberate change, re-record it
    (`.\scripts\record-run.ps1`).
@@ -59,6 +62,27 @@
 5. (Once the save exists) save, power off, reload: data intact; a corrupted save is detected and reset.
 
 ## Known issues
+
+- **Room 100 is a default made by a script** (`electrical.tmx`, 28×32, on the `electrical` tileset, also
+  script-drawn): the owner authors the real one (ASSETS.md lists what the converter checks). It was 30×34
+  until the room map shrank to 2,560 metatiles (below); Room 100 may be at most 896.
+- **Room 100's numbers are guesses to play-test**: the sliding door's 4 steps of 40 frames, the music 2 s
+  after the lever, Figure sent at the lever's front at once (sneak away or hide); the breaker's 54 / 36 / 22
+  frames a number and 60-frame pause; 3 s before Figure comes out after the power; his escape speed 1.31 px/frame
+  against your 1.75 (Seek's numbers); the light pools dead 2–4 s, blinking 2–3 times for 3–10 frames.
+- **B sneaks in Room 100** until the escape, as in the Library. That was my call, not the owner's (they chose B
+  for the Library because items don't need it there): Phase 9's items will want B, so this needs deciding then.
+- **The breaker's answers aren't replayed**: they're drawn from the run's clock when the tenth fuse goes in, so
+  a recorded run can't solve the breaker blind (the test reads `elec_answer`).
+- **The Circuit Breaker's panel rows run together**, as the Library's, and the display's "ON"/"OFF" and the
+  switches' I/O are letters: the font has no squares (its `[` `]` are the Library's shapes).
+- **The ending is plain**: the lift's doors shut over the room, the shake and the fall are scroll shakes and a
+  fade; no picture of the car or of Figure on the roof. The results have no Knobs or achievements yet (Phases
+  9 and 11).
+- **The two new songs are first arrangements** (`electrical.uge`, `ending.uge`), by numbers, for the owner's
+  ears; the new sound effects too (lever, slide, fuse, fuse in, switch, the display's beeps, power, crash).
+- **Figure's escape trail** holds 256 points 8 px apart (2 KB of walking); a run longer than that behind him
+  stops adding points and he walks the last ones straight. Not reachable in the default room.
 
 - **The music arrangements**: the Lobby Theme's chords are arpeggios on one channel, and the Guiding Light
   drops the piano's chord stabs; both may want touching up in hUGETracker. The rooms are silent apart from
@@ -74,17 +98,20 @@
   (a 32×32 entity still costs ~22 scanlines); player collision (`room_solid_at`) is the next biggest cost.
 - **Memory outlook** (2026-10-18; numbers from `romusage -g`):
   - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
-    is 128 KB since Phase 6.
-  - *Bank 0 (GBC 96%, 584 bytes left after Phase 8a; DMG 84%)*: a real, fixed 16 KB. **Phase 8b has to move
-    something out first** (Room 100's code itself can be banked, but anything new in bank 0 won't fit long). Every phase so far added engine code there.
+    is 256 KB since Phase 8b (128 KB from Phase 6).
+  - *Bank 0 (GBC 97%, 428 bytes left after Phase 8b; DMG 85%)*: a real, fixed 16 KB. **Phase 9 has to move
+    something out first**. Phase 8b fitted without (its code is banked; bank 0 got a tileset case, two songs'
+    cases and the third light source). Every phase so far added engine code there.
     The HUD's timers and status line (`hud_status.c`) and the sound effects' scripts (`sfx_data.c`) moved
     out on 2026-10-18 (~1 KB). Next candidates if it fills again: `room.c`'s door and plate painting, parts
     of `sprites.c`; only code that switches banks to read assets, reads text from its caller's bank, or runs
     the per-frame streaming has to stay. After Phase 5: GBC 88% (1.9 KB free), DMG 76% (the route tables for
     Dupe rooms' exits grew `room_templates.c`). After Phase 6: GBC 90% (1.6 KB free), DMG 77%. Phase 7 and 8a
     (the template table at 32 rooms, `audio.c`'s rain, the second tileset's switch) took it to 96%.
-  - *WRAM*: DMG has 8 KB in all, ~1.6 KB free under the stack after Phase 6 (the room map takes 2.75 KB).
-    **GBC is the tight one**: Phase 6's first build ran `_DATA` past 0xE000 into the stack (romusage just
+  - *WRAM*: DMG has 8 KB in all, ~1.8 KB free under the stack after Phase 8b (the room map takes 2.5 KB).
+    **GBC is the tight one**: after Phase 8b about 439 bytes under the stack, which `electrical-test.py`
+    measured going 140 bytes deep (DMG 103). Phase 8b's statics took ~140 bytes (283 → ~150, unsafe-looking
+    before the stack had been measured), so ROOM_MAX went to 2,560 (+256). History: Phase 6's first build ran `_DATA` past 0xE000 into the stack (romusage just
     said 100%; DEBUGGING.md has how to read the map file). ROOM_MAX went from 3,072 to 2,816 metatiles to
     fit, leaving ~237 bytes for the stack. Phase 7: ~224 (the frame-table pool freed ~200 bytes, Seek and the
     wall eyes took about as much). Phase 8a: ~283 (the garden's ~40 bytes, paid for by reading the font's
@@ -145,6 +172,9 @@
   glow) his outline shows.
 - **Rush and Ambush take the straight line between doors** (the Minecraft version's first design), so they
   cut through furniture. Fine in the current rectangular rooms.
+- **Rush and Ambush see through anything but walls** (since 2026-10-18): in today's rectangular rooms that
+  means anywhere in the room. Only rooms with inner walls (an L-shape, a side room) give a place out of
+  sight; a `wall`-less partition (furniture, planters) never does.
 - **Ambush's flicker is only green on GBC.** On DMG his howl is the only difference from Rush's warning.
 - **The Guiding Light's lines sit on consecutive rows**, which reads a little cramped.
 
@@ -153,8 +183,9 @@
 - **Tables look like dark blocks** in the placeholder tileset.
 - **Camera jumps of more than 4 px per frame** aren't streamed (by design, ARCHITECTURE.md); anything that
   teleports the camera must redraw with `bg_draw_full()` behind a fade, as room changes do.
-- **Two tilesets** (`hotel`, `garden`; `tileset_load()` in `room.c` switches on the id). A third needs a case
-  there and `TILESET_*` in `assets.h`, and must keep the hotel's shared metatile numbers (the converter checks).
+- **Three tilesets** (`hotel`, `garden`, `electrical`; `tileset_load()` in `room.c` switches on the id). A
+  fourth needs a case there and `TILESET_*` in `assets.h`, and must keep the hotel's shared metatile numbers
+  (the converter checks).
 - **VBlank headroom on DMG is 2 scanlines.** Every frame writes either one column/row or up to 20 single tiles.
   Effects that must happen in VBlank on top of that (palette changes for the light flicker) need the writes
   made faster first, e.g. dropping the per-byte STAT check while LY shows enough VBlank left.
@@ -183,9 +214,9 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 6. The Library (50) (**done 2026-10-18**, owner's hands-on test pending) | Room 50 with eight books, the paper, the notes panel and the five-wheel padlock; Figure (hearing, sneaking with B, hunting, footsteps, the edge arrow, his face); the Library theme; door 50 sealing; room 49 one-door; `game_warp` and `library-test.py` |
 | 7. Seek (**done 2026-10-18**, owner's hands-on test pending) | Chases at 30–35 and 70–79 from authorable start, four-way and end rooms; eyes on the walls before; the rise; the chase (1.4× run, he at 0.75), the glowing real door that opens itself, caught by touch or from behind; fire; the slam; his eye; *Here I Come*; side doors keep their number open; the Guiding Light's typing sound gone; `seek-test.py` |
 | 8a. Courtyard, Greenhouse (**done 2026-10-18**, owner's hands-on test pending) | Rooms 89–99: the safe, rainy Courtyard; the dark Greenhouse with Rush heard not flickered, no Ambush, Dupe four-ways, Snares, room 99 safe, metal doors; a second tileset; rain; `garden-test.py`. Also: the HUD's door number replaced by the run's time, "GOT THE KEY." |
-| 8b. Room 100 (on the owner's word, questions first) | Room 100, the fuses and the escape, the ending; *Unhinged II* and the Ending Theme arranged |
+| 8b. Room 100 (**done 2026-10-18**, owner's hands-on test pending) | Room 100 on one floor: the lever (gates, door 100 sealed, the sliding door, Figure out at once), ten fuses and the breaker key, the breaker room Figure never enters, the Circuit Breaker (3 rounds), the power, the escape (Figure on your trail, no hiding), the lift, the ending and the results; *Unhinged II* and the Ending Theme arranged; the `electrical` tileset; `electrical-test.py`. Also from the owner's play: Rush/Ambush by line of sight, Figure's walk, the key underfoot, the fire's flicker, doors lit when near in the dark; ROOM_MAX 2,560 |
 | 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items (the lighter and flashlight's light is built: give it fuel, batteries and a slot), the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
-| 10. Audio | The rest: Seek's chase (Here I Come MIDI, Phase 7) and the Ending Theme (Phase 8) when those come; SFX for every entity; a pass by ear over everything |
+| 10. Audio | The rest (Here I Come, Unhinged II and the Ending Theme came with Phases 7 and 8b); SFX for every entity; a pass by ear over everything |
 | 11. Polish | Title screen extras, achievements (paying Knobs), statistics, Super Game Boy border for the DMG ROM, balance; more room templates (an ongoing job: see known issues) |
 
 The owner's MIDI files for later phases are in `assets/music/midi/` (ASSETS.md, "Music").

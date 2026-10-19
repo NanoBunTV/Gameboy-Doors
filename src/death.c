@@ -54,6 +54,9 @@ static const char *const lines_seek[] = {
 static const char *const lines_fire[] = {
     "THE FIRE GOT YOU.", "", "SEEK IS SLOWER", "THAN YOU.", "", "TAKE THE TIME TO", "GO AROUND THE",
     "FIRE.", 0 };
+static const char *const lines_escape[] = {
+    "FIGURE GOT YOU.", "", "THE LIFT HAS POWER", "NOW: RUN FOR IT.", "", "HE'S SLOWER THAN", "YOU. DON'T STOP,",
+    "DON'T HIDE.", 0 };
 static const char *const lines_halt[] = {
     "YOU DIED TO HALT.", "", "WHEN THE SCREEN", "SAYS TURN AROUND,", "WALK THE OTHER WAY", "", "KEEP GOING AND",
     "YOU'LL GET OUT.", 0 };
@@ -86,7 +89,7 @@ void death_jumpscare(uint8_t cause) BANKED {
         image_show(BANK(image_scare_screech), &image_scare_screech, 0, 0);
     else if (cause == DEATH_DUPE)
         image_show(BANK(image_scare_dupe), &image_scare_dupe, 0, 0);
-    else if (cause == DEATH_FIGURE)
+    else if (cause == DEATH_FIGURE || cause == DEATH_ESCAPE)
         image_show(BANK(image_scare_figure), &image_scare_figure, 0, 0);
     else if (cause == DEATH_SEEK || cause == DEATH_FIRE)   // his eye (owner's frame), both ways
         image_show(BANK(image_scare_seek), &image_scare_seek, 0, 0);
@@ -155,7 +158,7 @@ uint8_t death_run(uint8_t cause) BANKED {
     frames = 0;
 
     if (cause == DEATH_RUSH || cause == DEATH_AMBUSH || cause == DEATH_SCREECH || cause == DEATH_DUPE ||
-        cause == DEATH_FIGURE || cause == DEATH_SEEK || cause == DEATH_FIRE)
+        cause == DEATH_FIGURE || cause == DEATH_SEEK || cause == DEATH_FIRE || cause == DEATH_ESCAPE)
         death_jumpscare(cause);
     else
         game_fade(platform_fade, FADE_BLACK);
@@ -170,7 +173,7 @@ uint8_t death_run(uint8_t cause) BANKED {
     game_fade(FADE_BLACK, 0);
     static const char *const *const lines[] = { lines_rush, lines_rush, lines_ambush, lines_hide, lines_screech,
                                                 lines_eyes, lines_dupe, lines_halt, lines_figure, lines_seek,
-                                                lines_fire };
+                                                lines_fire, lines_escape };
     type_lines(lines[cause]);
     uint8_t choice = menu();
     sfx_play(SFX_SELECT);

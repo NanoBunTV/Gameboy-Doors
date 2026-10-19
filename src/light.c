@@ -12,13 +12,13 @@ uint8_t light_dark;
 int8_t light_l[LIGHT_SHAPES][LIGHT_ROWS], light_r[LIGHT_SHAPES][LIGHT_ROWS];
 uint8_t light_first[LIGHT_SHAPES], light_last[LIGHT_SHAPES];
 
-// The two sources (not static: scripts/scroll-test.py reads them)
-uint8_t light_src_shape[2] = { LIGHT_OFF, LIGHT_OFF };
-uint8_t light_src_x[2], light_src_y[2];
+// The sources (not static: scripts/scroll-test.py reads them)
+uint8_t light_src_shape[LIGHT_SOURCES] = { LIGHT_OFF, LIGHT_OFF, LIGHT_OFF };
+uint8_t light_src_x[LIGHT_SOURCES], light_src_y[LIGHT_SOURCES];
 uint8_t light_tw, light_th;
 
 uint8_t light_lit8(uint8_t tx, uint8_t ty) {
-    for (uint8_t s = 0; s < 2; s++) {
+    for (uint8_t s = 0; s < LIGHT_SOURCES; s++) {
         uint8_t shape = light_src_shape[s];
         if (shape == LIGHT_OFF)
             continue;
@@ -37,7 +37,7 @@ void light_mask_column(int16_t tx, int16_t ty, uint8_t n, uint8_t *tiles, uint8_
     uint8_t lit[24];
     memset(lit, 0, n);
     if ((uint16_t)tx < light_tw)
-        for (uint8_t s = 0; s < 2; s++) {
+        for (uint8_t s = 0; s < LIGHT_SOURCES; s++) {
             uint8_t shape = light_src_shape[s];
             if (shape == LIGHT_OFF)
                 continue;
@@ -89,12 +89,13 @@ static void row_span(uint8_t s, int16_t tx, int16_t ty, uint8_t n, uint8_t *a, u
 }
 
 void light_mask_row(int16_t tx, int16_t ty, uint8_t n, uint8_t *tiles, uint8_t *attrs) {
-    // At most one lit span per source on a row: darken everything outside both
-    uint8_t a0, b0, a1, b1;
+    // At most one lit span per source on a row: darken everything outside all three
+    uint8_t a0, b0, a1, b1, a2, b2;
     row_span(0, tx, ty, n, &a0, &b0);
     row_span(1, tx, ty, n, &a1, &b1);
+    row_span(2, tx, ty, n, &a2, &b2);
     for (uint8_t i = 0; i < n; i++) {
-        if ((i >= a0 && i <= b0) || (i >= a1 && i <= b1))
+        if ((i >= a0 && i <= b0) || (i >= a1 && i <= b1) || (i >= a2 && i <= b2))
             continue;
         tiles[i] = LIGHT_DARK_TILE;
 #ifdef CGB

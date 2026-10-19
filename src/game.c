@@ -23,6 +23,7 @@
 #include "seek.h"
 #include "walleyes.h"
 #include "garden.h"
+#include "electrical.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "tileset_garden.h"
@@ -48,6 +49,7 @@
 #define VIA_EXIT  2    // back through the room's exit door, from the room after
 
 #define IN_LIBRARY (run_room == RUN_LIBRARY_ROOM)
+static uint8_t in_electrical;   // Room 100 (set at the door: run_kind_at is a banked call)
 
 #define FADE_STEP_FRAMES 3
 #define HUD_MESSAGE_FRAMES 120
@@ -144,6 +146,47 @@ static uint8_t player_light(void) {
 
 static void light_player(void) {
     light_set(LIGHT_PLAYER, player_light(), (player_x + 8) >> 3, (player_y + 8) >> 3);
+}
+
+// ------------------------------------------------------------------------------------------ fire
+
+#define FIRE_FRAMES 12        // between flips of the flames on screen
+#define DOOR_LIGHT_NEAR 3     // metatiles from a door at which its top half lights in the dark
+static uint8_t room_fire;     // the room has fire metatiles
+static uint8_t fire_t;
+
+// The flames flicker: every fire metatile on screen swaps between the two (owner, 2026-10-18: the two
+// textures were drawn but never moved). Only the visible cells: the rest stream in as they are.
+static void fire_flicker(void) {
+    if (!room_fire || ++fire_t < FIRE_FRAMES)
+        return;
+    fire_t = 0;
+    uint8_t x0 = cam_x < 0 ? 0 : (uint8_t)(cam_x >> 4), y0 = cam_y < 0 ? 0 : (uint8_t)(cam_y >> 4);
+    uint8_t x1 = x0 + 11, y1 = y0 + 10;
+    if (x1 > room_w)
+        x1 = room_w;
+    if (y1 > room_h)
+        y1 = room_h;
+    for (uint8_t y = y0; y < y1; y++) {
+        const uint8_t *m = room_map + room_row[y];
+        for (uint8_t x = x0; x < x1; x++) {
+            uint8_t mt = m[x];
+            if (mt == MT_HOTEL_FIRE_A)
+                room_set_metatile(x, y, MT_HOTEL_FIRE_B);
+            else if (mt == MT_HOTEL_FIRE_B)
+                room_set_metatile(x, y, MT_HOTEL_FIRE_A);
+        }
+    }
+}
+
+static void find_fire(void) {
+    room_fire = 0;
+    uint16_t n = (uint16_t)room_w * room_h;
+    for (uint16_t c = 0; c < n; c++)
+        if (mt_flags[room_map[c]] & MTF_FIRE) {
+            room_fire = 1;
+            return;
+        }
 }
 
 // ------------------------------------------------------------------------------------------ camera
@@ -319,6 +362,34 @@ static void apply_room_state(void) {
         key_spot = (f & RF_KEY_FIXED) ? find_fixed_keyspot() : find_obj(OBJ_KEYSPOT, run_key_slot[run_room]);
 }
 
+// In the dark, the top half of the door you're within DOOR_LIGHT_NEAR metatiles of lights up so its number
+// reads (owner, 2026-10-18: the glow didn't reach a top-wall door's header). The nearest such door; doors in
+// the bottom wall are open doorways with no number.
+static void light_door(void) {
+    if (!light_dark)
+        return;
+    uint8_t fx = (uint8_t)((player_x + PLAYER_FEET_X) >> 4), fy = (uint8_t)((player_y + PLAYER_FEET_Y) >> 4);
+    const room_obj_t *best = 0;
+    uint8_t best_d = DOOR_LIGHT_NEAR + 1;
+    for (uint8_t k = 0; k <= exit_count; k++) {
+        const room_obj_t *o = k < exit_count ? exits[k] : entry_door;
+        if (!o || o->param == WALL_BOTTOM)
+            continue;
+        // Distance from the feet's cell to the door's 1x2 cells, the larger of across and up/down
+        uint8_t dx = fx > o->x ? fx - o->x : o->x - fx;
+        uint8_t dy = fy > o->y + 1 ? fy - (o->y + 1) : fy < o->y ? o->y - fy : 0;
+        uint8_t d = dx > dy ? dx : dy;
+        if (d < best_d) {
+            best_d = d;
+            best = o;
+        }
+    }
+    if (best)
+        light_set(LIGHT_DOOR, LIGHT_DOORWAY, best->x << 1, best->y << 1);
+    else
+        light_set(LIGHT_DOOR, LIGHT_OFF, 0, 0);
+}
+
 // Where the player stands after coming through a door: just inside it, facing into the room
 static void place_at_door(const room_obj_t *o) {
     int16_t x = (int16_t)o->x << 4, y = (int16_t)o->y << 4;
@@ -339,6 +410,8 @@ static void draw_sprites(void) {
     seek_draw();
     if (IN_LIBRARY)
         library_draw();
+    if (in_electrical)
+        electrical_draw();
     screech_draw();
     timothy_draw();
     entity_draw();
@@ -365,12 +438,15 @@ static void load_room(void) {
     room_load(bank, def);
     apply_room_state();
     garden_room_loaded();   // the Greenhouse's Snares into the map
+    electrical_room_loaded();   // Room 100's fuses, and what the lever and the power changed
+    find_fire();
 }
 
 // The loaded room's lights, and who's in it (behind black)
 static void light_up_room(void) {
     light_room(run_flags2[run_room] & RF2_DARK);
     light_player();
+    light_door();
     eyes_room_entered();
 }
 
@@ -386,6 +462,8 @@ static void load_room_sprites(void) {
     timothy_need_sprites();   // only if he's out (after a Screech bite mid-jump)
     if (IN_LIBRARY)
         library_need_sprites();
+    if (in_electrical)
+        electrical_need_sprites();
     seek_need_sprites();
     walleyes_need_sprites();
     garden_need_sprites();
@@ -413,7 +491,10 @@ static void enter_room(uint8_t n, uint8_t via) {
     run_plan(n + 1);
     if (IN_LIBRARY && n != RUN_LIBRARY_ROOM)
         library_exit();   // through the padlocked door: Figure and the music stay behind
+    if (in_electrical && n != run_room)
+        electrical_exit();   // back to room 99, before the lever
     run_room = n;
+    in_electrical = run_kind_at(n) == ROOM_KIND_ELECTRICAL;
     uint8_t first_time = n > run_max_room;
     if (first_time)
         run_max_room = n;
@@ -426,6 +507,8 @@ static void enter_room(uint8_t n, uint8_t via) {
     screech_room_entered();
     if (IN_LIBRARY)
         library_enter();
+    if (in_electrical)
+        electrical_enter();
     seek_room_entered();
     walleyes_room_entered();
     garden_room_entered();
@@ -465,6 +548,7 @@ void game_start(uint16_t seed) BANKED {
     figure_stop();
     seek_reset();
     garden_reset();
+    electrical_reset();
     light_room(0);
     music_play(MUSIC_NONE);   // no music in the rooms (owner, 2026-10-18: the ambience is gone)
     enter_room(0, VIA_START);
@@ -615,6 +699,8 @@ static uint8_t interact_at(int16_t px, int16_t py) {
     uint8_t mx = (uint8_t)(px >> 4), my = (uint8_t)(py >> 4);
     if (IN_LIBRARY && library_use_at(mx, my))
         return 1;
+    if (in_electrical && electrical_use_at(mx, my))
+        return 1;
     if (key_spot && inside(key_spot, mx, my)) {
         take_key();
         return 1;
@@ -635,6 +721,10 @@ static uint8_t interact_at(int16_t px, int16_t py) {
             return 1;
         case OBJ_CLOSET:
         case OBJ_BED:
+            if (in_electrical && ELECTRICAL_RUNNING()) {   // owner: closets don't save you in the escape
+                hud_message("NO TIME TO HIDE.", HUD_MESSAGE_FRAMES);
+                return 1;
+            }
             hide_try(o);
             return 1;
         case OBJ_PAPER:
@@ -651,6 +741,17 @@ static uint8_t interact_at(int16_t px, int16_t py) {
 static void interact(void) {
     static const int8_t ahead_x[8] = { 0, -9, -12, -9, 0, 9, 12, 9 };
     static const int8_t ahead_y[8] = { 12, 9, 0, -9, -12, -9, 0, 9 };
+    // A key you're standing on comes first (owner, 2026-10-18: only the cell ahead was looked at, so a key
+    // underfoot had to be stepped off to be picked up). The feet's cell or the body's middle: in 3/4 view a
+    // player drawn over the key can have their feet in the cell below it.
+    uint8_t fx = (uint8_t)((player_x + PLAYER_FEET_X) >> 4);
+    if (key_spot && (inside(key_spot, fx, (uint8_t)((player_y + PLAYER_FEET_Y) >> 4)) ||
+                     inside(key_spot, fx, (uint8_t)((player_y + 6) >> 4)))) {
+        take_key();
+        return;
+    }
+    if (in_electrical && electrical_use_at(fx, (uint8_t)((player_y + PLAYER_FEET_Y) >> 4)))
+        return;   // Room 100's key underfoot (the feet's cell is floor: nothing else is used there)
     int8_t ax = ahead_x[player_facing], ay = ahead_y[player_facing];
     int16_t px = player_x + PLAYER_FEET_X + ax;
     int16_t py = player_y + PLAYER_FEET_Y + ay;
@@ -704,6 +805,8 @@ void game_frame(void) BANKED {
     uint8_t lib = IN_LIBRARY ? library_frame() : LIB_FREE;
     if (lib == LIB_SOLVED)
         open_padlock();
+    if (in_electrical && electrical_frame() == ELEC_HELD)
+        lib = LIB_HELD;   // the breaker's panel has the buttons
     if (hide_hidden) {
         death = hide_update();
     } else if (seek_frozen()) {
@@ -717,7 +820,8 @@ void game_frame(void) BANKED {
         garden_update();
         death = DEATH_NONE;
     } else {
-        player_sneak = IN_LIBRARY && (input_held & J_B);   // owner: hold B to sneak (items don't need B there)
+        // Owner: hold B to sneak in the Library (items don't need B there); Room 100 the same, until the escape
+        player_sneak = (IN_LIBRARY || (in_electrical && !ELECTRICAL_RUNNING())) && (input_held & J_B);
         player_update();
         if (on_fire()) {
             sfx_play(SFX_FIRE);
@@ -737,13 +841,20 @@ void game_frame(void) BANKED {
                 return;
         }
 #ifdef LIGHT_DEBUG
-        if ((input_pressed & J_B) && !IN_LIBRARY)
+        if ((input_pressed & J_B) && !IN_LIBRARY && !in_electrical)
             game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
 #endif
         death = DEATH_NONE;
     }
     if (!death && IN_LIBRARY)
         death = library_update();
+    if (!death && in_electrical) {
+        death = electrical_update();
+        if (electrical_state == ELEC_WON) {
+            game_state = GAME_WON;
+            return;
+        }
+    }
     if (!death)
         death = seek_update();
     if (!death)
@@ -774,7 +885,11 @@ void game_frame(void) BANKED {
     // crosses a tile edge on the same frame the centred camera does, and both together overran a DMG frame
     if (!bg_col_n && !bg_row_n) {
         light_player();
+        // The door's light only between the player's redraws: light_set finishes a pending one at once
+        if (!light_pending)
+            light_door();
         light_step(LIGHT_ROWS_PER_FRAME);
     }
+    fire_flicker();
     draw_sprites();
 }

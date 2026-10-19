@@ -5,6 +5,7 @@
 #include "platform.h"
 #include "tileset_hotel.h"
 #include "tileset_garden.h"
+#include "tileset_electrical.h"
 
 uint8_t room_w, room_h;
 uint16_t room_px_w, room_px_h;
@@ -30,6 +31,9 @@ static void tileset_load(uint8_t id) {
     if (id == TILESET_GARDEN) {
         ts = &tileset_garden;
         ts_bank = BANK(tileset_garden);
+    } else if (id == TILESET_ELECTRICAL) {
+        ts = &tileset_electrical;
+        ts_bank = BANK(tileset_electrical);
     } else {
         ts = &tileset_hotel;
         ts_bank = BANK(tileset_hotel);

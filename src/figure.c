@@ -35,7 +35,13 @@
 #define TOUCH_X       10       // contact: his feet within this of yours, across and ...
 #define TOUCH_Y       8        // ... up and down
 #define FAR           255      // not reached by the fill
+#define NOGO          254      // never entered (Room 100's breaker room): never FAR, never downhill
 #define QUEUE_BYTES   512      // 256 cells (x, y); scripts/assets.py LIBRARY_MAX_CELLS assumes this
+// The escape (Room 100): he follows the trail the player's feet leave, a point every TRAIL_STEP px, kept in
+// the route search's space (it isn't needed then): 256 points of 4 bytes, at most 2,048 px behind
+#define CHASE_SPEED   0x0150   // 1.31 px/frame: 0.75 of the player's run (seek.c's SPEED)
+#define TRAIL_STEP    8
+#define CHASE_SCARE   180      // his roar every 3 s while he comes (Minecraft figure.scare, the escape's metronome)
 
 spr_sheet_t figure_marks;
 static spr_sheet_t sheet;
@@ -51,6 +57,10 @@ static uint8_t *dist;            // per cell: steps to the goal (room map's tail
 static uint8_t *queue;           // the fill's ring, x then y per cell
 static uint8_t qh, qt;
 static uint16_t rng;
+static uint8_t nogo_x, nogo_y, nogo_w, nogo_h;
+static int16_t *trail;           // the escape: x, y per point (in dist's place)
+static uint8_t th, tt;           // head (next written), tail (next he walks to)
+static int16_t last_x, last_y;   // the last point written
 
 static uint16_t rnd(void) {
     rng ^= rng << 7;
@@ -69,9 +79,22 @@ static uint8_t walkable(uint16_t c) {
     return !(mt_flags[room_map[c]] & MTF_SOLID);
 }
 
+static uint8_t in_nogo(uint8_t mx, uint8_t my) {
+    return (uint8_t)(mx - nogo_x) < nogo_w && (uint8_t)(my - nogo_y) < nogo_h;
+}
+
+void figure_nogo(uint8_t x, uint8_t y, uint8_t w, uint8_t h) BANKED {
+    nogo_x = x;
+    nogo_y = y;
+    nogo_w = w;
+    nogo_h = h;
+}
+
 static void fill_start(uint8_t mx, uint8_t my) {
     uint16_t cells = (uint16_t)room_w * room_h;
     memset(dist, FAR, cells);
+    for (uint8_t y = 0; y < nogo_h; y++)   // the fill never enters the no-go area, so no route crosses it
+        memset(dist + room_row[nogo_y + y] + nogo_x, NOGO, nogo_w);
     dist[room_row[my] + mx] = 0;
     queue[0] = mx;
     queue[1] = my;
@@ -109,7 +132,7 @@ static void wander(void) {
     uint8_t fx = (uint8_t)(figure_x >> 4), fy = (uint8_t)(figure_y >> 4);
     for (uint8_t i = 0; i < 24; i++) {
         uint8_t mx = (uint8_t)(rnd() % room_w), my = (uint8_t)(rnd() % room_h);
-        if (walkable(room_row[my] + mx) && abs((int8_t)(mx - fx)) + abs((int8_t)(my - fy)) > 4) {
+        if (walkable(room_row[my] + mx) && !in_nogo(mx, my) && abs((int8_t)(mx - fx)) + abs((int8_t)(my - fy)) > 4) {
             figure_hunting = 0;
             speed = WANDER_SPEED;
             goal_x = ((int16_t)mx << 4) + 8;
@@ -123,6 +146,8 @@ static void wander(void) {
 
 static void hear(int16_t px, int16_t py) {
     uint8_t mx = (uint8_t)(px >> 4), my = (uint8_t)(py >> 4);
+    if (in_nogo(mx, my))
+        return;   // he can't hear into the breaker room (Minecraft docs 10: it's the one place to breathe)
     if (!hear_cool) {   // heard whether or not he acts on it (Minecraft docs 10, "The audio")
         sfx_play(SFX_FIGURE_HEAR);
         hear_cool = HEAR_COOLDOWN;
@@ -216,10 +241,73 @@ void figure_start(uint8_t mx, uint8_t my, uint8_t deaf) BANKED {
         rng = 1;
     figure_state = FIG_PAUSE;
     pause = 60;
+    nogo_w = 0;
 }
 
 void figure_stop(void) BANKED {
     figure_state = FIG_OFF;
+}
+
+void figure_go(int16_t px, int16_t py) BANKED {
+    figure_hunting = 1;
+    speed = HUNT_SPEED;
+    goal_x = px;
+    goal_y = py;
+    fill_start((uint8_t)(px >> 4), (uint8_t)(py >> 4));
+}
+
+void figure_escape(uint8_t mx, uint8_t my) BANKED {
+    uint16_t cells = (uint16_t)room_w * room_h;
+    trail = (int16_t *)(room_map + cells);
+    figure_x = ((int16_t)mx << 4) + 8;
+    figure_y = ((int16_t)my << 4) + 8;
+    sub = 0;
+    th = tt = 0;
+    last_x = figure_x;
+    last_y = figure_y;
+    figure_hunting = 1;
+    hear_cool = 0;
+    step_t_ = 0;
+    figure_state = FIG_CHASE;
+}
+
+// The escape: the player's feet leave a point every TRAIL_STEP px; he walks from point to point (each a
+// few px from the last, so never through a wall), and straight at them once he's on the newest
+static void chase(void) {
+    int16_t px = player_x + PLAYER_FEET_X, py = player_y + PLAYER_FEET_Y;
+    if ((uint16_t)abs(px - last_x) + (uint16_t)abs(py - last_y) >= TRAIL_STEP && (uint8_t)(th + 1) != tt) {
+        int16_t *p = trail + ((uint16_t)th << 1);
+        p[0] = last_x = px;
+        p[1] = last_y = py;
+        th++;
+    }
+    uint16_t s = (uint16_t)sub + (CHASE_SPEED & 0xFF);
+    sub = (uint8_t)s;
+    uint8_t steps = (uint8_t)(CHASE_SPEED >> 8) + (uint8_t)(s >> 8);
+    while (steps--) {
+        int16_t tx = px, ty = py;
+        if (tt != th) {
+            const int16_t *p = trail + ((uint16_t)tt << 1);
+            tx = p[0];
+            ty = p[1];
+            if (abs(tx - figure_x) + abs(ty - figure_y) <= 1) {
+                tt++;
+                continue;
+            }
+        }
+        // A pixel along whichever axis is further off
+        int16_t dx = tx - figure_x, dy = ty - figure_y;
+        if (abs(dx) >= abs(dy)) {
+            if (dx)
+                figure_x += dx > 0 ? 1 : -1;
+        } else {
+            figure_y += dy > 0 ? 1 : -1;
+        }
+    }
+    if (!hear_cool) {
+        sfx_play(SFX_FIGURE_HEAR);
+        hear_cool = CHASE_SCARE;
+    }
 }
 
 uint8_t figure_update(void) BANKED {
@@ -230,8 +318,9 @@ uint8_t figure_update(void) BANKED {
         grace--;
     if (hear_cool)
         hear_cool--;
-    // A walking player makes a noise now and every NOISE_EVERY frames while they keep walking
-    if (player_moving && !player_sneak && !hide_hidden && !grace) {
+    // A walking player makes a noise now and every NOISE_EVERY frames while they keep walking (not in the
+    // escape: he's deaf then, Minecraft docs 10)
+    if (figure_state != FIG_CHASE && player_moving && !player_sneak && !hide_hidden && !grace) {
         if (!noise_t) {
             noise_t = NOISE_EVERY;
             hear(player_x + PLAYER_FEET_X, player_y + PLAYER_FEET_Y);
@@ -244,8 +333,12 @@ uint8_t figure_update(void) BANKED {
     case FIG_FILL:
         fill_step();
         break;
+    case FIG_CHASE:
     case FIG_WALK:
-        walk();
+        if (figure_state == FIG_CHASE)
+            chase();
+        else
+            walk();
         if (++step_t_ >= (figure_hunting ? STEP_HUNT : STEP_WANDER)) {
             // Louder as he gets closer: full volume within a screen's quarter, faint across the room
             step_t_ = 0;
@@ -258,7 +351,7 @@ uint8_t figure_update(void) BANKED {
             wander();
         break;
     }
-    if (!hide_hidden && abs(figure_x - (player_x + PLAYER_FEET_X)) < TOUCH_X &&
+    if ((!hide_hidden || figure_state == FIG_CHASE) && abs(figure_x - (player_x + PLAYER_FEET_X)) < TOUCH_X &&
         abs(figure_y - (player_y + PLAYER_FEET_Y)) < TOUCH_Y)
         return DEATH_FIGURE;
     return DEATH_NONE;
@@ -267,9 +360,17 @@ uint8_t figure_update(void) BANKED {
 void figure_draw(void) BANKED {
     if (figure_state == FIG_OFF)
         return;
-    // 32x48, feet at the bottom middle; the two frames alternate while he walks
+    // 32x48, feet at the bottom middle. Walking: stand, left foot up, stand, right foot up (owner, 2026-10-18:
+    // with two frames only one foot ever lifted)
     int16_t sx = figure_x - 16 - cam_x, sy = figure_y - 46 - cam_y;
-    uint8_t f = (figure_state == FIG_WALK && (anim & (figure_hunting ? 8 : 16))) ? SPR_FIGURE_F1 : SPR_FIGURE_F0;
+    uint8_t f = SPR_FIGURE_F0;
+    if (figure_state == FIG_WALK || figure_state == FIG_CHASE) {
+        uint8_t step = (figure_hunting ? anim >> 3 : anim >> 4) & 3;
+        if (step == 1)
+            f = SPR_FIGURE_F1;
+        else if (step == 3)
+            f = SPR_FIGURE_F2;
+    }
     spr_draw_big(&sheet, f, 2, 3, sx, sy, 0);
     // Off screen: an arrow at the edge nearest him (owner: footsteps and an edge arrow)
     int16_t ox = sx < -32 ? -32 - sx : sx > 160 ? sx - 160 : 0;

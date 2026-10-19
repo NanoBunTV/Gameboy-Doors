@@ -191,11 +191,41 @@ frames don't move the feet), let go and into the grace, standing on it through t
 HP it leaves 10. Screech is kept away during it (`screech_state` poked to 0): a held player can't face him,
 which is the Greenhouse working as meant but muddles the numbers. **rush**: an Ambush queued (`entity_queued`
 = 2) into a new Greenhouse room fires as a Rush in the dark; the bot hides. **walk**: the bot plays 89 to 100
-(it skips the wrong doors here) and room 100 is a hotel room with its door shut. Screenshots
+(it skips the wrong doors here) and room 100 is the warehouse (`electrical-test.py` tests it). Screech and
+Rush are kept away during the Snare part (Rush since 2026-10-18: he kills by line of sight now, and a pass
+through room 90 killed the held player from across the room). Screenshots
 `build/screens/garden-<console>-*.png` (each room, the Courtyard, a Snare's catch). About two minutes a console.
 
 DMG drops frames in these rooms, so the script waits on the game's own counters (`snare_grace`) rather than
 emulator frames, and steps off a Snare by a short push: a long one walked back out through the entry door.
+
+### Room 100 and the ending: `scripts/electrical-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\electrical-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\electrical-test.py build\dmg-debug\doors.gb
+```
+
+Four runs in a DEBUG ROM, warped to 99 then 100. **room**: 99 has one top door; 100 is the warehouse, ten
+fuses (`electrical.c`'s scratch at `room_map + 2·cells + 512`) on `shelf_fuse` metatiles, the key on a key
+spot, Figure still in his cage for 120 frames. **puzzle** (Figure kept off, `figure_state` poked to 0): the
+lever (the gates gone but the lift's two, the entry sealed, the slide gone), all ten fuses, the key, the breaker
+door, the box (the tenth shuts the breaker room), the panel and three rounds solved from `elec_answer`
+(cursor `elec_cursor`), the power (the lift open, `player_fast`), Figure out of his door, into the lift
+(`GAME_WON`), the results screen, Start to the title. **figure**: after the lever, sneaking (B) away from the
+lever's front (he's sent there): alive and never hunting; then walking: he hunts. **escape**: the search
+skipped by pokes, the last round solved, standing still: `DEATH_ESCAPE`. Screenshots
+`build/screens/room100-<console>-*.png`. About two minutes a console.
+
+**The stack**: the puzzle run first fills WRAM from the end of the data (`s__HEAP`: after `_DATA` comes
+`_INITIALIZED`) to just under the stack pointer with 0xA5, and at the end reports the lowest byte that
+changed: how deep the stack went. Phase 8b: 140 bytes on GBC, 103 on DMG. (The first try measured from
+`s__DATA + l__DATA` and read the 11 bytes of `_INITIALIZED` as stack.)
+
+Two things learned writing it: **a PyBoy tick can end in the middle of the game's frame**, so a value read
+the moment a condition holds can be half-updated (the power's state was set, the lift not yet): tick twice
+more before checking the rest. And **on DMG a panel redraw takes frames** (STAT-safe writes), so a 2-frame
+button press can be lost: press until the thing it should change has changed.
 
 ### The Library: `scripts/library-test.py`
 
@@ -267,10 +297,12 @@ reference colour: on GBC the font's black isn't the same screen colour as the wa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 8a: see STATUS.md's memory outlook (GBC bank 0 96%, stack 283 bytes). **GBC WRAM: read the map file, not only romusage**: Phase 6
+As of Phase 8b: see STATUS.md's memory outlook (GBC bank 0 97%, ~439 bytes for the stack, which goes 140
+deep). **GBC WRAM: read the map file, not only romusage**: Phase 6
 first pushed `_DATA` (0xC0A0 + `l__DATA`) past 0xE000, into the stack, while romusage only said "100%".
-`grep l__DATA build/gbc/doors.map`; what's left between the end and 0xE000 is the stack's room. ROOM_MAX went
-from 3,072 to 2,816 to make room. As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.
+The data really ends at `s__HEAP` (`_INITIALIZED` follows `_DATA`); what's left between it and 0xE000 is the
+stack's room, and `electrical-test.py` measures how much of it is used. ROOM_MAX went from 3,072 to 2,816
+(Phase 6) and to 2,560 (Phase 8b) to make room. As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.
 Phase 4 ended at 90% / 79%, then 84% / 73% once the HUD's status line and the effect scripts moved into banks;
 Phase 5 added the per-exit route tables (bank 0) and `run_exit` (WRAM). Phase 3 was 84% / 75%; Phase 4's light code briefly overflowed GBC bank 0 until `player.c` and
 moving a light (`light_move.c`) went into banks. `romusage -g` prints the table; for what takes bank 0, sum

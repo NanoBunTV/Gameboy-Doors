@@ -8,6 +8,7 @@
 #include "run.h"
 #include "input.h"
 #include "platform.h"
+#include "electrical.h"
 
 // The banked part of the HUD (moved out of bank 0, 2026-10-18): timers, the slide, the status line
 #define SLIDE_SPEED 2
@@ -55,13 +56,23 @@ static void status_line(void) {
     }
     if (run_key_door)
         want[19] = '~';
+    // Room 100: the fuses you carry ("F 3"), as the Minecraft version's events say how many you've found
+    if (run_room == RUN_LAST_ROOM && electrical_carried) {
+        want[7] = 'F';
+        if (electrical_carried >= 10) {
+            want[8] = '1';
+            want[9] = '0';
+        } else {
+            want[9] = '0' + electrical_carried;
+        }
+    }
 }
 
 void hud_update(void) BANKED {
     static uint8_t last_hp;
     // What the status line was last built from: it's only rebuilt when one changes. Building it every
     // frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines (Phase 4).
-    static uint8_t built_hp = 0xFF, built_key, built_msg;
+    static uint8_t built_hp = 0xFF, built_key, built_msg, built_fuses;
     static uint16_t built_seconds;
     uint8_t dirty = 0;
     // The run's clock, from the VBlank count: real time, so DMG's slow frames and the fades count too
@@ -77,6 +88,8 @@ void hud_update(void) BANKED {
     if (input_held & J_SELECT)
         hud_show(30);
     if (run_hp != last_hp) {   // health changed: show it (DESIGN.md, HUD)
+        if (run_hp < last_hp)
+            run_damage += last_hp - run_hp;   // for the results (nothing heals yet; a new run starts higher)
         last_hp = run_hp;
         hud_show(150);
     }
@@ -87,11 +100,13 @@ void hud_update(void) BANKED {
             built_msg = 1;
             dirty = 1;
         }
-    } else if (built_msg || run_seconds != built_seconds || run_hp != built_hp || run_key_door != built_key) {
+    } else if (built_msg || run_seconds != built_seconds || run_hp != built_hp || run_key_door != built_key ||
+               electrical_carried != built_fuses) {
         built_msg = 0;
         built_seconds = run_seconds;
         built_hp = run_hp;
         built_key = run_key_door;
+        built_fuses = electrical_carried;
         status_line();
         dirty = 1;
     }

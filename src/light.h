@@ -3,8 +3,8 @@
 // so darkness costs map writes, not palettes. bg.c asks light_lit() for every tile it draws; when a source
 // moves, light_set() queues just the tiles that changed (bg_refresh_tile).
 //
-// Two sources: the player's (a small glow; the lighter's circle and the flashlight's cone, Phase 9) and
-// Eyes' glow. Shapes are per-row spans around the source's tile, made once at boot (light_shapes.c).
+// Three sources: the player's (a small glow; the lighter's circle and the flashlight's cone, Phase 9),
+// Eyes' glow, and the door the player is near (its top half, where the number is). Shapes are per-row spans around the source's tile, made once at boot (light_shapes.c).
 #ifndef LIGHT_H
 #define LIGHT_H
 
@@ -20,11 +20,14 @@
 #define LIGHT_GLOW    0   // no item: a rounded 5x5-tile patch (owner, 2026-10-18)
 #define LIGHT_LIGHTER 1   // radius 3 tiles (owner: lighter r=3)
 #define LIGHT_FLASH   2   // + facing (DIR_*): a cone 7 tiles long, widening to 5, plus the glow
-#define LIGHT_SHAPES  10
+#define LIGHT_DOORWAY 10  // a door's two metatiles (2x4 tiles from its top-left tile)
+#define LIGHT_SHAPES  11
 #define LIGHT_OFF     0xFF
 
 #define LIGHT_PLAYER  0   // sources
 #define LIGHT_EYES    1
+#define LIGHT_DOOR    2   // the door you're near, so its number reads in the dark (owner, 2026-10-18)
+#define LIGHT_SOURCES 3
 
 #define LIGHT_ROWS    17  // a shape covers rows -8..8 around its tile
 #define LIGHT_REACH   8
@@ -35,7 +38,7 @@ extern uint8_t light_dark;   // the current room is dark
 extern int8_t light_l[LIGHT_SHAPES][LIGHT_ROWS], light_r[LIGHT_SHAPES][LIGHT_ROWS];
 extern uint8_t light_first[LIGHT_SHAPES], light_last[LIGHT_SHAPES];
 // The sources (shape, middle tile) and the room's size in tiles: nothing outside the room is ever lit
-extern uint8_t light_src_shape[2], light_src_x[2], light_src_y[2];
+extern uint8_t light_src_shape[LIGHT_SOURCES], light_src_x[LIGHT_SOURCES], light_src_y[LIGHT_SOURCES];
 extern uint8_t light_tw, light_th;
 
 void light_build_shapes(void) BANKED;   // once at boot (light_shapes.c)

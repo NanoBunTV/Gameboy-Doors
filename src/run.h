@@ -103,6 +103,7 @@ extern uint8_t run_timothy;             // Timothy has been met this run
 extern uint16_t run_seconds;            // the run's clock, shown on the HUD (owner, 2026-10-18: instead of the door
                                         // number, which gave Dupe away); counted by hud_update from sys_time
 extern uint16_t run_clock_last;         // sys_time when it last counted
+extern uint16_t run_damage;             // HP lost this run (the ending's results), counted by hud_update
 extern uint8_t run_clock_frames;        // frames toward the next second
 
 void run_start(uint16_t seed) BANKED;

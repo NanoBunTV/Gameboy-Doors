@@ -95,7 +95,7 @@ Set by `lcc`'s makebin flags in the Makefile:
 | Title | `DOORS` | `-Wm-yn"DOORS"` |
 | Cartridge type | `0x1B` (MBC5 + RAM + battery) | `-Wm-yt0x1B` |
 | RAM size | 32 KB (4 banks) | `-Wm-ya4` |
-| ROM size | automatic (with `-autobank`); 64 KB as of Phase 3 | `-Wm-yoA` |
+| ROM size | automatic (with `-autobank`); 256 KB as of Phase 8b | `-Wm-yoA` |
 | CGB flag | `0xC0` (GBC only) for `doors.gbc`; `0x00` for `doors.gb` | `-Wm-yC` on the GBC link only |
 | Checksums | header and global, written by makebin | |
 | `.sym` file | converted from `.noi` | `-Wm-yS` |

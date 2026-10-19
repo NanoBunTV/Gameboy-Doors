@@ -12,6 +12,7 @@
 #define TILESET_HOTEL 0
 #define TILESET_GARDEN 1    // the Courtyard and the Greenhouse (rooms 89-99): the hotel's metatile numbers for
                             // doors, walls and drawers (scripts/assets.py checks), its own art
+#define TILESET_ELECTRICAL 2   // Room 100's warehouse (Phase 8b), the same rule
 
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
 #define MTF_SOLID 0x01
@@ -19,6 +20,9 @@
 #define MTF_FIRE 0x04       // walking into it kills (Seek's end hallway; game.c)
 #define MTF_WALL 0x08       // a wall Seek's eyes can appear on before a chase (walleyes.c)
 #define MTF_SNARE 0x10      // the Greenhouse's trap: stepping on it (garden.c)
+#define MTF_SHELF 0x20      // Room 100: a shelf a fuse can be put on (electrical.c)
+#define MTF_GATE  0x40      // Room 100: bars the lever takes away
+#define MTF_SLIDE 0x80      // Room 100: the sliding door Figure waits behind, opened by the lever
 
 // A tileset: 16x16 metatiles made of four 8x8 tiles (top left, top right, bottom left, bottom right)
 typedef struct {
@@ -46,6 +50,14 @@ typedef struct {
 #define OBJ_FIGURE  9   // the Library: where Figure starts
 #define OBJ_SEEK    10  // a start hallway: where Seek rises (optional; seek.c)
 #define OBJ_SNARE   11  // the Greenhouse: a rectangle of cells a Snare may be on (garden.c)
+// Room 100 (electrical.c)
+#define OBJ_LEVER   12  // 1x2 on lever_top/lever_bottom: opens the gates and lets Figure out
+#define OBJ_BREAKER 13  // 1x2 on breaker_top/breaker_bottom: the fuses go in, then the Circuit Breaker
+#define OBJ_BREAKER_DOOR 14  // 1x2 on breaker_door_top/_bottom: the breaker room's door (its key: the keyspot)
+#define OBJ_FIGURE_DOOR  15  // 1x2 on copper_top/_bottom: Figure comes out of it once the power's back
+#define OBJ_LIFT    16  // 2x2 on lift_*: the way out once the power's back
+#define OBJ_LIGHT   17  // a rectangle: a pool of light on the floor that blinks on its own clock
+#define OBJ_SAFE    18  // a rectangle: the breaker room, doorway included, where Figure never goes
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2
@@ -63,6 +75,7 @@ typedef struct {
 #define ROOM_KIND_IS_CHASE(k) ((k) >= ROOM_KIND_SEEK_START && (k) <= ROOM_KIND_SEEK_END)
 #define ROOM_KIND_COURTYARD  8   // room 89 (run.c run_kind_at): outdoors, safe, rain
 #define ROOM_KIND_GREENHOUSE 9   // rooms 90-99: dark, Snares, rain on the glass
+#define ROOM_KIND_ELECTRICAL 10  // room 100 (Phase 8b): the warehouse, the fuses, the breaker, the lift
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

@@ -8,6 +8,7 @@
 #include "game.h"
 #include "title.h"
 #include "death.h"
+#include "ending.h"
 #include "light.h"
 
 void main(void) {
@@ -24,13 +25,16 @@ void main(void) {
     uint16_t seed = title_run();
     while (1) {
         game_start(seed);
-        while (game_state != GAME_DEAD) {
+        while (game_state != GAME_DEAD && game_state != GAME_WON) {
             vsync();
             bg_flush();   // scroll, palettes and VRAM writes first, while VBlank lasts
             game_frame();
             audio_frame();
         }
-        if (death_run(game_death) == DEATH_TRY_AGAIN)
+        if (game_state == GAME_WON) {
+            ending_run();   // the lift, the results; then the title
+            seed = title_run();
+        } else if (death_run(game_death) == DEATH_TRY_AGAIN)
             seed = death_seed;
         else
             seed = title_run();

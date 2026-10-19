@@ -145,11 +145,50 @@ static const step_t s_snare[] = {
     { 20, 0, 0, ENV(11, 2), 0x46, 0x80 },          // and its teeth
     END };
 
+// Room 100: the lever's clunk and the gates dropping; a grinding step of the sliding door; a fuse taken (a
+// bright two-note blip) and fuses into the box (a clack); a switch's click; the display's voice, high for on and
+// low for off; the power coming back (a rising sweep); the lift hitting the bottom
+static const step_t s_lever[] = {
+    { 4, 0, 0, ENV(15, 1), 0x45, 0x80 },
+    REST(4),
+    { 30, 0, 0, ENV(12, 3), 0x63, 0x80 },
+    END };
+static const step_t s_slide[] = {
+    { 16, 0, 0, ENV(9, 2), 0x56, 0x80 },
+    END };
+static const step_t s_fuse[] = {
+    { 4, 0, DUTY(2), ENV(10, 1), LO(1318), HI(1318) },
+    { 10, 0, DUTY(2), ENV(10, 2), LO(1760), HI(1760) },
+    END };
+static const step_t s_fuse_in[] = {
+    { 3, 0, 0, ENV(13, 1), 0x24, 0x80 },
+    REST(3),
+    { 8, 0, 0, ENV(11, 1), 0x34, 0x80 },
+    END };
+static const step_t s_switch[] = {
+    { 3, 0, 0, ENV(9, 1), 0x13, 0x80 },
+    END };
+static const step_t s_breaker_on[] = {
+    { 8, 0, DUTY(2), ENV(8, 1), LO(1046), HI(1046) },
+    END };
+static const step_t s_breaker_off[] = {
+    { 8, 0, DUTY(2), ENV(8, 1), LO(523), HI(523) },
+    END };
+static const step_t s_power[] = {
+    { 50, 0x75, DUTY(2), ENV(12, 0), LO(220), HI(220) },   // sweeping up
+    { 30, 0, DUTY(2), ENV(12, 3), LO(880), HI(880) },
+    END };
+static const step_t s_crash[] = {
+    { 6, 0, 0, ENV(15, 0), 0x40, 0x80 },
+    { 90, 0, 0, ENV(15, 6), 0x81, 0x80 },
+    END };
+
 const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
     s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
     s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book, s_seek_step, s_seek_rise, s_slam,
-    s_fire, s_snare,
+    s_fire, s_snare, s_lever, s_slide, s_fuse, s_fuse_in, s_switch, s_breaker_on, s_breaker_off, s_power,
+    s_crash,
 };
 const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3,
-                                      3, 3, 3, 3, 3 };
+                                      3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 1, 1, 0, 3 };

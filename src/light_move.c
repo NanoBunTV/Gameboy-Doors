@@ -9,7 +9,7 @@ extern uint8_t light_pending;
 
 void light_room(uint8_t dark) BANKED {
     light_dark = dark;
-    light_src_shape[0] = light_src_shape[1] = LIGHT_OFF;
+    light_src_shape[0] = light_src_shape[1] = light_src_shape[2] = LIGHT_OFF;
     light_tw = room_w << 1;
     light_th = room_h << 1;
     light_pending = 0;   // the room is about to be drawn whole
@@ -41,18 +41,30 @@ static uint8_t span8(uint8_t shape, uint8_t sx, uint8_t sy, uint8_t y) {
     return 1;
 }
 
-static uint8_t row_y, has_p, pl, pr;
+static uint8_t row_y, has_p, pl, pr, has_q, ql, qr;
 
-// Redraws a..b (a <= b) of row_y as dark, except what the other source lights (pl..pr)
-static void dark_minus_other(uint8_t a, uint8_t b) {
-    if (!has_p || pr < a || pl > b) {
+// Redraws a..b (a <= b) of row_y as dark, except what the second other source lights (ql..qr)
+static void dark_minus_q(uint8_t a, uint8_t b) {
+    if (!has_q || qr < a || ql > b) {
         bg_refresh_span(a, b, row_y, 0);
         return;
     }
+    if (ql > a)
+        bg_refresh_span(a, ql - 1, row_y, 0);
+    if (qr < b)
+        bg_refresh_span(qr + 1, b, row_y, 0);
+}
+
+// ... and what the first lights (pl..pr)
+static void dark_minus_other(uint8_t a, uint8_t b) {
+    if (!has_p || pr < a || pl > b) {
+        dark_minus_q(a, b);
+        return;
+    }
     if (pl > a)
-        bg_refresh_span(a, pl - 1, row_y, 0);
+        dark_minus_q(a, pl - 1);
     if (pr < b)
-        bg_refresh_span(pr + 1, b, row_y, 0);
+        dark_minus_q(pr + 1, b);
 }
 
 // The redraw a move needs, done a few rows per frame by light_step (all at once it overran DMG frames):
@@ -65,7 +77,10 @@ void light_step(uint8_t rows) BANKED {
         return;
     uint8_t s = pend_s, os = pend_os, ox = pend_ox, oy = pend_oy;
     uint8_t shape = light_src_shape[s], tx = light_src_x[s], ty = light_src_y[s];
-    uint8_t other = s ^ 1, po = light_src_shape[other], px = light_src_x[other], py = light_src_y[other];
+    // The other two sources
+    uint8_t o1 = s == 0 ? 1 : 0, o2 = s == 2 ? 1 : 2;
+    uint8_t po = light_src_shape[o1], px = light_src_x[o1], py = light_src_y[o1];
+    uint8_t qo = light_src_shape[o2], qx = light_src_x[o2], qy = light_src_y[o2];
     while (rows--) {
         uint8_t y = pend_y;
         row_y = y;
@@ -74,6 +89,9 @@ void light_step(uint8_t rows) BANKED {
         has_p = span8(po, px, py, y);
         pl = sl;
         pr = sr;
+        has_q = span8(qo, qx, qy, y);
+        ql = sl;
+        qr = sr;
         // New minus old: lit
         if (has_n) {
             if (!has_o) {
@@ -85,7 +103,7 @@ void light_step(uint8_t rows) BANKED {
                     bg_refresh_span(nl > or_ ? nl : or_ + 1, nr, y, 1);
             }
         }
-        // Old minus new: dark, unless the other source lights it
+        // Old minus new: dark, unless another source lights it
         if (has_o) {
             if (!has_n) {
                 dark_minus_other(ol, or_);

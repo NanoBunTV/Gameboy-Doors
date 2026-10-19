@@ -97,6 +97,17 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 - **2026-10-18**: the HUD's door number replaced by the run's time, and "GOT THE KEY." without a number (owner:
   the number made Dupe too easy). The status line no longer slides in on entering a room.
 
+- **2026-10-18**: from the owner's play: Rush and Ambush now kill by line of sight at any distance (a far corner
+  of a big room was safe); Figure's walk lifts both feet; a key underfoot can be picked up; the fire flickers;
+  a door you're near lights up in the dark so its number reads.
+- **2026-10-18**: **Phase 8b done** (Room 100 and the ending): four rounds of questions and art mock-ups
+  (answers below). The warehouse on one floor with the lever, the gates and the sliding door, ten fuses and
+  the breaker key, the breaker room Figure never enters, the Circuit Breaker, the power, the escape with
+  Figure on your trail, the lift, the ending and the results; the `electrical` tileset; the owner's
+  *Unhinged II* and Ending Theme arranged; two Greenhouse rooms so room 99 always has one door on top. The run
+  can be won. The GBC's WRAM bank 1 got tight (the statics), so the room map shrank to 2,560 metatiles and
+  Room 100 to 28×32; a new test measures the stack (140 bytes deep at most, ~439 free).
+
 ## Decisions and why
 
 | Decision | Reason |
@@ -182,6 +193,23 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Greenhouse look: stone floor, windowed walls, planters, the hotel's closets (not metal lockers); doors 89–99 grey metal with a light-grey number | Owner's picks from mock-ups (2026-10-18) |
 | Rain in the Courtyard and the Greenhouse: a sound in both, falling streaks over the Courtyard | Owner (2026-10-18): "Courtyard ambience and greenhouse ambience: Rain"; the streaks from the mock-up |
 | No door number on the HUD: the run's time (MM:SS) instead; the key message without a number; the status line only on changes, not on entering | Owner (2026-10-18): the HUD's number "makes surviving Dupe too easy"; picked the run timer over leaving the space for gold, a longer bar or nothing |
+| Rush and Ambush kill anyone not hidden whom a straight line from them reaches without crossing a wall tile, at any distance in the room | Owner (2026-10-18): the 96/128 px circle (the Minecraft kill radius, through walls) let a far corner of a big room be safe. "Only a full wall" over "anyone not hiding" or a wall test within a radius. Furniture doesn't block it |
+| Room 100 (Phase 8b): one floor (no upstairs; the breaker room's key in a far corner); gates hold the shelving and a lever opens them, seals door 100 and sends Figure out at once | Owner's choices (2026-10-18), the Minecraft and DOORS start, over a two-floor map or Figure out from the start |
+| 10 fuses, picked per run from authored spots, carried (a count in the HUD) and all put in with A at the box | Owner's choices (2026-10-18), as in DOORS |
+| The tenth fuse: Figure gone without a scene and the warehouse sealed (the Minecraft version), then the breaker in peace | Owner's choice (2026-10-18) over DOORS' burning scene |
+| The Circuit Breaker: Minecraft's (3 rounds, faster each, the sequence repeated after a pause, nothing checked until all ten match), two rows of 5, D-pad cursor, A flips, B leaves | Owner's choices (2026-10-18) over DOORS' progress bar or one round |
+| The breaker room: Figure never goes in, doorway included | Owner's choice (2026-10-18), the Minecraft rule |
+| The escape: Figure out of the door beside the box; you at 1.4× walking, he at 0.75 of it (Seek's numbers); closets don't save you; the lift at the far end, past the shelving | Owner's choices (2026-10-18) |
+| The warehouse dim, with authored pools of light on the floor that blink and die on their own clocks | Owner's choice (2026-10-18) over fully dark or normally lit; pools over a whole-room flicker or wall lamps |
+| Music: silent until the lever, then *Unhinged II* through the search, the breaker and the escape; the Ending Theme on the results | Owner's choice (2026-10-18) |
+| The ending: the lift doors shut as Figure slams into them, the car shakes and falls; then a results screen ("YOU ESCAPED THE HOTEL", the time, the damage taken, the seed) over the Ending Theme, then the title | Owner's choices (2026-10-18); Knobs and achievements join the results in Phases 9 and 11 |
+| Room 100's look: grey steel shelving with cardboard boxes, a yellow fuse cartridge (brighter and bigger than the mock-up) on a shelf, concrete-block walls with a pipe, a dark speckled floor with sand-coloured light pools, a copper breaker-room door with a warning sign and a padlock, barred lift doors, a wall lever | Owner's picks from mock-ups (2026-10-18; `build/preview/room100-mock-*.png`), shelving A over orange pallet racking |
+| Figure walks stand, left foot up, stand, right foot up | Owner (2026-10-18): "only one of his feet raise up"; the new frame is the left-foot one's legs mirrored (picked from a mock-up) |
+| A picks up a key you're standing on | Owner (2026-10-18): it had to be faced from the next cell |
+| The fire's two flame tiles alternate on screen | Owner (2026-10-18): "the flame does not animate" |
+| In a dark room, the top half of a door you're within 3 metatiles of is lit | Owner's choice (2026-10-18) over always-lit plates or a taller glow: the glow didn't reach a top-wall door's number |
+| B sneaks in Room 100 until the escape | My call (2026-10-18), following the owner's Library choice; to decide with Phase 9's items, which want B |
+| ROOM_MAX 2,560 metatiles (was 2,816); Room 100 at most 896 (28×32 by default) | My call (2026-10-18): Phase 8b's statics left the GBC ~150 bytes under the stack before it had ever been measured. Measured since: 140 bytes deep; with the change ~439 free. Can go back to 2,816 (Room 100 up to 1,024) if a bigger Room 100 is wanted |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

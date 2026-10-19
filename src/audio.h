@@ -14,6 +14,8 @@
 #define MUSIC_GUIDING 3   // the Guiding Light (death screen)
 #define MUSIC_LIBRARY 4   // the owner's Unhinged (Library Theme), in room 50 until you walk out
 #define MUSIC_SEEK    5   // the owner's Here I Come (Seek Chase), from his rise to the door slamming
+#define MUSIC_ELECTRICAL 6 // the owner's Unhinged II (Electrical Theme), Room 100 from the lever to the lift
+#define MUSIC_ENDING  7   // the owner's Ending Theme, on the results after the lift
 
 #define SFX_DOOR       1
 #define SFX_DRAWER     2
@@ -45,7 +47,17 @@
 #define SFX_SLAM       28  // the chase's last door slams behind you
 #define SFX_FIRE       29  // you walked into the fire
 #define SFX_SNARE      30  // a Snare snaps shut on you
-#define SFX_COUNT      31
+// Room 100 (electrical.c, ending.c)
+#define SFX_LEVER      31  // the lever thrown
+#define SFX_SLIDE      32  // a step of the sliding door
+#define SFX_FUSE       33  // a fuse taken off a shelf
+#define SFX_FUSE_IN    34  // fuses into the box
+#define SFX_SWITCH     35  // a breaker switch flipped
+#define SFX_BREAKER_ON 36  // the display shows a number that's on ...
+#define SFX_BREAKER_OFF 37 // ... or off (the pattern can be learned by ear: Minecraft docs 10)
+#define SFX_POWER      38  // the power's back
+#define SFX_CRASH      39  // the lift hits the bottom
+#define SFX_COUNT      40
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1

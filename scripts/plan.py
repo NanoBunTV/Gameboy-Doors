@@ -10,13 +10,13 @@ without Dupe, a dark room, Eyes, Ambush and Rush; edit the conditions at the bot
 import re, sys
 
 names, info, exits = [], [], []
-HAS_SEEK = HAS_GARDEN = False
+HAS_SEEK = HAS_GARDEN = HAS_ELECTRICAL = False
 
 
 def load(path):
     """Reads the converter's template tables (build/gen/room_templates.c). scripts/garden-test.py imports this
     module and calls it."""
-    global HAS_SEEK, HAS_GARDEN
+    global HAS_SEEK, HAS_GARDEN, HAS_ELECTRICAL
     src = open(path).read()
     table = src.split('room_template_info')[1].split('};')[0]
     names[:] = re.findall(r'\},\s*// (\w+)', table)
@@ -25,6 +25,7 @@ def load(path):
                                                      src.split('room_template_exits')[1].split('};')[0])]
     HAS_SEEK = all(any(x[0] == k for x in info) for k in (5, 6, 7))    # room_templates.h ROOM_HAS_SEEK
     HAS_GARDEN = all(any(x[0] == k for x in info) for k in (8, 9))     # room_templates.h ROOM_HAS_GARDEN
+    HAS_ELECTRICAL = any(x[0] == 10 for x in info)                     # room_templates.h ROOM_HAS_ELECTRICAL
 
 
 TOP, BOTTOM, LEFT, RIGHT = 1, 2, 3, 4
@@ -41,6 +42,8 @@ def kind_at(n):
         return 1
     if n == LIBRARY:
         return 4
+    if HAS_ELECTRICAL and n == 100:
+        return 10
     for s, e in CHASES if HAS_SEEK else []:
         if n == s:
             return 5
@@ -86,8 +89,8 @@ class Plan:
         chase = 5 <= kind <= 7
         garden = kind in (8, 9)
         safe = kind == 8 or (kind == 9 and n == GREENHOUSE_LAST)
-        before_fixed = n < 100 and kind_at(n + 1) in (4, 5, 8)
-        if kind in (1, 4):
+        before_fixed = n < 100 and kind_at(n + 1) in (4, 5, 8, 10)
+        if kind in (1, 4, 10):
             t = [i for i, x in enumerate(info) if x[0] == kind][-1]
         else:
             need = OPP[exits[self.t[n - 1]][self.exit[n - 1]]]

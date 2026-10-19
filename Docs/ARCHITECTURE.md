@@ -1,8 +1,7 @@
 # Architecture
 
-As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms with doors, drawers and keys
-(Phase 2), hiding, Rush, Ambush, Hide, health, death and the Guiding Light, music and sound effects
-(Phase 3), and dark rooms, Screech and Eyes (Phase 4). Sections marked **planned** aren't built yet.
+As of Phase 8b (2026-10-18): the whole Hotel from the reception to Room 100 and the ending (STATUS.md's
+roadmap lists the phases). Sections marked **planned** aren't built yet (the economy, items, saving).
 
 ## Repository layout
 
@@ -25,7 +24,7 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 
 | File | What it does |
 |---|---|
-| `main.c` | Startup (LCDC setup, sound), title → run → death screen → run or title |
+| `main.c` | Startup (LCDC setup, sound), title → run → death screen → run or title; or, won, the ending → title |
 | `title.c/.h` | *Banked.* The title screen (logo, blinking PRESS START, the Lobby Theme) and the run's seed |
 | `game.c/.h` | *Banked.* Playing a run: entering rooms (fades, placing the player at the door), door states and numbers (the real exit and a Dupe room's wrong doors), drawers, keys, pressing A, walking through doors, the camera, the light level, the player's light, Screech's bite and Dupe's |
 | `run.c/.h` | *Banked.* The run: seed, per-room random generator, which template each room uses (and which of its exits is real), locks and key places, spawn, dark-room, Eyes, Dupe and Halt rolls, Dupe's wrong numbers, Timothy's drawer, what's been opened, health, Hide's bans |
@@ -36,10 +35,12 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `halt.c/.h` | *Banked.* Halt's hallway: its own loop from the armed door to the far end (legs, TURN AROUND, contact) |
 | `timothy.c/.h` | *Banked.* Timothy: the spider's jump out of a drawer and his scuttle away |
 | `library.c/.h` | *Banked.* The Library (room 50): the books and paper planned from the seed, reading them, the notes and padlock panels, the entry hint, the music |
-| `figure.c/.h` | *Banked.* Figure: hearing, the route search (a flood fill in the room map's spare tail), wandering and hunting, footsteps, contact, the edge arrow |
+| `figure.c/.h` | *Banked.* Figure: hearing, the route search (a flood fill in the room map's spare tail), wandering and hunting, footsteps, contact, the edge arrow; Room 100's no-go area and the escape's trail-following |
 | `seek.c/.h` | *Banked.* Seek's chases: the rise in the start hallway, following the door-to-door line room after room, catching, his footsteps, the guide's glow, the slam |
 | `walleyes.c/.h` | *Banked.* Seek's eyes on the walls before a chase: placed from the seed on `wall` metatiles, one per map row, blinking |
 | `garden.c/.h` | *Banked.* The Courtyard and the Greenhouse (Phase 8a): the Snares (placed from the seed, the catch, the hold and its grace), the rain on or off, the Courtyard's rain streaks |
+| `electrical.c/.h` | *Banked.* Room 100 (Phase 8b): the lever, the gates and the sliding door, the fuses and the key (from the seed), the breaker box and the Circuit Breaker's panel, the light pools, the power, the escape's start, the lift |
+| `ending.c/.h` | *Banked.* The ending: the lift scene and the results screen |
 | `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
 | `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
@@ -75,15 +76,15 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB, 32 templates since Phase 8a). **96% full on GBC (584 bytes left), 84% on DMG** after Phase 8a (90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out). Phase 8b will need to move something out (STATUS.md) |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB, 32 templates since Phase 8a). **97% full on GBC (428 bytes left), 85% on DMG** after Phase 8b (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out). Phase 8b added only a tileset case, two songs' cases and the third light source there; Phase 9 should move something out first (STATUS.md) |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
 | VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
 | VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
-| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock). GBC: attributes all palette 7 |
+| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock) and Room 100's (the Circuit Breaker). GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
 | GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
-| WRAM | Room map (`room_map`, up to 2,816 metatiles (3,072 until Phase 6: the 256 bytes went to the Library on GBC); `room_row`, each row's offset; in the Library its unused tail holds Figure's route search) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has about 283 bytes left under the stack after Phase 8a (reading the font's ASCII table from ROM instead of a 96-byte WRAM copy paid for the garden's 40 bytes; 237 after Phase 6, 224 after Phase 7; STATUS.md) |
+| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has about 439 bytes left under the stack after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
 | SRAM | **Planned**: the save |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
@@ -173,18 +174,21 @@ A dark room (owner, 2026-10-18) is black except the tiles a light reaches: an un
 font's space (all black; GBC palette 7, which dimming never touches). It's the same on both consoles, so
 darkness costs map writes, not palettes.
 
-- **Sources**: two, each a shape at a tile. The player's: the **glow** (a rounded 5×5 tiles) until items
+- **Sources**: three, each a shape at a tile. The player's: the **glow** (a rounded 5×5 tiles) until items
   exist; in DEBUG and AUTOTEST builds B cycles to the **lighter** (radius 3) and the **flashlight** (a cone
   7.5 tiles long, 1 wide at the player and 5 at the end, in the facing direction, plus the glow). Eyes':
-  the lighter's shape at his middle.
-- **Shapes** (`light_shapes.c`, at boot): for each of 10 shapes (glow, lighter, 8 flashlight directions),
+  the lighter's shape at his middle. **The door's** (owner, 2026-10-18: a top-wall door's number was out of
+  the glow's reach): the `doorway` shape, a door's 2×4 tiles, on the nearest door (not a bottom-wall
+  doorway) within 3 metatiles of the feet (`light_door` in game.c, only on frames with no player redraw
+  pending, since `light_set` finishes one at once). 3 more bytes and a shape row table (34 bytes) of WRAM.
+- **Shapes** (`light_shapes.c`, at boot): for each of 11 shapes (glow, lighter, 8 flashlight directions, doorway),
   rows -8..8 around the source, each one span of columns, plus the first and last row with anything.
 - **Streaming**: every column or row `bg.c` builds in a dark room is masked (`light_mask_column`,
   `light_mask_row`): per source, the rows or span that fall in it, then a byte loop blacks out the rest.
   Nothing outside the room is ever lit.
 - **Moving a light** (`light_set`): records the shape and place before the move; `light_step` then redraws
   what changed, 4 rows per frame, row by row as intervals: what the new shape adds is lit, what the old one
-  loses goes dark unless the other source lights it. Nothing per tile asks what's lit.
+  loses goes dark unless one of the other two sources lights it. Nothing per tile asks what's lit.
 - **Cost** (measured on DMG with PyBoy hooks, DEBUGGING.md): SDCC's 16-bit code is slow on the SM83, so the
   per-row and per-tile work is 8-bit, in room tile coordinates (rooms are at most 127 metatiles a side). The
   first version took ~140 scanlines to move the glow one tile; now a dark room drops no more frames than a lit
@@ -203,7 +207,7 @@ next (or previous) room and fades in.
   the run seed and n, so a run is reproducible from its seed and a room's plan doesn't depend on the order
   things happened. Rooms are planned in order because each template must be entered through the wall
   opposite the previous room's exit (top → bottom, left → right, right → left). A template used in the last 3
-  rooms isn't picked (relaxed if nothing else fits). Room 100's exit stays shut ("TO BE CONTINUED...").
+  rooms isn't picked (relaxed if nothing else fits). Room 100 has no exit: the lift ends the run.
 - **Locks**: a room with `allow_lock` and somewhere to put the key locks its exit 18% of the time. The key is
   in one of its drawers 75% of the time when it has both drawers and key spots (owner: mostly drawers). The
   reception always locks, key on its fixed key spot. Opening the door uses the key up.
@@ -268,7 +272,8 @@ a slot per exit). Only those two tiles are copied, so
   frames' pause); wandering, he picks a random floor cell more than 4 away (0.75 px/frame). Footsteps on CH4
   every 28 frames wandering, 14 hunting, volume 15 − distance/32 px (`sfx_play_vol`). Contact (feet within 10
   across and 8 up and down, player not hidden): `DEATH_FIGURE`, his face, the Guiding Light. Off screen, an
-  arrow sprite on the edge nearest him.
+  arrow sprite on the edge nearest him. Walking he cycles stand, left foot up, stand, right foot up (`f0`,
+  `f1`, `f0`, `f2`; 8 frames a step hunting, 16 wandering).
 - **Seek's chases** (Phase 7, `seek.c`, `walleyes.c`): `run_kind_at(n)` says what a position holds (start,
   Library, `seek_start` at 30/70, `seek_4way` at 31–34/71–78, `seek_end` at 35/79, else normal); `plan_room`
   picks a template of that kind entered from the right wall (chase rooms skip the no-repeat rule) and skips
@@ -294,7 +299,9 @@ a slot per exit). Only those two tiles are copied, so
     hallway: `slam()`: Seek off, the chase marked done, music off, walking speed, `SFX_SLAM`.
   - *The glow*: in a four-way, the `guide` sprite twinkles 20 px into the room from the real door's middle.
   - *Fire*: any `fire` metatile (MTF_FIRE) under the feet or the body's middle kills (`on_fire`, every frame
-    after `player_update`): `DEATH_FIRE`, his eye, a hint about going round. Rush and Ambush don't fire into a
+    after `player_update`): `DEATH_FIRE`, his eye, a hint about going round. It flickers (owner,
+    2026-10-18): every 12 frames each `fire_a` / `fire_b` on screen becomes the other (`fire_flicker`, only
+    in rooms `find_fire` found fire in at load; the visible 11×10 cells, through the single-tile queue). Rush and Ambush don't fire into a
     chase room (a queued one waits, as for the Library).
   - *The wall eyes*: from the seed (`run_seed ^ 0xE7E5`, the room), up to 40 random cells each scanning on in
     map order to the next `wall` cell in a row with no eye yet; each blinks (half, shut, half) on its own
@@ -322,9 +329,42 @@ a slot per exit). Only those two tiles are copied, so
     sends anything travelling away (the queued spawn stays).
   - *Rain*: `garden_room_entered` turns `audio_rain` on in both kinds (Audio, below); in the Courtyard 8
     streaks (`rain` sheet) fall 5 px a frame and 1 px left, drawn after the key.
+- **Room 100** (Phase 8b, `electrical.c`, `ending.c`): `run_kind_at(100)` is `electrical` when the converter
+  found the room (`ROOM_HAS_ELECTRICAL`); `plan_room` takes its one template as the Library's, plans nothing
+  in it, and gives room 99 one door on top (`before_fixed`; two Greenhouse "turn" rooms exist for that).
+  Rush and Ambush never fire into it. It uses the `electrical` tileset.
+  - *Loading* (`electrical_room_loaded`, from `load_room`): the fuses (from `run_seed ^ 0xF05E`: ten of the
+    `shelf` metatiles with floor below, outside the breaker room, as the Library's books) and the key's spot,
+    then the untaken fuses written into the map (`shelf_fuse`); the light pools' clocks. The scratch (fuse
+    places, pools, the breaker's order, a text row) is `room_map + 2·cells + 512`, after Figure's search.
+  - *Before the lever*: Figure started in his cage (`figure_start`), not updated or drawn; `figure_nogo` the
+    `safe` rectangle (his fill marks it 254 so no route enters it; noises in it are ignored; wander goals
+    skip it). B sneaks, as in the Library, until the power.
+  - *The lever* (`pull_lever`): every `gate` cell but the two below the lift becomes floor, the entry doorway
+    becomes `wall_top`, the sliding door's extent is found; one step at once and one every 40 frames clears
+    the `slide` cells within 2k+1 half-cells of its middle along its long axis (both sides together). Figure
+    is sent at the lever's front (`figure_go`, re-sent each step: his route gets shorter as the gap widens).
+    *Unhinged II* 120 frames later. The map passes walk `room_map` with one pointer.
+  - *Fuses and the box*: A on a fuse's shelf takes it (`electrical_carried`, an "F" count on the status line);
+    A at the breaker box puts all in. The key (`run_key_door = 0xFF` while carried, so the HUD shows it)
+    opens the breaker door, spent. The tenth fuse: `figure_stop`, the breaker door shut (plain copper), and
+    the breaker's first round.
+  - *The Circuit Breaker*: `elec_answer` (10 bits, from a generator seeded with the run's seconds: not
+    replayed), the display order a shuffle; the display steps every 54 / 36 / 22 frames by round, a 60-frame
+    blank after the tenth, then the same again; it runs while the panel is shut too. A flip that makes
+    `elec_switch == elec_answer` solves the round: 180 frames blank, the switches off at 90. After the third,
+    `power_on`: the lift's gates and doors open, the breaker door opens, `player_fast`.
+  - *The escape*: 180 frames later Figure's door opens and `figure_escape` puts him in front of it in
+    `FIG_CHASE`: deaf, he follows a trail of the player's feet (a point every 8 px, 256 points in the room
+    map's tail where his fill was) at 1.31 px/frame, then straight at them; his roar every 3 s; contact
+    (hiding refused, "NO TIME TO HIDE.") is `DEATH_ESCAPE`. The feet in the lift rectangle: `ELEC_WON`,
+    `GAME_WON`, and `main` runs `ending_run`: the doors shut (metatiles), Figure on for 50 frames, the slam
+    and a shake, the fall (shake, rumble, fade), the crash, then the results over the Ending Theme until Start.
+  - *Damage taken*: `run_damage`, counted where `hud_update` sees `run_hp` fall.
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
   through the exit, just inside that. The doorway cells are the trigger, so arriving never re-triggers.
-- **Using things** (A): the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
+- **Using things** (A): a key lying in the feet's cell, or the body middle's, is picked up first (owner,
+  2026-10-18: standing on one did nothing). Otherwise the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
   drawer, closet, bed or visible key there is used. If there's nothing, the points 6 px to either side are
   tried: furniture nudges the player off the line of what they face, and a closet missed by 3 px is a
   death. Messages show in the HUD.
@@ -352,7 +392,10 @@ Numbers come from the Minecraft config (`entities`, `rush`, `ambush`, `hide`), o
   furthest room reached's exit): Rush at 5.33 px/frame, Ambush 8.53. Rush vanishes there. Ambush turns, goes
   back to where he started, waits 5 s and comes again: 3–5 legs in all (from the seed), so he leaves at the
   far door or the rear. While either is out, no door opens or lets you through.
-- **Kill test**: same room, player not hidden, within 96 px (Rush) / 128 px (Ambush) of him, through walls.
+- **Kill test** (owner, 2026-10-18): same room, player not hidden, and a straight line of metatiles from his
+  cell to the player's feet (Bresenham, `sees_player`) crosses no `wall` metatile or void, at any distance.
+  Furniture doesn't block it. Checked every 4th frame (he moves 21 px meanwhile). Until then it was the
+  Minecraft kill radius, 96 px (Rush) / 128 px (Ambush) through walls, and a far corner of a big room was safe.
 - **Dark rooms**: never fired into (Darkness, above), except the Greenhouse's (Rooms, above).
 - **Rumble**: continuous CH4 noise whose volume follows his distance along the route, from 768 px.
 - **Hiding**: A at a closet or bed hides (the player sprite goes, the room dims to level 2); A or B leaves.
@@ -462,6 +505,7 @@ with `spr_need()` by the room that can show it, and packed after the player's in
 | Seek; his puddle; the guide's glow | any chase room; the start hallway; four-way rooms (`seek_need_sprites`) |
 | The wall eye | a room with Seek's eyes on its walls (`walleyes_need_sprites`) |
 | Rain | the Courtyard (`garden_need_sprites`) |
+| The marks, Figure, the key | Room 100 (`electrical_need_sprites`; the key until it's taken) |
 
 Per room rather than per event because one room can have the dark, Eyes, Rush on his way, a key in the open
 and a Timothy drawer at once: loading mid-room would free nothing in that worst case. The loader works
@@ -475,7 +519,8 @@ jumpscare drew over tiles 128 and up) makes everything load again. The worst cas
 | A hotel room: player, key, Rush or Ambush, Eyes, Screech, Timothy, the wall eye | 124 of 184 | 7 of 8 |
 | A chase room: player, Seek, the puddle, the glow, the wall eye | 118 | 5 |
 | A Courtyard or Greenhouse room: the hotel's less the wall eye, plus rain | 120 | 7 |
-| The Library: player, marks, Figure | 72 | 3 |
+| The Library: player, marks, Figure | 72 + Figure's third frame | 3 |
+| Room 100: player, marks, Figure, the key | the Library's + the key (checked in `electrical.c`) | 4 |
 | Halt's hallway: player, Halt, letters | 68 | 3 |
 
 The sheets' frame tables (4 bytes a 16×16 part) are packed the same way into one 128-byte pool
@@ -539,7 +584,9 @@ Rules for the art are in ASSETS.md; the converter stops with an error naming the
 
 hUGEDriver 6.1.3 (the release's prebuilt GBDK library) plays one song: `music_play()` calls `hUGE_init` with
 the song's bank switched in, `audio_frame()` calls `hUGE_dosound` once a frame the same way. Songs: the
-Lobby Theme on the title, the Guiding Light on the death screen, *Unhinged* in the Library (Phase 6). The
+Lobby Theme on the title, the Guiding Light on the death screen, *Unhinged* in the Library (Phase 6), *Here
+I Come* in Seek's chases (Phase 7), *Unhinged II* in Room 100 from the lever and the Ending Theme on the
+results (Phase 8b). The
 other rooms have no music (the owner took the ambience out, 2026-10-18). The Courtyard and the Greenhouse
 have **rain** (Phase 8a, owner): `audio_rain(1)`, and `rain_update` writes a soft CH4 noise drop (volume 1–3,
 fading fast, two high pitches) every 1–4 frames from its own generator, whenever no effect or rumble has CH4.

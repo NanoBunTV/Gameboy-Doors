@@ -11,7 +11,7 @@ Needs a DEBUG build (game_warp, which the script pokes). Each part from a fresh 
   snare   onto a Snare: 20 HP, held 5 s (pushing doesn't move you), then 4 s it can't catch you again; at
           15 HP it leaves 10
   rush    an Ambush queued into a new Greenhouse room comes as a Rush, in the dark, and the bot hides from him
-  walk    the bot plays 89 to 100 (Snares are walls to it); room 100 is a hotel room again
+  walk    the bot plays 89 to 100 (Snares are walls to it); room 100 is the warehouse
 Screenshots go to build/screens/garden-<console>-*.png. Exits non-zero on any failure.
 """
 import sys
@@ -63,11 +63,15 @@ def shot(g, name):
 
 
 def quiet(g, mask=0):
-    """A frame with Screech kept away: a rooted player can't turn to face him, and his bite would muddle the
-    Snare's numbers (that he can bite you then is the Greenhouse working as meant)"""
+    """A frame with Screech and Rush kept away: a rooted player can't turn to face Screech or reach a closet,
+    and a bite or a pass would muddle the Snare's numbers (that they can get you then is the Greenhouse working
+    as meant; since Rush kills by line of sight, any pass through the room would)"""
     g.tick(mask)
     if g.u8("_screech_state"):
         g.mem[g.syms["_screech_state"]] = 0
+    if g.u8("_entity_state") != ENT_IDLE or g.u8("_entity_queued"):
+        g.mem[g.syms["_entity_state"]] = ENT_IDLE
+        g.mem[g.syms["_entity_queued"]] = 0
 
 
 def kind(g, n):
@@ -217,7 +221,7 @@ try:
 except RuntimeError as e:
     check(False, f"walking 89-100: {e} (room {g.room()})")
 if g.room() == 100:
-    check(kind(g, 100) == 0 and g.flags() & RF_FINAL, "room 100: a hotel room, its door shut for now")
+    check(kind(g, 100) == 10, "room 100: the warehouse (Phase 8b; electrical-test.py tests it)")
     shot(g, "100")
 g.pyboy.stop(save=False)
 
