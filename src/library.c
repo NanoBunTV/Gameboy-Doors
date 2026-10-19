@@ -13,6 +13,9 @@
 #include "player.h"
 #include "sprites.h"
 #include "sprite_marks.h"
+#include "sprite_figure.h"
+#include "sprite_player.h"
+#include "tileset_hotel.h"
 
 // The puzzle is three pieces and none of them is the answer (Minecraft docs 07): eight books each say one
 // shape's digit, the paper says which shape goes on which wheel, and only the two together open the
@@ -29,8 +32,13 @@
 #define DEAF_FRAMES  180        // Figure can't hear you for the first 3 s (Minecraft figure-grace-seconds)
 #define HINT_FRAMES  120        // each of its two lines (hint_t counts to 2 * HINT_FRAMES + 1, a byte)
 #define PANEL_ROWS   7          // window rows 2-8
-#define FIGURE_TILE  40         // his sheets borrow Rush and Ambush's sprite tiles and palettes 2-3
-#define FIGURE_PAL   2
+
+// The Library's sprite VRAM (library_need_sprites): nothing from the corridor comes in, so only these
+SPR_CHECK(SPR_PLAYER_TILES + SPR_MARKS_TILES + SPR_FIGURE_TILES <= SPR_TILE_LIMIT(TILESET_HOTEL_TILES),
+          library_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_MARKS_PALETTES + SPR_FIGURE_PALETTES <= SPR_PALETTE_LIMIT,
+          library_sprites_need_over_8_gbc_palettes);
+SPR_CHECK((SPR_MARKS_FRAME_COUNT + SPR_FIGURE_FRAME_COUNT) * 4 <= SPR_FRAME_POOL, library_frame_tables_outgrow_the_pool);
 
 #define PANEL_NONE  0
 #define PANEL_NOTES 1
@@ -126,8 +134,8 @@ static void plan_books(void) {
     memcpy(lib_paper, order, LIB_CODE);
 }
 
-void library_load_sprites(void) BANKED {
-    figure_load(FIGURE_TILE, FIGURE_PAL);
+void library_need_sprites(void) BANKED {
+    figure_need_sprites();
 }
 
 void library_enter(void) BANKED {
@@ -139,7 +147,6 @@ void library_enter(void) BANKED {
     spr_clip_y = 255;
     if (library_left)
         return;   // you've been through: he and the music are gone
-    library_load_sprites();
     for (uint8_t i = 0; i < room_obj_count; i++)
         if (room_objs[i].type == OBJ_FIGURE)
             figure_start(room_objs[i].x, room_objs[i].y, hint_t ? 0 : DEAF_FRAMES);

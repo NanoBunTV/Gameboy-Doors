@@ -3,6 +3,7 @@
 #include "sprites.h"
 #include "platform.h"
 #include "bg.h"
+#include "sprite_player.h"
 
 static uint8_t oam_next;   // next free shadow OAM entry this frame
 static uint8_t oam_used;   // entries used last frame
@@ -26,6 +27,52 @@ uint8_t spr_sheet_load(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src,
     rt->base_pal = base_pal;
     rt->frames = frame_buf;
     return count;
+}
+
+// Room sheets, in the order asked for: slot_src[i] is what's in VRAM at slot i (0: unknown). Loading a slot
+// clears every later one (they've moved), so a match means everything before it matched too.
+// Not static: scripts/sprite-test.py checks VRAM and every drawn sprite against them.
+#define SLOTS 8
+const sprite_sheet_t *spr_slot_src[SLOTS];
+uint8_t spr_slots;
+#define slot_src spr_slot_src
+#define slots spr_slots
+static uint8_t next_tile, next_pal, next_frame;
+// The room sheets' frame tables, packed like their tiles (one pool rather than a buffer per sheet: 2026-10-18,
+// it freed ~200 bytes of the GBC's WRAM for Seek)
+static uint8_t frame_pool[SPR_FRAME_POOL];
+
+void spr_room_begin(void) {
+    slots = 0;
+    next_tile = SPR_PLAYER_TILES;
+    next_pal = 1;
+    next_frame = 0;
+}
+
+void spr_forget(void) {
+    memset(slot_src, 0, sizeof(slot_src));
+}
+
+void spr_need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src) {
+    for (uint8_t i = 0; i < slots; i++)
+        if (slot_src[i] == src)
+            return;
+    if (slot_src[slots] != src) {
+        spr_sheet_load(rt, bank, src, next_tile, next_pal, frame_pool + next_frame);
+        slot_src[slots] = src;
+        for (uint8_t i = slots + 1; i < SLOTS; i++)
+            slot_src[i] = 0;
+    }
+    // Where the next goes (rt holds this one's place: from this load, or from the room it was loaded in)
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(bank);
+    next_tile += src->tile_count;
+    next_frame += src->frame_count << 2;
+#ifdef CGB
+    next_pal += src->palette_count;
+#endif
+    SWITCH_ROM(saved);
+    slots++;
 }
 
 void spr_begin(void) {
@@ -75,11 +122,15 @@ void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, u
     oam_next = n;
 }
 
-void spr_draw_big(const spr_sheet_t *sheet, uint8_t frame, uint8_t pw, uint8_t ph, int16_t sx, int16_t sy) {
+void spr_draw_big(const spr_sheet_t *sheet, uint8_t frame, uint8_t pw, uint8_t ph, int16_t sx, int16_t sy,
+                  uint8_t flags) {
+    // Mirrored: each row's parts right to left, each mirrored (spr_draw swaps its two columns)
+    int16_t first = (flags & SPR_FLIPX) ? sx + ((int16_t)(pw - 1) << 4) : sx;
+    int8_t dx = (flags & SPR_FLIPX) ? -16 : 16;
     for (uint8_t j = 0; j < ph; j++, sy += 16) {
-        int16_t x = sx;
-        for (uint8_t i = 0; i < pw; i++, x += 16)
-            spr_draw(sheet, frame++, x, sy, 0);
+        int16_t x = first;
+        for (uint8_t i = 0; i < pw; i++, x += dx)
+            spr_draw(sheet, frame++, x, sy, flags);
     }
 }
 

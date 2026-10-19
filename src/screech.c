@@ -27,14 +27,15 @@ static uint16_t timer, cooldown;
 static uint16_t rng;
 
 static spr_sheet_t sheet;
-static uint8_t frames_buf[SPR_SCREECH_FRAME_COUNT * 4];
 
 // Direction steps (player.h DIR_*, clockwise from down), DISTANCE long (diagonals 32 / 1.41)
 static const int8_t off_x[8] = { 0, -23, -32, -23, 0, 23, 32, 23 };
 static const int8_t off_y[8] = { 32, 23, 0, -23, -32, -23, 0, 23 };
 
-uint8_t screech_load(uint8_t first_tile, uint8_t pal) BANKED {
-    return spr_sheet_load(&sheet, BANK(sprite_screech), &sprite_screech, first_tile, pal, frames_buf);
+// Only the dark has him (screech_update), and a room's darkness is set at the door (light_room)
+void screech_need_sprites(void) BANKED {
+    if (light_dark)
+        spr_need(&sheet, BANK(sprite_screech), &sprite_screech);
 }
 
 // xorshift16, seeded from the run so a recorded run replays the same

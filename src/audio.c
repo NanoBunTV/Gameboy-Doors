@@ -5,10 +5,11 @@
 #include "sfx_data.h"
 
 // Songs: C written by hUGETracker's uge2source from assets/music/*.uge (Makefile)
-extern const hUGESong_t music_title, music_guiding_light, music_library;
+extern const hUGESong_t music_title, music_guiding_light, music_library, music_seek;
 BANKREF_EXTERN(music_title)
 BANKREF_EXTERN(music_guiding_light)
 BANKREF_EXTERN(music_library)
+BANKREF_EXTERN(music_seek)
 
 static uint8_t music_id, music_bank;
 
@@ -110,6 +111,7 @@ void music_play(uint8_t id) {
     case MUSIC_TITLE:   song = &music_title;         music_bank = BANK(music_title); break;
     case MUSIC_GUIDING: song = &music_guiding_light; music_bank = BANK(music_guiding_light); break;
     case MUSIC_LIBRARY: song = &music_library;       music_bank = BANK(music_library); break;
+    case MUSIC_SEEK:    song = &music_seek;          music_bank = BANK(music_seek); break;
     default:
         return;
     }

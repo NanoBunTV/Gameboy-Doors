@@ -47,6 +47,16 @@
 // Dupe or Halt there, nor Halt on door 50.
 #define RUN_LIBRARY_ROOM 50
 
+// Seek's chases (Minecraft docs 08, owner 2026-10-18): 30 the start hallway he rises in, 31-34 four-way
+// rooms, 35 the end hallway (the fire, and the door that slams); 70, 71-78, 79 the second. The room after each
+// is safe. Only when the converter found all three kinds of chase room (ROOM_HAS_SEEK); else ordinary rooms.
+// The room before a chase has one door, on top; nothing else (Rush, Eyes, the dark, Dupe, Halt, locks) is
+// planned in a chase. Seek's eyes appear on the walls from WALL_EYES_ROOMS rooms before.
+#define RUN_CHASES 2
+#define RUN_CHASE_START(c) ((c) ? 70 : 30)
+#define RUN_CHASE_END(c)   ((c) ? 79 : 35)
+#define WALL_EYES_ROOMS 5
+
 #define MAX_HP 100
 
 // run_flags[n]
@@ -95,5 +105,11 @@ uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED;
 // Is Timothy in room n's drawer d? (Once a run, 1 in TIMOTHY_ODDS, never the key's drawer.) From the seed,
 // so a replay meets him in the same drawer.
 uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED;
+
+// The kind of room the plan puts at n (ROOM_KIND_*: the start room, the Library, a chase room, else normal)
+uint8_t run_kind_at(uint8_t n) BANKED;
+
+// How many of Seek's eyes are on room n's walls: 1-5 in the rooms before a chase, 6 in its start hallway
+uint8_t run_wall_eyes(uint8_t n) BANKED;
 
 #endif

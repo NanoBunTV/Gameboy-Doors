@@ -34,14 +34,21 @@
 | 2026-10-18 | Phase 6: the Library (room 50), Figure, the books, the paper, the notes, the padlock, sneaking, the Library theme | `library-test.py` (DEBUG builds, warped to room 50), both consoles | **All passed.** Puzzle (Figure off): the paper and all 8 books say what the plan says in the HUD; the notes count 8 of 8; a wrong code resets the wheels; the right one opens door 051; walking out reaches room 51, Figure and the music left behind. Sneaking 15 s with B: never heard. Walking: he hears, hunts and kills after ~210 frames, his face, then his Guiding Light. Screenshots: the panels, the glint, the edge arrow, Figure close up |
 | 2026-10-18 | same | `build.ps1 -Test` (now with `library-test.py`) | **All passed.** BGB, all exception breaks, all three combinations, 15 s. `scroll-test.py` 3,768 (GBC) / 3,974 (DMG) frames, **0 wrong pixels** (it now skips Ambush's green frames at dim level 0, which a 2-frame later run exposed). VBlank: DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame 10,292 on both (rooms 0–48 plan as before) |
 | 2026-10-18 | same | Lag frames in the Library | GBC: 0 of 900 standing, 0 of 600 sneaking, 1 hunted. DMG: 26 of 705 while Figure wanders (24 of them during his route search, 32 cells a frame; 40 a frame lagged 42) |
-| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library (in a DEBUG build, poke `game_warp` to 50, or play there) |
+| 2026-10-18 | Sprite sheets loaded per room (Timothy mid-room), build-time sprite budgets | `build.ps1 -Test` | **All passed**, unchanged: BGB all three combinations, scroll-test 0 wrong pixels (3,768 GBC / 3,974 DMG frames), VBlank DMG 8 of 10, GBC 6 of 10, replay reaches room 30 at input frame 10,292 on both, `library-test.py` on both |
+| 2026-10-18 | same | `sprite-test.py` (new), both consoles | **Passed**: every drawn sprite's sheet in VRAM through the replay, the Library and a forced Timothy. Sheets seen: Rush (5 rooms), Ambush, Eyes, Screech, the key, Halt and the letters, the marks and Figure, Timothy. 30 changes of a room's sheets, 13 tiles written on average, 38 at most. Black between rooms: GBC 42.5 frames on average (most 65), DMG 27.3 (most 69); not measured before the change. A deliberately lowered palette limit failed the build as it should |
+| 2026-10-18 | Phase 7: Seek's chases (30–35, 70–79), the wall eyes, fire, the slam, his eye, *Here I Come*; side doors keep their number open; no typing sound | `seek-test.py` (new, DEBUG builds), both consoles | **All passed.** Eyes 1–6 in rooms 25–30, none in 23. The rise after ~253 frames walking up (the player held), the chase through 30–35 (every real door opened by itself) to 36: Seek gone, walking speed, door 36 shut. Standing still: caught (cause 9) ~77 frames after the rise. Round him: caught once he goes on into 31. Fire: cause 10. Screenshots: the rise, the glow, the fire, his eye. Side doors checked by screenshot (006/004 kept open, the next room's side entry numbered) |
+| 2026-10-18 | same, recorded run re-recorded (room 29 is now always one top door; it ends with Seek catching the bot) | `build.ps1 -Test` (now with `seek-test.py`) | **All passed.** BGB all three combinations, 15 s. scroll-test 3,971 (GBC) / 4,192 (DMG) frames, **0 wrong pixels**. VBlank DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame **10,287** on both. sprite-test: Seek, the puddle and the wall eye among the sheets seen, every drawn sprite's sheet in VRAM. library-test: the sneak check now allows Figure wandering into the player (cause 8, not hearing): with the new boot timing his path crossed the test's lane |
+| 2026-10-18 | same | Lag frames in a chase (bot, 30–35) | GBC: 1 per room. DMG: 1–6 per room (the start hallway 6 of 61, the end hallway 3 of 279) |
+| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library; Phase 7's chase (in a DEBUG build, poke `game_warp` to 50 or 30, or play there) |
 
 ## Test checklist for new builds
 
 1. `.\build.ps1 -Test`: both ROMs build without warnings, headers valid; on the AUTOTEST ROMs the BGB check
    passes (`doors.gbc` as GBC, `doors.gb` as DMG and as GBC), `scroll-test.py` finds no wrong pixels,
-   `vblank-budget.py` stays under 10 lines and the recorded run still reaches room 30; on the DEBUG ROMs
-   `library-test.py` passes (room 50). Look at the screenshots
+   `vblank-budget.py` stays under 10 lines, the recorded run still reaches room 30 and `sprite-test.py`
+   finds every drawn sprite's sheet in VRAM; on the DEBUG ROMs `library-test.py` (room 50) and `seek-test.py`
+   (30–36) pass. Look at
+   the screenshots
    in `build/screens/`. If the recorded run fails after a deliberate change, re-record it
    (`.\scripts\record-run.ps1`).
 2. PyBoy (`scripts/run-test.py`) with a button script for whatever changed.
@@ -75,13 +82,27 @@
   - *WRAM*: DMG has 8 KB in all, ~1.6 KB free under the stack after Phase 6 (the room map takes 2.75 KB).
     **GBC is the tight one**: Phase 6's first build ran `_DATA` past 0xE000 into the stack (romusage just
     said 100%; DEBUGGING.md has how to read the map file). ROOM_MAX went from 3,072 to 2,816 metatiles to
-    fit, leaving ~237 bytes for the stack. Figure's route search costs no WRAM (the Library's unused room
+    fit, leaving ~237 bytes for the stack. Phase 7: ~224 (the frame-table pool freed ~200 bytes, Seek and the
+    wall eyes took about as much). Figure's route search costs no WRAM (the Library's unused room
     map tail). Later phases (Seek, the inventory, the shop) need more: the cartridge's 32 KB SRAM works as
     extra RAM on both consoles (enable it, use it, disable it); GBC's WRAM banks 2–7 (24 KB) are unused (the
     dim cache, 448 bytes, is the obvious first thing to move there); the room map could shrink further.
-  - *Sprite VRAM*: 144 of the 184 sprite tiles are loaded all the time. Halt and his letters (the hallway)
-    and Figure and the marks (the Library: 36 tiles) borrow Rush's and Ambush's tiles, which nothing else
-    uses there. Seek and the items will need a general scheme: sheets loaded per room or per event.
+  - *Sprite VRAM* (per-room loading since 2026-10-18, ARCHITECTURE.md "Sprites"): a hotel room's worst case
+    is 124 of 184 tiles and 7 of 8 GBC palettes with Seek's wall eye (was 144 and 7, all loaded all the time);
+    a chase room 118 / 5; the Library 72 / 3, Halt's hallway 68 / 3. The tileset is 124 tiles on GBC since the
+    fire: past 128, sprites must stay under 128 (the build checks), which every set does today. Each set is checked at build time, so Seek or an item that doesn't fit fails the
+    build. If palettes run out first: sheets with the same colours could share one, or GBC-only extras could
+    go in the second VRAM bank.
+- **Seek's numbers are guesses to play-test**: his reach 24 px (the Minecraft 2 blocks is 32; the camera
+  shows only 72 px behind you), the puddle 64 px behind you, 45 frames' hold after the rise, 1.31 px/frame
+  against your 1.75. Standing still after the rise, he has you in about 75 frames.
+- **The chase rooms are defaults made by a script** (`seek_start`, `seek_4way_s/w/e`, `seek_end_s/w/e`):
+  plain hotel rooms with tables; the owner authors the real ones. The four-ways entered from a side have two
+  top doors; a run goes "straight" up about a third of the time.
+- **Here I Come is a first arrangement** (`seek.uge`): the synth's octave pair as an octave arpeggio on CH1,
+  the kick and hat as pulse blips on CH2, the bass on CH3. For the owner's ears.
+- **Seek's side view is a stride and a passing pose**; his front view only shows during the rise (no chase
+  route goes down).
 - **The Library theme is a first arrangement** (`library.uge`): the muted guitar's ostinato, the strings as
   an arpeggio and a bass, CH4 left for Figure's footsteps. For the owner's ears.
 - **Figure's numbers are guesses to play-test**: wandering 0.75 px/frame, hunting 1.44 (walking is 1.25,
@@ -146,7 +167,7 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 4. Darkness, Screech, Eyes (**done 2026-10-18**, owner's hands-on test pending) | Dark rooms on both consoles (black but for what's lit), the glow, the lighter and flashlight (debug switch until Phase 9), Screech with his jumpscare, Eyes; from the owner's first play: the title music cut on Start, the ambience removed, door numbers redone (layout B); DMG speed-ups (HUD, sprites, collision lookups, the light) |
 | 5. Dupe, Halt, Timothy (**done 2026-10-18**, owner's hands-on test pending) | Five Dupe rooms (2–3 doors, the real one per run), Dupe's wrong numbers and full-screen face, numberless fakes; Halt's blue-lit sideways hallway with TURN AROUND; Timothy's spider in a drawer; the HUD and effect scripts out of bank 0; cheaper sprite drawing |
 | 6. The Library (50) (**done 2026-10-18**, owner's hands-on test pending) | Room 50 with eight books, the paper, the notes panel and the five-wheel padlock; Figure (hearing, sneaking with B, hunting, footsteps, the edge arrow, his face); the Library theme; door 50 sealing; room 49 one-door; `game_warp` and `library-test.py` |
-| 7. Seek | Eyes on the walls, the chase sequences |
+| 7. Seek (**done 2026-10-18**, owner's hands-on test pending) | Chases at 30–35 and 70–79 from authorable start, four-way and end rooms; eyes on the walls before; the rise; the chase (1.4× run, he at 0.75), the glowing real door that opens itself, caught by touch or from behind; fire; the slam; his eye; *Here I Come*; side doors keep their number open; the Guiding Light's typing sound gone; `seek-test.py` |
 | 8. Courtyard, Greenhouse, Room 100 | Rooms 89–100, the fuses and the escape, the ending |
 | 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items (the lighter and flashlight's light is built: give it fuel, batteries and a slot), the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
 | 10. Audio | The rest: Seek's chase (Here I Come MIDI, Phase 7) and the Ending Theme (Phase 8) when those come; SFX for every entity; a pass by ear over everything |

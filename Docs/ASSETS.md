@@ -46,6 +46,8 @@ Metatile properties, set in Tiled (select the tile in the tileset, Properties pa
 | `name` | string | Becomes a constant in code, e.g. `MT_HOTEL_DOOR_TOP`. **The game uses the door, dresser and doorway names below by name**, so don't rename those |
 | `solid` | bool | The player can't walk into it |
 | `bookcase` | bool | A bookcase's bottom half: one of the Library's books can be here if there's floor below it |
+| `fire` | bool | Walking into it kills (Seek's end hallway, but it works in any room). Must not be `solid` |
+| `wall` | bool | A wall Seek's eyes can appear on before a chase (wall_top, wallpaper, wallpaper_shadow, wainscot) |
 
 Metatile 0 must stay the **void** (solid black). It's used outside the room and for empty cells.
 
@@ -56,13 +58,14 @@ The hotel metatiles:
 | void, floor, floor_shadow, carpet_l/m/r | `floor_shadow` is the floor row below a wall face |
 | wall_top, wallpaper, wallpaper_shadow, wainscot | The wallpaper is the Minecraft version's wall: `green_terracotta.png` from `F:\Minecraft DOORS Project\_ResourcePack\assets\minecraft\textures\block\` (owner's request, 2026-10-17), a lighter olive diamond on darker olive |
 | door_top, door_bottom, door_bottom_locked, door_open_top, door_open_bottom | A door in the top wall: 1 wide, 2 tall (wallpaper row + wainscot row). Layout (owner, 2026-10-18): a dark header (rows 0–8 of door_top) with the number, then a whole door (frame, panel, knob at rows 20–21 of the door's 32). **The number area (x 2–12, y 2–6 of the top half) is painted over by the game**: brass digits (the palette's lightest colour) on the dark (its darkest); the art shows "000" there. It must stay within the top 8 pixel rows. door_open_top keeps the header (the number shows over an open doorway) |
-| side_door_top, side_door_bottom, side_door_bottom_locked, side_open_top, side_open_bottom | A door in the left or right wall, seen from above (symmetric, so one set serves both walls). The shut ones are drawn like the top-wall door; side_open_* is floor |
+| side_door_top, side_door_bottom, side_door_bottom_locked, side_open_top, side_open_bottom | A door in the left or right wall, seen from above (symmetric, so one set serves both walls). The shut ones are drawn like the top-wall door. Open, a side door uses door_open_top/bottom like a top-wall door, number kept (owner, 2026-10-18); side_open_* (floor) is no longer used by the game |
 | doorway_s | An open doorway in the bottom wall (entries only) |
 | closet_top, closet_bottom, dresser, dresser_open, table, desk_l/m/r | Furniture. dresser_open is a dresser after its drawer was searched |
 | bed_top, bed_bottom | A bed, headboard and pillow above the blanket (Phase 3; metatiles 29 and 30) |
 | shelf_top_a/b/c, shelf_bottom_a/b/c | The Library's bookcases (Phase 6), 1×2: a top above a bottom, three mixes of spine colours each (two new palettes: red and cream, green and blue; the door palette's brown and gold). The bottoms are `bookcase`. All solid |
 | desk_paper | The desk's middle with the paper on it (the Library's `paper` object sits on it) |
 | door_bottom_padlock | A top-wall door's bottom half with the combination padlock (the Library's exit while it's locked; the game swaps it in) |
+| fire_a, fire_b | Fire (Phase 7, owner's pick from mock-ups): red and cream flames on dark ground, in the carpet's palette (no new palette). `fire`; alternate them so a patch doesn't look tiled |
 
 ## Rooms (`assets/rooms/`)
 
@@ -75,7 +78,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
 
   | Property | Type | Meaning |
   |---|---|---|
-  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right) or `library` (always room 50; at most one; below) |
+  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right), `library` (always room 50; at most one; below), or one of Seek's chase rooms: `seek_start`, `seek_4way`, `seek_end` (below) |
   | `allow_lock` | bool | The room may lock its exit (18% chance) and hide the key inside it. Needs at least one drawer or key spot |
 
 - **Objects** on an object layer, named:
@@ -91,6 +94,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
   | `paper` | 1×1 rectangle on `desk_paper` | The Library: the paper (A reads it) |
   | `figure` | point | The Library: where Figure starts |
+  | `seek` | point | A `seek_start` hallway (optional): where Seek rises; he does once the player is 4 metatiles past it along the route. Without one, he rises 4 metatiles behind the player at three quarters of the way |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
@@ -134,6 +138,23 @@ route search relies on it), and at most 1,152 metatiles (`(ROOM_MAX - 512) / 2`:
 of the room map). It also checks that every wall a room can be entered by has a normal room with only a
 top door, for room 49.
 
+Phase 7, **Seek's chase rooms** (all three kinds or none: without them, rooms 30–35 and 70–79 are ordinary).
+Every room the generator picks for a chase position is one of these, chosen by the wall it's entered from (no
+no-repeat rule: a chase is the same rooms over and over). No drawers, key spots, closets or beds:
+
+- `seek_start`: entered from the **bottom** (the room before has one door, on top), one exit. Long, so the
+  rise comes well before the door. Default: `seek_start` (9×30, a carpet up the middle).
+- `seek_4way`: one entry, **2–3 exits**; the run makes one real (numbered, glowing, opens itself) and the
+  others fake. For every wall a four-way's exit can be on, a four-way (and an end hallway) must exist
+  entered from the opposite wall; the converter checks. Defaults: `seek_4way_s` (entered from the bottom;
+  exits left, top, right), `seek_4way_w` / `seek_4way_e` (entered from the left / right; two top exits and
+  the far side), all 15×12.
+- `seek_end`: one entry, one exit (the door that slams), and the **fire**. Defaults: `seek_end_s` (9×28, two
+  4×2 patches on opposite sides), `seek_end_w` / `seek_end_e` (28×9, two 2×3 patches high and low).
+
+Seek runs the straight line from the entry's middle to the real exit's middle, through anything, as Rush
+does. The defaults were made by a script; the owner will author their own (DESIGN.md).
+
 To preview a room as an image: `F:\Programs\Tiled\tmxrasterizer.exe --scale 2 assets\rooms\lounge.tmx build\preview\lounge.png`.
 
 ## Sprites (`assets/sprites/`)
@@ -168,7 +189,12 @@ navy outline). They were made by a script from the pack textures; to change them
 to (`static.wikitide.net/doorswiki/thumb/6/67/Figure_render.png/939px-Figure_render.png`): red-orange body,
 navy outline, a pale ring of teeth for a head and his hand over his ribs; `marks` (16×16 frames, the art in
 the top-left 8×8: `glint`, the book's sparkle; `arrow_l`, `arrow_u`, `arrow_d`, the edge arrow; right is
-`arrow_l` mirrored). Rush and
+`arrow_l` mirrored). Phase 7 (owner's picks from mock-ups, from the DOORS wiki render and frames the owner
+linked: `static.wikitide.net/doorswiki/9/9e/Seek_render.png`, `.../d/d7/Seek_eye_greenhouse.png`): `seek`
+(32×32 frames, the 24×32 figure in the left part: `front`, `back_a`, `back_b`, `left_a`, `left_b`; right
+is left mirrored): all black (the render's red is lighting, owner), one white eye, round head; `walleye`
+(16×16: `open`, `half`, `shut`), his eye in a blob of black goo; `puddle` (32×16: `small`, `large`), the black
+pool he rises from; `guide` (16×16: `glow`, `small`), the blue sparkle at a four-way's real door. Rush and
 Ambush were pixelated (2026-10-17) from the DOORS wiki pictures the owner
 pointed to (`static.wikitide.net/doorswiki/3/36/Rushvnew.webp`, `.../1/1a/Ambush_sprite.png`): Rush black
 smoke with a grey face and white teeth, Ambush green and white. `eyes` (32×32, `f0`/`f1`, the aura jittered)
@@ -196,13 +222,15 @@ colours with a 1 px outline. The logo is LSPLASH's; this is a fan project.
 
 ## Jumpscares (`assets/scares/`)
 
-`scare_rush`, `scare_ambush`, `scare_screech`, `scare_dupe` and `scare_figure` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2×
+`scare_rush`, `scare_ambush`, `scare_screech`, `scare_dupe`, `scare_figure` and `scare_seek` (`.gbc.png`, `.dmg.png`): full screen, 160×144, drawn at 2×
 (each art pixel is 2×2) in 4 shades, from the same pictures as the sprites. Same rules as the title picture:
 4 colours per 8×8 tile on GBC and at most 184 different tiles (Rush uses 115, Ambush 171, Dupe 94 (his red
 grin and eyes on black, from the pack's `dupe.png`), Figure 178 (his round head and a ring of uneven pale teeth round a dark throat, his hand over his ribs below;
 drawn from the owner's reference frame, `s6.ezgif.com/tmp/ezgif-68ca71228858ff9d-gif-png/frame_12_delay-0.07s.png`), Screech 155: his
-first version had 188, from speckle in the dark outline, and was simplified), since they're loaded over the
-tileset while shown.
+first version had 188, from speckle in the dark outline, and was simplified; Seek 176: his eye filling the
+screen, ragged white round a black pupil with two glints, after the owner's frame
+`s2.ezgif.com/tmp/ezgif-2ae1665ba6ea2208-gif-png/frame_15_delay-0.07s.png`, its speckle in 2×2 grains to stay
+under the limit (single pixels made 211)), since they're loaded over the tileset while shown.
 
 ## Music (`assets/music/`)
 

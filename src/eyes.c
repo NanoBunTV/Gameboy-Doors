@@ -24,10 +24,10 @@ int16_t eyes_x, eyes_y;
 static uint8_t looking, hits, anim;
 
 static spr_sheet_t sheet;
-static uint8_t frames_buf[SPR_EYES_FRAME_COUNT * 4];
 
-uint8_t eyes_load(uint8_t first_tile, uint8_t pal) BANKED {
-    return spr_sheet_load(&sheet, BANK(sprite_eyes), &sprite_eyes, first_tile, pal, frames_buf);
+void eyes_need_sprites(void) BANKED {
+    if (eyes_here)
+        spr_need(&sheet, BANK(sprite_eyes), &sprite_eyes);
 }
 
 void eyes_room_entered(void) BANKED {
@@ -95,5 +95,5 @@ void eyes_draw(void) BANKED {
     if (!eyes_here)
         return;
     uint8_t frame = (anim & 16) ? SPR_EYES_F1 : SPR_EYES_F0;
-    spr_draw_big(&sheet, frame, 2, 2, eyes_x - 16 - cam_x, eyes_y - 16 - cam_y);
+    spr_draw_big(&sheet, frame, 2, 2, eyes_x - 16 - cam_x, eyes_y - 16 - cam_y, 0);
 }

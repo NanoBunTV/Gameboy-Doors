@@ -16,6 +16,7 @@
 #include "image_scare_screech.h"
 #include "image_scare_dupe.h"
 #include "image_scare_figure.h"
+#include "image_scare_seek.h"
 
 #define SCARE_FRAMES 60
 #define TYPE_FRAMES  3       // per character
@@ -47,6 +48,12 @@ static const char *const lines_dupe[] = {
 static const char *const lines_figure[] = {
     "FIGURE GOT YOU.", "", "HE CAN'T SEE YOU,", "BUT HE HEARS YOU.", "", "HOLD B TO SNEAK,", "OR HIDE IN A",
     "CLOSET.", 0 };
+static const char *const lines_seek[] = {
+    "SEEK GOT YOU.", "", "HE'S SLOWER THAN", "YOU: KEEP RUNNING.", "", "THE RIGHT DOOR", "HAS A NUMBER AND",
+    "A BLUE LIGHT.", 0 };
+static const char *const lines_fire[] = {
+    "THE FIRE GOT YOU.", "", "SEEK IS SLOWER", "THAN YOU.", "", "TAKE THE TIME TO", "GO AROUND THE",
+    "FIRE.", 0 };
 static const char *const lines_halt[] = {
     "YOU DIED TO HALT.", "", "WHEN THE SCREEN", "SAYS TURN AROUND,", "WALK THE OTHER WAY", "", "KEEP GOING AND",
     "YOU'LL GET OUT.", 0 };
@@ -81,6 +88,8 @@ void death_jumpscare(uint8_t cause) BANKED {
         image_show(BANK(image_scare_dupe), &image_scare_dupe, 0, 0);
     else if (cause == DEATH_FIGURE)
         image_show(BANK(image_scare_figure), &image_scare_figure, 0, 0);
+    else if (cause == DEATH_SEEK || cause == DEATH_FIRE)   // his eye (owner's frame), both ways
+        image_show(BANK(image_scare_seek), &image_scare_seek, 0, 0);
     else
         image_show(BANK(image_scare_rush), &image_scare_rush, 0, 0);
     platform_set_fade(0);
@@ -105,8 +114,7 @@ static void type_lines(const char *const *lines) {
             text_queue(addr++, one);
             if (fast)
                 continue;
-            if (*c != ' ')
-                sfx_play(SFX_TYPE);
+            // Silent: a click per character clashed with the Guiding Light song (owner, 2026-10-18)
             for (uint8_t f = 0; f < TYPE_FRAMES; f++) {
                 wait_input();
                 if (input_pressed & (J_A | J_START))
@@ -147,7 +155,7 @@ uint8_t death_run(uint8_t cause) BANKED {
     frames = 0;
 
     if (cause == DEATH_RUSH || cause == DEATH_AMBUSH || cause == DEATH_SCREECH || cause == DEATH_DUPE ||
-        cause == DEATH_FIGURE)
+        cause == DEATH_FIGURE || cause == DEATH_SEEK || cause == DEATH_FIRE)
         death_jumpscare(cause);
     else
         game_fade(platform_fade, FADE_BLACK);
@@ -161,7 +169,8 @@ uint8_t death_run(uint8_t cause) BANKED {
     music_play(MUSIC_GUIDING);
     game_fade(FADE_BLACK, 0);
     static const char *const *const lines[] = { lines_rush, lines_rush, lines_ambush, lines_hide, lines_screech,
-                                                lines_eyes, lines_dupe, lines_halt, lines_figure };
+                                                lines_eyes, lines_dupe, lines_halt, lines_figure, lines_seek,
+                                                lines_fire };
     type_lines(lines[cause]);
     uint8_t choice = menu();
     sfx_play(SFX_SELECT);

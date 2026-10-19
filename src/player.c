@@ -14,6 +14,10 @@
 // Sneaking (B held where Figure is, game.c): half speed, and Figure doesn't hear it
 #define SNEAK_SPEED      0x00A0
 #define SNEAK_SPEED_DIAG 0x0071
+// Running from Seek: 1.4 times walking for the whole chase (Minecraft docs 08: the Hotel has no sprinting, so
+// the chase hands out Speed)
+#define CHASE_SPEED      0x01C0
+#define CHASE_SPEED_DIAG 0x013C
 
 // Walk cycle: idle, step A, idle, step B; each for 8 frames
 #define ANIM_SHIFT 3
@@ -24,6 +28,7 @@ static uint8_t sub_x, sub_y;
 static uint8_t anim_timer;
 uint8_t player_moving;
 uint8_t player_sneak;
+uint8_t player_fast;
 
 static spr_sheet_t sheet;
 static uint8_t frame_buf[SPR_PLAYER_FRAME_COUNT * 4];
@@ -142,6 +147,7 @@ void player_update(void) BANKED {
     player_moving = dx || dy;
     if (player_moving) {
         uint16_t speed = player_sneak ? ((dx && dy) ? SNEAK_SPEED_DIAG : SNEAK_SPEED)
+                       : player_fast  ? ((dx && dy) ? CHASE_SPEED_DIAG : CHASE_SPEED)
                                       : ((dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED);
         if (dx && move_x(dx, speed) && !dy)
             nudge_sideways_for_x(dx);

@@ -55,6 +55,14 @@ def octant(dx, dy):
 
 class Danger(Exception):
     """Rush or Ambush was announced while the bot was doing something else"""
+
+
+class SeekRises(Exception):
+    """Seek started rising (src/seek.c): the chase is on"""
+
+
+SEEK_OFF, SEEK_WAIT, SEEK_RISE, SEEK_CHASE, SEEK_STOP = 0, 1, 2, 3, 4
+KIND_SEEK_START, KIND_SEEK_4WAY, KIND_SEEK_END = 5, 6, 7
 FEET_X, FEET_Y = 8, 12
 # Facing used for interacting toward a neighbour cell
 DIRS = {(0, -1): "up", (0, 1): "down", (-1, 0): "left", (1, 0): "right"}
@@ -120,7 +128,8 @@ class Game:
         w, h = self.u8("_room_w"), self.u8("_room_h")
         base = self.syms["_room_map"]
         flags = self.syms["_mt_flags"]
-        solid = [[bool(self.mem[flags + self.mem[base + y * w + x]] & 1) for x in range(w)] for y in range(h)]
+        # Fire (MTF_FIRE, 4) kills: the bot treats it as wall
+        solid = [[bool(self.mem[flags + self.mem[base + y * w + x]] & 5) for x in range(w)] for y in range(h)]
         return w, h, solid
 
     def objects(self):
@@ -201,6 +210,8 @@ class Bot:
         self.met_dupe = False      # opened a wrong door with Dupe behind it
         self.halts = 0
         self.door_shots = None   # filename prefix: screenshot each exit door when walking up to it
+        self.chasing = False     # in play_chase: Seek's rise is expected
+        self.chases = 0
 
     def log(self, *a):
         if self.verbose:
@@ -227,6 +238,8 @@ class Bot:
         self.g.tick(mask)
         if self.g.state() == GAME_DEAD:
             raise RuntimeError(f"died (cause {self.g.u8('_game_death')})")
+        if self.g.u8("_seek_state") == SEEK_RISE and not self.chasing:
+            raise SeekRises()
         if self.g.entity() != ENT_IDLE and not self.g.hidden() and self.g.state() == GAME_PLAYING:
             raise Danger()
 
@@ -449,8 +462,44 @@ class Bot:
             raise RuntimeError(f"walked into {obj} but stayed in room {room}")
         self.wait_playing()
 
+    def kind(self):
+        return self.g.u8("_room_template_info", self.g.u8("_run_template", self.g.room()) * 7)
+
+    def play_chase(self):
+        """Seek's chase, from the start hallway to the room after the end hallway: up the hallway until he
+        rises, then through each room's real door (it opens by itself) round the fire, as fast as it goes"""
+        self.chases += 1
+        self.chasing = True
+        try:
+            start = self.g.room()
+            exit_ = self.exits()[1]
+            cellpos, _ = self.approach(exit_)
+            self.walk_to(cellpos)   # stops when he rises (the player is held), or at the door
+            while self.g.u8("_seek_state") in (SEEK_WAIT, SEEK_RISE):
+                if self.g.u8("_seek_state") == SEEK_WAIT:
+                    raise RuntimeError("walked the start hallway and Seek never rose")
+                self.g.tick(0)
+            self.log("chase on")
+            while self.kind() >= KIND_SEEK_START:
+                room = self.g.room()
+                exit_ = self.exits()[1]
+                cellpos, _ = self.approach(exit_)
+                self.walk_to(cellpos)
+                for _ in range(30):
+                    if self.g.flags() & RF_EXIT_OPEN:
+                        break
+                    self.step(0)
+                if not self.g.flags() & RF_EXIT_OPEN:
+                    raise RuntimeError(f"the chase door in room {room} didn't open")
+                self.go_through(exit_)
+            self.log("out of the chase in room", self.g.room(), "from", start)
+        finally:
+            self.chasing = False
+
     def play_room(self):
         """Plays the room until it goes through the exit; hides whenever something comes"""
+        if self.kind() == KIND_SEEK_START:
+            return self.play_chase()
         while True:
             try:
                 if self.g.entity() != ENT_IDLE and not self.g.hidden():
@@ -522,15 +571,16 @@ class Bot:
 
 
 def die_and_retry(g: Game, bot: Bot):
-    """Plays on until Rush or Ambush comes, stands still to be caught, then gets through the Guiding Light
+    """Plays on until Rush or Ambush comes (or Seek rises), stands still to be caught, then gets through the Guiding Light
     (A skips the typing, A again picks Try again) into a new run"""
     for _ in range(40):
         if g.entity() != ENT_IDLE:
             break
-        # play the room without hiding: Danger only interrupts, so finish rooms until something comes
+        # play the room without hiding: Danger only interrupts, so finish rooms until something comes. In
+        # a chase's start hallway, walk up it until Seek rises (he does the rest).
         try:
             bot.play_room_once()
-        except Danger:
+        except (Danger, SeekRises):
             break
     bot.log("standing still to be caught")
     for _ in range(4000):

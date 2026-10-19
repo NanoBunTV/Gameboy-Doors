@@ -51,12 +51,19 @@ if ($Test) {
         # breaks it shows up here. Re-record with scripts/record-run.ps1 after deliberate changes.
         & .\tools\venv\Scripts\python.exe scripts\bot.py $r --check 30 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
+        # Sheets are loaded per room (sprites.c): every drawn sprite's sheet must be in VRAM, through the
+        # whole replay and then the Library
+        & .\tools\venv\Scripts\python.exe scripts\sprite-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
     }
-    # The Library (room 50), which the recorded run doesn't reach: a DEBUG build warps there (game_warp)
+    # The Library (room 50) and Seek's chase (30-36), which the recorded run doesn't play: a DEBUG build warps
+    # there (game_warp)
     & $make DEBUG=1 $Target
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     foreach ($r in ($roms -replace '\\(gbc|dmg)\\', '\$1-debug\')) {
         & .\tools\venv\Scripts\python.exe scripts\library-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
+        & .\tools\venv\Scripts\python.exe scripts\seek-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
     }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }

@@ -49,13 +49,16 @@ static int32_t xa, ya;               // position, 24.8 fixed point
 static int16_t sx, sy;               // px moved per px of route, 8.8
 
 static spr_sheet_t rush_sheet, ambush_sheet;
-static uint8_t rush_frames[SPR_RUSH_FRAME_COUNT * 4], ambush_frames[SPR_AMBUSH_FRAME_COUNT * 4];
 
-uint8_t entity_load(uint8_t first_tile, uint8_t first_pal) BANKED {
-    first_tile += spr_sheet_load(&rush_sheet, BANK(sprite_rush), &sprite_rush, first_tile, first_pal, rush_frames);
-    first_tile += spr_sheet_load(&ambush_sheet, BANK(sprite_ambush), &sprite_ambush, first_tile, first_pal + 1,
-                                 ambush_frames);
-    return first_tile;
+// He fires only on entering a room (entity_room_entered), so his sheet is known at the door: the one he is,
+// while he's on his way and this room is on his route (he never goes past the room he fired in)
+void entity_need_sprites(void) BANKED {
+    if (entity_state == ENT_IDLE || end_room < run_room)
+        return;
+    if (entity_kind == ENTITY_AMBUSH)
+        spr_need(&ambush_sheet, BANK(sprite_ambush), &sprite_ambush);
+    else
+        spr_need(&rush_sheet, BANK(sprite_rush), &sprite_rush);
 }
 
 void entity_reset(void) BANKED {
@@ -105,8 +108,8 @@ void entity_room_entered(uint8_t first_time) BANKED {
         entity_queued = (run_flags[run_room] & RF_AMBUSH) ? ENTITY_AMBUSH : ENTITY_RUSH;
         patience = QUEUE_PATIENCE;
     }
-    if (!entity_queued || run_room == RUN_LIBRARY_ROOM)
-        return;   // nothing follows you into the Library: the spawn waits for the next room (Minecraft docs 07)
+    if (!entity_queued || run_room == RUN_LIBRARY_ROOM || run_kind_at(run_room) >= ROOM_KIND_SEEK_START)
+        return;   // nothing follows you into the Library or a chase: the spawn waits (Minecraft docs 07, 08)
     // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits.
     if (hide_free_spots() && !light_dark)
         fire();
@@ -271,7 +274,7 @@ void entity_draw(void) BANKED {
         return;
     spr_sheet_t *sh = entity_kind == ENTITY_AMBUSH ? &ambush_sheet : &rush_sheet;
     uint8_t frame = (anim & 4) ? SPR_RUSH_F1 : SPR_RUSH_F0;   // both sheets: two 32x32 frames, same layout
-    spr_draw_big(sh, frame, 2, 2, entity_x - 16 - cam_x, entity_y - 16 - cam_y);
+    spr_draw_big(sh, frame, 2, 2, entity_x - 16 - cam_x, entity_y - 16 - cam_y, 0);
 }
 
 // The lights stutter while he's announced and while he's in the room: an irregular pattern, not a switch

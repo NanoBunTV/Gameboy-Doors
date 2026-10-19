@@ -64,12 +64,13 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
 - **Room 0 is the reception**: door 1 is always locked and its key hangs on the wall behind the desk (DOORS'
   tutorial). The elevator before it comes with the economy phase.
 - **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
+- **Seek's chases are rooms 30–35 and 70–79** (Phase 7, below). Rooms 29 and 69 always have one door, on top.
 - Fixed rooms still to come: **Jeff's Shop (55)**, the Courtyard and Greenhouse (89–99),
-  Room 100. Seek's chases (between roughly 30–45 and 80–89) and Halt's hallway are scripted sequences of rooms.
+  Room 100. Halt's hallway is a scripted sequence of its own.
   Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
   door says "TO BE CONTINUED...".
-- **Doors**: every door in a top wall shows its number in brass on a dark header above it, open or shut (side
-  doors while shut), and the HUD shows it on entering. **A**
+- **Doors**: every door shows its number in brass on a dark header above it, open or shut, and the HUD shows
+  it on entering. An open side door looks like an open top-wall door, number kept (owner, 2026-10-18). **A**
   opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
 - **Locked doors**: 18% of rooms that allow it lock their exit; the key is in that room, in a drawer (mostly)
   or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
@@ -103,6 +104,33 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 07*, *MC 10*):
   with 3 s before he can hear you.
 - **Music**: the owner's *Unhinged (Library Theme)*, arranged, from entering until you walk out.
 
+## Seek's chases (built in Phase 7)
+
+Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
+
+- **Where**: rooms 30–35 and 70–79. Room 30 (70) is the **start hallway**, 31–34 (71–78) **four-way rooms**,
+  35 (79) the **end hallway**; 36 (80) is safe. Each is its own room with the usual quick fade between (time
+  stops in the fade, for him too). All three kinds are authored in Tiled (`seek_start`, `seek_4way`,
+  `seek_end`), the fire too; nothing else happens in a chase room (no Rush, Eyes, dark, Dupe, Halt, locks).
+- **Before**: Seek's eyes appear on the walls (anywhere on a wall), one in room 25, one more each room, six
+  in the start hallway. Harmless; they blink.
+- **The rise**: three quarters of the way up the start hallway (or past an authored `seek` point) the player
+  stops, a black puddle spreads behind them and Seek rises out of it (about 3 s). Then his music, *Here I
+  Come* (the owner's MIDI, arranged), and the chase.
+- **Running**: the player runs at **1.4 times walking** for the whole chase; Seek follows the door-to-door
+  line Rush takes at **0.75 of that**. He can't catch someone who keeps running: a wrong door, the fire or
+  stopping is what gets you caught. You hear his footsteps, louder as he closes in (no arrow, owner's
+  choice).
+- **Four-way rooms**: three doors, only one real, with its number and a **blue glow** in front of it; the
+  others are numberless fakes ("IT'S FAKE."). **The real door opens by itself** as you reach it.
+- **Caught**: within his reach (1.5 metatiles), or anywhere in a room behind him (you got round him and he
+  went on). Instant death: **his eye full-screen**, then the Guiding Light.
+- **The end hallway**: patches of **fire** (deadly to walk into: his eye too, then a hint about taking the time
+  to go round). Seek stops two metatiles short of its door; when you're through, **it slams** behind you, the
+  music stops and you walk at normal speed again.
+- **Art** (owner's picks from mock-ups): Seek all black, one white eye, 24×32 (back, side and front views),
+  the eye on the wall, the puddle, the glow, two fire tiles, his eye as the jumpscare.
+
 ## Hiding (built in Phase 3)
 
 - **Closets and beds** (owner: both). A at one hides: the player sprite disappears and the room darkens
@@ -133,7 +161,7 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 07*, *MC 10*):
 | Halt | **Phase 5.** 3% per room arms the next (plain) door, once a run. It leads into a sideways, blue-lit hallway (owner) about 8 turn-arounds long; Halt walks at you, and when the screen flashes and big "TURN AROUND" text shows, he's in front of you instead: walk the other way. Forward legs are 35% longer. The far door returns you to the corridor at the door that started it | 60 HP a hit; he goes back to the leg's start. Nothing else (Rush, Screech, Eyes) runs while he does (*MC 06*) |
 | Dupe | **Phase 5.** New rooms with 2–3 doors (top plus sides); which is real is picked per run. 35% per such room from room 6: the wrong doors show wrong numbers (one below or up to two above), and opening one is a full-screen jumpscare and 40 HP, then the door shows a garbled number. On a miss the wrong doors have no number and say "IT'S FAKE." | Ignores the lock, spends no key (*MC 06*) |
 | Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
-| Seek | Eyes appear on walls before the chase; then a scripted chase through several rooms with fallen furniture and hands from the side rooms to avoid | Speed boost during the chase (*MC 11*) |
+| Seek | **Phase 7** (above): eyes on the walls before; the rise; a chase through four-way rooms (one real, glowing door) to an end hallway with fire; caught by touch or by being behind him | Speed boost during the chase (*MC 08*, *MC 11*); he runs at 0.75 of it |
 | Figure | **Phase 6 in the Library** (above); Room 100 in Phase 8. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
 | Timothy | **Phase 5.** 1 drawer in 200, once a run: a small spider jumps out of the drawer at you, 10 HP, and the drawer is empty after (owner) | Never lethal: leaves at least 1 HP (*MC 12*); never in a drawer holding the key |
 

@@ -11,7 +11,7 @@
 extern uint8_t eyes_here;          // in the current room (scripts/bot.py reads it)
 extern int16_t eyes_x, eyes_y;     // his middle, room pixels
 
-uint8_t eyes_load(uint8_t first_tile, uint8_t pal) BANKED;   // returns tiles used
+void eyes_need_sprites(void) BANKED;   // after eyes_room_entered: his sheet, if he's in this room
 void eyes_room_entered(void) BANKED;   // after the room is loaded and before it's drawn: sets his light
 uint8_t eyes_update(void) BANKED;      // per frame; DEATH_EYES if he drained the last HP
 void eyes_draw(void) BANKED;

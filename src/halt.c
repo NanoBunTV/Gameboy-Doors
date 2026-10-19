@@ -18,6 +18,7 @@
 #include "tileset_hotel.h"
 #include "sprite_halt.h"
 #include "sprite_letters.h"
+#include "sprite_player.h"
 
 // The spacing sum (Minecraft docs 06, "The spacing sum"): each leg starts him far enough away that
 // reacting GRACE frames late is exactly survivable, d = speed * grace + (leg - grace) * (speed - walk).
@@ -34,11 +35,15 @@
 #define FLASH_FRAMES 4
 #define TOUCH_X     10       // contact: his middle within this of yours, across and ...
 #define TOUCH_Y     14       // ... up and down
-#define HALT_TILE   40       // his sheets borrow Rush and Ambush's sprite tiles and palettes 2-3
-#define HALT_PAL    2
+
+// The hallway's sprite VRAM (halt_run): no other entity runs here, so only these
+SPR_CHECK(SPR_PLAYER_TILES + SPR_HALT_TILES + SPR_LETTERS_TILES <= SPR_TILE_LIMIT(TILESET_HOTEL_TILES),
+          halt_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_HALT_PALETTES + SPR_LETTERS_PALETTES <= SPR_PALETTE_LIMIT,
+          halt_sprites_need_over_8_gbc_palettes);
+SPR_CHECK((SPR_HALT_FRAME_COUNT + SPR_LETTERS_FRAME_COUNT) * 4 <= SPR_FRAME_POOL, halt_frame_tables_outgrow_the_pool);
 
 static spr_sheet_t halt_sheet, letters_sheet;
-static uint8_t halt_frames[SPR_HALT_FRAME_COUNT * 4], letter_frames[SPR_LETTERS_FRAME_COUNT * 4];
 static int16_t hx, hy;            // his middle, room pixels
 static uint8_t hsub;              // fraction of a pixel across
 int8_t halt_dir;                  // +1: the player must walk right (he's behind, on the left); -1: left
@@ -68,7 +73,7 @@ static void draw(void) {
     player_draw();
     // 24x32 in a 32x32 frame (its right column is empty); the hem ripples, the whole of him jitters
     spr_draw_big(&halt_sheet, (anim & 8) ? SPR_HALT_F1 : SPR_HALT_F0, 2, 2,
-                 hx - 12 - cam_x + ((anim >> 1) & 1), hy - 16 - cam_y);
+                 hx - 12 - cam_x + ((anim >> 1) & 1), hy - 16 - cam_y, 0);
     spr_end();
 }
 
@@ -144,15 +149,16 @@ uint8_t halt_run(void) BANKED {
             room_set_metatile(o->x, o->y, room_make_plate(3, MT_HOTEL_SIDE_DOOR_TOP, PLATE_BLANK));
             room_set_metatile(o->x, o->y + 1, MT_HOTEL_SIDE_DOOR_BOTTOM);
         } else if (o->type == OBJ_EXIT) {
-            room_set_metatile(o->x, o->y, MT_HOTEL_SIDE_OPEN_TOP);
-            room_set_metatile(o->x, o->y + 1, MT_HOTEL_SIDE_OPEN_BOTTOM);
+            // As every open side door (game.c door_set): the open doorway, here with a blank plate
+            room_set_metatile(o->x, o->y, room_make_plate(0, MT_HOTEL_DOOR_OPEN_TOP, PLATE_BLANK));
+            room_set_metatile(o->x, o->y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
             player_place(16 + 2, ((int16_t)o->y << 4) + 16 - 10, DIR_RIGHT);   // as through a left-wall door
         }
     }
     light_room(0);
-    uint8_t t = HALT_TILE + spr_sheet_load(&halt_sheet, BANK(sprite_halt), &sprite_halt, HALT_TILE, HALT_PAL,
-                                           halt_frames);
-    spr_sheet_load(&letters_sheet, BANK(sprite_letters), &sprite_letters, t, HALT_PAL + 1, letter_frames);
+    spr_room_begin();   // the hallway is a room of its own (the next door asks for that room's sheets)
+    spr_need(&halt_sheet, BANK(sprite_halt), &sprite_halt);
+    spr_need(&letters_sheet, BANK(sprite_letters), &sprite_letters);
     platform_set_dim(0, TINT_BLUE);   // owner: blue-lit, as in DOORS (grey on DMG)
 
     halt_dir = 1;   // he comes from behind first
@@ -174,10 +180,9 @@ uint8_t halt_run(void) BANKED {
     platform_set_flash(0);
     if (r == DEATH_HALT)
         return DEATH_HALT;
-    // Out: back to the corridor (the caller enters the next room), the borrowed sprite VRAM restored
+    // Out: back to the corridor (the caller enters the next room, which loads its own sprite sheets)
     game_state = GAME_TRANSITION;
     game_fade(0, FADE_BLACK);
     platform_set_dim(0, TINT_NONE);
-    game_init();
     return 0;
 }

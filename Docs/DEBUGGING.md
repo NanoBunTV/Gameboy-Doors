@@ -121,7 +121,10 @@ and the glow in turn. Dying fails the run.
 PREFIX` one of each exit door as it walks up to it (`PREFIX-door-NNN.png`); a failure saves
 `bot-fail.png` and names the room and template. `--die-at-end` (used by `record-run.ps1`): after the last
 room, play on until something comes, stand still to be caught, skip the Guiding Light's typing with A and
-pick Try again.
+pick Try again. Since Phase 7 room 30 is Seek's start hallway, so the recorded run ends by walking up it until he
+rises and standing still: his rise, his catch and his eye are in every BGB and scroll-test run. The bot plays a
+whole chase (`play_chase`: up the hallway, then each room's real door, round the fire) when `--rooms` goes past
+30; it treats fire as wall.
 
 `--record` writes the buttons held at every `input_update()` call, run-length coded, to
 `tests/autotest_input.c` (about 1.5 KB for 30 rooms and the death). It records from a PyBoy hook on
@@ -149,7 +152,26 @@ next drawer opened that doesn't hold the key holds him; checked 2026-10-18 on bo
 5 → 1: he never takes the last). A dark room or Eyes: set `RF2_DARK` / `RF2_EYES` in `run_flags2[n]` before
 entering room n (Phase 4). Dupe and Halt come up in the recorded run's seed. **Any room**: poke a room number
 into `game_warp` (DEBUG and AUTOTEST builds) and the next frame enters it through its entry door, with the
-rooms before it planned (how the Library is reached: the recorded run stops at room 30).
+rooms before it planned (how the Library and the chase are reached: the recorded run stops at room 30).
+
+### Seek's chase: `scripts/seek-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\seek-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\seek-test.py build\dmg-debug\doors.gb
+```
+
+Five runs in a DEBUG (or AUTOTEST) ROM, each warped (`game_warp`). **eyes**: rooms 25–30 have 1–6 wall eyes
+(`walleyes_count`), room 23 none. **chase**: in room 30 Seek waits; walking up, he rises (the player can't
+move), then the chase (`player_fast`); the bot takes each room's real door (it must open by itself) to room
+36: Seek off, walking speed, door 36 shut behind. **caught**: standing still after the rise kills (cause 9).
+**behind**: going round him (two columns over, out of his 24 px reach) and down: when he goes on into room
+31 the player is behind him, caught (cause 9). **fire**: warped to room 35 (no chase), walking into a fire
+cell kills (cause 10). Screenshots `build/screens/seek-<console>-*.png`: the eyes, the rise, a four-way, the
+end hallway, room 36, the fire, his eye. About a minute a console.
+
+To look at the glow by hand: warp to a four-way room (31–34), then poke `seek_state` 3 and `seek_room` to the
+room before (a chase in progress, him a room behind).
 
 ### The Library: `scripts/library-test.py`
 
@@ -162,9 +184,29 @@ Warps to room 50 in a DEBUG (or AUTOTEST) ROM three times. **puzzle**, with Figu
 (`figure_state` poked to 0): reads the paper and all eight books and checks the HUD says what the plan
 (`lib_book_*`, `lib_paper` in WRAM) says, checks the notes count 8, tries a wrong code (the wheels reset),
 dials the right one, opens the door and walks into room 51 (Figure stays behind). **sneak**: 15 s of walking
-with B held after the grace; Figure must never hunt (`figure_hunting`). **figure**: walking without B; he
+with B held after the grace; Figure must never hunt (`figure_hunting`). Wandering, he can still walk into
+the player (cause 8): that's noted, not failed (it happened with the Phase 7 boot timing). **figure**: walking without B; he
 must hear, hunt and kill (death cause 8). Screenshots go to `build/screens/lib-<console>-*.png` (the panels,
 Figure close, his scare). Takes about a minute a console.
+
+### Sprite sheets per room: `scripts/sprite-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\sprite-test.py build\gbc-autotest\doors.gbc
+tools\venv\Scripts\python.exe scripts\sprite-test.py build\dmg-autotest\doors.gb
+```
+
+Replays the whole recording in an AUTOTEST ROM, warps into the Library for 900 frames, then to the first
+room from 2 with a drawer other than the key's, pokes `run_force_timothy` and has the bot open it (Timothy's
+sheet is the one loaded mid-room). While playing
+(and in Halt's hallway) it reads `spr_slot_src` / `spr_slots` (sprites.c, exported for this) and checks that
+each sheet the room asked for has its tiles in VRAM where the packing puts them (against the ROM's bytes,
+whenever the slots change and every 60 frames), and that every sprite in shadow OAM uses a tile of the
+player's or a loaded sheet, with (GBC) that sheet's palette. A sheet drawn without being asked for (a new
+entity missing from `load_room_sprites`) fails here. It also prints which sheets were loaded, the tiles
+written per change and the frames each door's black screen lasted, and fails if the run stops covering the
+key, Eyes, Halt, the Library or Timothy. If a sprite looks like garbage on screen, this is the first thing to
+run. About a minute a console.
 
 ### Background correctness: `scripts/scroll-test.py`
 

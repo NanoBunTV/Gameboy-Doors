@@ -17,8 +17,8 @@ extern uint8_t figure_hunting;     // walking at a noise (for tests)
 #define FIG_WALK  2
 #define FIG_PAUSE 3   // got there; a moment before the next wander
 
-// His sheet and the marks into sprite VRAM from `tile` (palettes pal, pal + 1). Returns the tiles used.
-uint8_t figure_load(uint8_t tile, uint8_t pal) BANKED;
+// The Library's sheets for this room (sprites.h spr_need): the marks (glint, arrows), and him if he's here
+void figure_need_sprites(void) BANKED;
 
 // Puts him at metatile (mx, my), wandering, deaf for `grace` frames (the hint on entering)
 void figure_start(uint8_t mx, uint8_t my, uint8_t grace) BANKED;

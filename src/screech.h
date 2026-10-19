@@ -16,7 +16,7 @@ extern uint8_t screech_state;   // SCREECH_* (scripts/bot.py reads it)
 #define SCREECH_GOING 2         // looked at: shuddering away
 extern uint8_t screech_dir;     // where he is (DIR_*), while SCREECH_HERE
 
-uint8_t screech_load(uint8_t first_tile, uint8_t pal) BANKED;   // returns tiles used
+void screech_need_sprites(void) BANKED;   // after the room is lit: his sheet, if it's dark
 void screech_reset(void) BANKED;          // a new run
 void screech_room_entered(void) BANKED;   // gone, no cooldown
 uint8_t screech_update(void) BANKED;      // per frame; 1 if he bit

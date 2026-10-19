@@ -19,11 +19,10 @@ extern uint8_t library_left;      // walked out through the padlocked door: Figu
 
 void library_reset(void) BANKED;  // a new run
 
-// Room 50 has been loaded (and the player placed): books, Figure, the music, the hint the first time.
-// The sprite VRAM Figure borrows is given back by game_init() when leaving.
+// Room 50 has been loaded (and the player placed): books, Figure, the music, the hint the first time
 void library_enter(void) BANKED;
-// Sprite sheets only (after a full-screen picture used sprite VRAM)
-void library_load_sprites(void) BANKED;
+// The room's sprite sheets (game.c load_room_sprites, after library_enter): the marks, and Figure if he's here
+void library_need_sprites(void) BANKED;
 // Leaving room 50 for the next room (through the padlocked door)
 void library_exit(void) BANKED;
 

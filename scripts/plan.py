@@ -19,6 +19,24 @@ TOP, BOTTOM, LEFT, RIGHT = 1, 2, 3, 4
 OPP = {TOP: BOTTOM, LEFT: RIGHT, RIGHT: LEFT, BOTTOM: TOP}
 M = 0xFFFF
 LIBRARY = 50   # run.h RUN_LIBRARY_ROOM
+CHASES = [(30, 35), (70, 79)]   # run.h RUN_CHASE_START, RUN_CHASE_END
+HAS_SEEK = all(any(x[0] == k for x in info) for k in (5, 6, 7))   # room_templates.h ROOM_HAS_SEEK
+
+
+def kind_at(n):
+    """run.c run_kind_at"""
+    if n == 0:
+        return 1
+    if n == LIBRARY:
+        return 4
+    for s, e in CHASES if HAS_SEEK else []:
+        if n == s:
+            return 5
+        if s < n < e:
+            return 6
+        if n == e:
+            return 7
+    return 0
 
 
 class Plan:
@@ -48,20 +66,21 @@ class Plan:
 
     def room(self, n):
         self.seed_rng(self.seed, n)
-        if n == 0:
-            t = next(i for i, x in enumerate(info) if x[0] == 1)
-        elif n == LIBRARY:
-            t = next(i for i, x in enumerate(info) if x[0] == 4)
+        kind = kind_at(n)
+        chase = kind >= 5
+        before_fixed = n < 100 and kind_at(n + 1) in (4, 5)
+        if kind in (1, 4):
+            t = [i for i, x in enumerate(info) if x[0] == kind][-1]
         else:
             need = OPP[exits[self.t[n - 1]][self.exit[n - 1]]]
             cands = []
             for p in range(2):
                 for i, x in enumerate(info):
-                    if x[0] != 0 or x[1] != need:
+                    if x[0] != kind or x[1] != need:
                         continue
-                    if n == LIBRARY - 1 and (exits[i][0] != TOP or exits[i][1]):
+                    if before_fixed and (exits[i][0] != TOP or exits[i][1]):
                         continue
-                    recent = p == 0 and any(self.t[n - b] == i for b in range(1, 4) if b <= n)
+                    recent = p == 0 and not chase and any(self.t[n - b] == i for b in range(1, 4) if b <= n)
                     if not recent:
                         cands.append(i)
                 if cands:
@@ -84,7 +103,7 @@ class Plan:
                 slot = self.below(x[4])
             else:
                 slot = self.below(x[5])
-        lib = n == LIBRARY
+        lib = n == LIBRARY or chase
         if not lib and 3 <= n < 100 and self.below(100) < 18:
             flags |= 0x40
             if self.below(100) < 10:
@@ -98,9 +117,9 @@ class Plan:
         real = 0
         if ne > 1:
             real = self.below(ne)
-            if 6 <= n < 100 and self.below(100) < 35:
+            if not chase and 6 <= n < 100 and self.below(100) < 35:
                 f2 |= 8
-        elif (not self.halt_planned and not lib and n != LIBRARY - 1 and 10 <= n < 100 and not (flags & 1)
+        elif (not self.halt_planned and not lib and not before_fixed and 10 <= n < 100 and not (flags & 1)
               and self.below(100) < 3):
             f2 |= 0x40
             self.halt_planned = True

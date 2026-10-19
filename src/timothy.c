@@ -18,17 +18,17 @@
 #define STATE_FLEE  2
 
 static spr_sheet_t sheet;
-static uint8_t frames_buf[SPR_TIMOTHY_FRAME_COUNT * 4];
 static uint8_t state, t;
 static int16_t x0, y0, tx, ty, x, y;   // the spider's top left (an 8x8 sprite), room pixels
 static int8_t fdx, fdy;
 
-uint8_t timothy_load(uint8_t first_tile, uint8_t pal) BANKED {
-    return spr_sheet_load(&sheet, BANK(sprite_timothy), &sprite_timothy, first_tile, pal, frames_buf);
-}
-
 void timothy_reset(void) BANKED {
     state = STATE_NONE;
+}
+
+void timothy_need_sprites(void) BANKED {
+    if (state)
+        spr_need(&sheet, BANK(sprite_timothy), &sprite_timothy);
 }
 
 void timothy_spring(uint8_t mx, uint8_t my) BANKED {
@@ -38,6 +38,7 @@ void timothy_spring(uint8_t mx, uint8_t my) BANKED {
     ty = player_y + 4;
     state = STATE_JUMP;
     t = 0;
+    timothy_need_sprites();   // only now, mid-room, after the room's other sheets (2 tiles: well inside a frame)
     sfx_play(SFX_TIMOTHY);
     hud_message("SOMETHING JUMPS OUT!", 90);
 }

@@ -74,6 +74,19 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   Theme)* arranged. GBC's WRAM overflowed into the stack on the first build (romusage only said 100%): the
   room map limit went from 3,072 to 2,816 metatiles. The ROM grew to 128 KB. A `game_warp` poke and
   `scripts/library-test.py` test the room, since the recorded run stops at room 30.
+- **2026-10-18**: **Sprite sheets per room**, before Phase 7 (owner's request, four questions). Sprite VRAM
+  had every sheet loaded all the time (144 tiles, 7 of 8 GBC palettes), with Halt and Figure borrowing
+  Rush's tiles. Now each door loads only what that room can show (worst case 112 tiles, 6 palettes), Timothy
+  loads when he springs, and the build fails if any room's set could outgrow VRAM. Found on the way: walking
+  back into the Library after leaving it drew the glints from Rush's tiles. `scripts/sprite-test.py` checks it.
+- **2026-10-18**: the Guiding Light's typing sound removed (it clashed with the song), and open side doors now
+  look like open top-wall doors with their number kept (owner's requests, from play).
+- **2026-10-18**: **Phase 7 done** (Seek): four rounds of questions and art mock-ups (answers below). Chases at
+  30–35 and 70–79 from three new authorable room kinds (start hallway, four-way rooms, end hallway) with seven
+  default rooms; Seek's eyes on the walls before; his rise out of a puddle; the chase at 1.4× walking with him
+  at 0.75 of it, the real door glowing and opening by itself, caught by touch or by being behind him; fire
+  tiles; the slam; his eye as the jumpscare; the owner's *Here I Come* arranged. The room sheets' frame tables
+  went into one pool to make the GBC's WRAM room. The recorded run now ends with Seek catching the bot.
 
 ## Decisions and why
 
@@ -143,6 +156,16 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | The notes (Start) don't pause; the padlock turns both ways (Up/Down); a wrong code resets the wheels silently | Owner's choices (2026-10-18). The notes and the padlock share a panel over the bottom of the screen (owner's pick from mock-ups), so the room and Figure stay in view |
 | Library art: bookcases in three spine mixes on the hotel floor and carpet, a desk with the paper, a numberless padlocked door; Figure 32×48 (pick A of two sizes); his scare as mocked up | Owner's picks (2026-10-18). Figure after the DOORS wiki render and a frame of his jumpscare the owner linked; no pack texture exists |
 | The Library's music: *Unhinged (Library Theme)*; *Unhinged II (Electrical Theme)* for Room 100 | Owner (2026-10-18): added both MIDIs to `assets/music/midi/` |
+| Sprite sheets loaded per room (Timothy on demand), packed in the order asked for; the same layout on both consoles; a build-time check per set of sheets | Owner's choices (2026-10-18): "per room or on demand, whichever frees up more resources"; loading during the door's fade; GBC's second VRAM bank "for now" not used but kept in mind for later features; overflow caught at build time. Per room frees as much as on demand here: one room can hold every hotel entity at once, so only Rush/Ambush (never together) and rooms without them gain. The loader works mid-room anyway (Timothy), for later events |
+| Open side doors look like open top-wall doors, number kept | Owner (2026-10-18): the number vanished when a side door opened (a plain floor gap). Picked from a mock-up |
+| No typing sound on the Guiding Light | Owner (2026-10-18): it overlapped the Guiding Light song unpleasantly |
+| Seek's chases at 30–35 and 70–79: start hallway, four-way rooms, end hallway; separate rooms with the usual fade | Owner's choices (2026-10-18), the Minecraft layout (*MC 08*) over one chase or a random start, and over one long scrolling map |
+| A short rise (about 3 s, the player held, a puddle behind them); you run at 1.4× walking, he at 0.75 of that | Owner's choices (2026-10-18): the Minecraft speeds over a tighter chase or no boost |
+| The right door: its number and a blue glow; real doors open on approach; fake doors stay shut | Owner's choices (2026-10-18) |
+| Fire in the end hallway, deadly; every chase room and the fire placeable by the owner in Tiled | Owner (2026-10-18): "All rooms including the library and room 0 must be fully authorable" |
+| Seek 24×32; eyes on the walls building up before (anywhere on a wall); footsteps only (no arrow); death by his eye full-screen; the door slams | Owner's choices (2026-10-18) |
+| Seek all black with one white eye, round head; art from the DOORS wiki render and frames the owner linked | Owner (2026-10-18): "Ignore the red highlights, that was just the lighting in the render"; "remove the bump from the top of his head" |
+| The chase music: *Here I Come (Seek Chase)* arranged on three channels, CH4 left for his footsteps | Owner's choice (2026-10-18) |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

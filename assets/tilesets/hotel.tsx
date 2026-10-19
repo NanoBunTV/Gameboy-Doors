@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="39" columns="8">
- <image source="hotel.gbc.png" width="128" height="80"/>
+<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="41" columns="8">
+ <image source="hotel.gbc.png" width="128" height="96"/>
  <tile id="0">
   <properties>
    <property name="name" value="void"/>
@@ -35,18 +35,21 @@
  <tile id="6">
   <properties>
    <property name="name" value="wall_top"/>
+   <property name="wall" type="bool" value="true"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="7">
   <properties>
    <property name="name" value="wallpaper"/>
+   <property name="wall" type="bool" value="true"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="8">
   <properties>
    <property name="name" value="wainscot"/>
+   <property name="wall" type="bool" value="true"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
@@ -89,6 +92,7 @@
  <tile id="15">
   <properties>
    <property name="name" value="wallpaper_shadow"/>
+   <property name="wall" type="bool" value="true"/>
    <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
@@ -226,6 +230,18 @@
   <properties>
    <property name="name" value="door_bottom_padlock"/>
    <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="39">
+  <properties>
+   <property name="name" value="fire_a"/>
+   <property name="fire" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="40">
+  <properties>
+   <property name="name" value="fire_b"/>
+   <property name="fire" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

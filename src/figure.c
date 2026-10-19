@@ -39,7 +39,6 @@
 
 spr_sheet_t figure_marks;
 static spr_sheet_t sheet;
-static uint8_t frames_buf[SPR_FIGURE_FRAME_COUNT * 4], marks_buf[SPR_MARKS_FRAME_COUNT * 4];
 
 uint8_t figure_state;
 int16_t figure_x, figure_y;
@@ -60,9 +59,10 @@ static uint16_t rnd(void) {
     return rng;
 }
 
-uint8_t figure_load(uint8_t tile, uint8_t pal) BANKED {
-    uint8_t n = spr_sheet_load(&sheet, BANK(sprite_figure), &sprite_figure, tile, pal, frames_buf);
-    return n + spr_sheet_load(&figure_marks, BANK(sprite_marks), &sprite_marks, tile + n, pal + 1, marks_buf);
+void figure_need_sprites(void) BANKED {
+    spr_need(&figure_marks, BANK(sprite_marks), &sprite_marks);   // the glints, even once he's gone
+    if (figure_state != FIG_OFF)
+        spr_need(&sheet, BANK(sprite_figure), &sprite_figure);
 }
 
 static uint8_t walkable(uint16_t c) {
@@ -270,7 +270,7 @@ void figure_draw(void) BANKED {
     // 32x48, feet at the bottom middle; the two frames alternate while he walks
     int16_t sx = figure_x - 16 - cam_x, sy = figure_y - 46 - cam_y;
     uint8_t f = (figure_state == FIG_WALK && (anim & (figure_hunting ? 8 : 16))) ? SPR_FIGURE_F1 : SPR_FIGURE_F0;
-    spr_draw_big(&sheet, f, 2, 3, sx, sy);
+    spr_draw_big(&sheet, f, 2, 3, sx, sy, 0);
     // Off screen: an arrow at the edge nearest him (owner: footsteps and an edge arrow)
     int16_t ox = sx < -32 ? -32 - sx : sx > 160 ? sx - 160 : 0;
     int16_t oy = sy < -48 ? -48 - sy : sy > 144 ? sy - 144 : 0;

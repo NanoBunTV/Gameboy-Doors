@@ -120,9 +120,32 @@ static const step_t s_book[] = {
     { 6, 0, 0, ENV(4, 1), 0x24, 0x80 },
     END };
 
+// Seek: a quick, wet footstep (volume by distance, seek.c); the puddle bubbling up and him rising out of it
+// (a slow pitch rise on CH1); the last door slamming; the fire's crackle
+static const step_t s_seek_step[] = {
+    { 4, 0, 0, ENV(11, 1), 0x53, 0x80 },
+    END };
+static const step_t s_seek_rise[] = {
+    { 10, 0, 0, ENV(9, 1), 0x61, 0x80 },           // (CH4) bubbling
+    { 8, 0, 0, ENV(7, 1), 0x51, 0x80 },
+    { 10, 0, 0, ENV(9, 1), 0x61, 0x80 },
+    { 8, 0, 0, ENV(7, 1), 0x51, 0x80 },
+    { 60, 0, 0, ENV(12, 0), 0x70, 0x80 },          // the rise: a long low roar
+    { 40, 0, 0, ENV(12, 5), 0x60, 0x80 },
+    END };
+static const step_t s_slam[] = {
+    { 4, 0, 0, ENV(15, 0), 0x50, 0x80 },
+    { 40, 0, 0, ENV(15, 3), 0x84, 0x80 },
+    END };
+static const step_t s_fire[] = {
+    { 30, 0, 0, ENV(15, 2), 0x31, 0x80 },
+    END };
+
 const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
     s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
-    s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book,
+    s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book, s_seek_step, s_seek_rise, s_slam,
+    s_fire,
 };
-const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3 };
+const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3,
+                                      3, 3, 3, 3 };

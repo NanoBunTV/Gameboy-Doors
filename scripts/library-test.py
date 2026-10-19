@@ -152,7 +152,11 @@ for f in range(900):
     hunted |= g.u8("_figure_hunting")
     if g.state() != GAME_PLAYING:
         break
-check(g.state() == GAME_PLAYING and not hunted, "sneaking (B held) for 15 s: never heard")
+# Wandering, he can still blunder into a player who isn't moving away (the Minecraft rule too: STATUS.md), so
+# a contact death here isn't hearing; any other death is a failure
+if g.state() != GAME_PLAYING:
+    print(f"  note: he wandered into the player after {f} frames, without hearing them (cause {g.u8('_game_death')})")
+check(not hunted and (g.state() == GAME_PLAYING or g.u8("_game_death") == 8), "sneaking (B held): never heard")
 x1, y1 = g.feet()
 g.pyboy.stop(save=False)
 

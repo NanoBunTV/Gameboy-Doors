@@ -6,8 +6,8 @@
 #include <gb/gb.h>
 #include <stdint.h>
 
-uint8_t timothy_load(uint8_t first_tile, uint8_t pal) BANKED;   // returns tiles used
 void timothy_reset(void) BANKED;                                // a new room: he's gone
+void timothy_need_sprites(void) BANKED;                         // his sheet, while he's out (spring asks too)
 void timothy_spring(uint8_t mx, uint8_t my) BANKED;             // out of the drawer at metatile (mx, my)
 void timothy_update(void) BANKED;
 void timothy_draw(void) BANKED;

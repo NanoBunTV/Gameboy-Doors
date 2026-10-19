@@ -20,9 +20,21 @@
 #include "timothy.h"
 #include "library.h"
 #include "figure.h"
+#include "seek.h"
+#include "walleyes.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "sprite_key.h"
+#include "sprite_player.h"
+#include "sprite_rush.h"
+#include "sprite_ambush.h"
+#include "sprite_eyes.h"
+#include "sprite_screech.h"
+#include "sprite_timothy.h"
+#include "sprite_walleye.h"
+#include "sprite_seek.h"
+#include "sprite_puddle.h"
+#include "sprite_guide.h"
 
 #define SCREEN_W 160
 #define SCREEN_H 144
@@ -42,7 +54,6 @@ uint8_t game_state;
 uint8_t game_death;
 
 static spr_sheet_t key_sheet;
-static uint8_t key_frames[SPR_KEY_FRAME_COUNT * 4];
 static const room_obj_t *entry_door, *exit_door;    // exit_door: this run's real exit
 static const room_obj_t *exits[ROOM_EXITS_MAX];      // every exit, in object order (Dupe rooms have 2-3)
 static uint8_t exit_count;
@@ -81,16 +92,33 @@ uint8_t game_warp;
 #endif
 
 void game_init(void) BANKED {
-    // Player: sprite tiles 0-35, palette 0. Key: tiles from 36, palette 1. Rush and Ambush after it,
-    // palettes 2 and 3; Eyes 4, Screech 5. Tiles 128 and up share VRAM with background tiles a jumpscare
-    // uses, so game_start reloads all of this.
+    // The player's sheet at tile 0, palette 0; every other sheet is loaded per room (load_room_sprites).
+    // Sprite tiles 128 and up share VRAM with background tiles the title and a jumpscare use, so after one
+    // every sheet is loaded again.
     player_load();
-    uint8_t t = 36 + spr_sheet_load(&key_sheet, BANK(sprite_key), &sprite_key, 36, 1, key_frames);
-    t += entity_load(t, 2);
-    t += eyes_load(t, 4);
-    t += screech_load(t, 5);
-    timothy_load(t, 6);   // Halt's sheets borrow Rush's tiles while the hallway lasts (halt.c)
+    spr_forget();
 }
+
+// The most one hotel room can ask for at once (load_room_sprites, Timothy mid-room): dark, Eyes, Rush on his
+// way, a key in the open and a Timothy drawer can all fall in one room. Rush and Ambush never come together.
+#define MAX_(a, b) ((a) > (b) ? (a) : (b))
+// Seek's eyes on the walls can be there too (the rooms before a chase).
+SPR_CHECK(SPR_PLAYER_TILES + SPR_KEY_TILES + MAX_(SPR_RUSH_TILES, SPR_AMBUSH_TILES) + SPR_EYES_TILES +
+          SPR_SCREECH_TILES + SPR_TIMOTHY_TILES + SPR_WALLEYE_TILES <= SPR_TILE_LIMIT(TILESET_HOTEL_TILES),
+          hotel_room_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_KEY_PALETTES + MAX_(SPR_RUSH_PALETTES, SPR_AMBUSH_PALETTES) +
+          SPR_EYES_PALETTES + SPR_SCREECH_PALETTES + SPR_TIMOTHY_PALETTES + SPR_WALLEYE_PALETTES <= SPR_PALETTE_LIMIT,
+          hotel_room_sprites_need_over_8_gbc_palettes);
+SPR_CHECK((SPR_KEY_FRAME_COUNT + MAX_(SPR_RUSH_FRAME_COUNT, SPR_AMBUSH_FRAME_COUNT) + SPR_EYES_FRAME_COUNT +
+           SPR_SCREECH_FRAME_COUNT + SPR_TIMOTHY_FRAME_COUNT + SPR_WALLEYE_FRAME_COUNT) * 4 <= SPR_FRAME_POOL,
+          hotel_room_frame_tables_outgrow_the_pool);
+// A chase room: Seek, his puddle (the start hallway), the guide's glow, the wall eyes
+SPR_CHECK(SPR_PLAYER_TILES + SPR_SEEK_TILES + SPR_PUDDLE_TILES + SPR_GUIDE_TILES + SPR_WALLEYE_TILES <=
+          SPR_TILE_LIMIT(TILESET_HOTEL_TILES), chase_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_SEEK_PALETTES + SPR_PUDDLE_PALETTES + SPR_GUIDE_PALETTES +
+          SPR_WALLEYE_PALETTES <= SPR_PALETTE_LIMIT, chase_sprites_need_over_8_gbc_palettes);
+SPR_CHECK((SPR_SEEK_FRAME_COUNT + SPR_PUDDLE_FRAME_COUNT + SPR_GUIDE_FRAME_COUNT + SPR_WALLEYE_FRAME_COUNT) * 4 <=
+          SPR_FRAME_POOL, chase_frame_tables_outgrow_the_pool);
 
 static uint8_t player_light(void) {
 #ifdef LIGHT_DEBUG
@@ -178,7 +206,7 @@ static uint8_t exit_index(const room_obj_t *o) {
     for (uint8_t k = 0; k < exit_count; k++)
         if (exits[k] == o)
             return k;
-    return 0;
+    return 3;   // the entry: its own plate slot (an open side entry shows its number too)
 }
 
 // Sets a door's metatiles for its state. Closed doors get their number on the plate (dynamic metatile,
@@ -190,22 +218,21 @@ static void door_set(const room_obj_t *o, uint8_t state, uint8_t number) {
         locked_mt = MT_HOTEL_DOOR_BOTTOM_PADLOCK;   // the combination padlock, and no number (owner's mock-up)
         number = PLATE_BLANK;
     }
+    // Open, every wall's door is the top wall's open doorway: the number stays on the header over it (owner,
+    // 2026-10-18: side doors lost theirs to a plain floor gap)
+    if (state == DOOR_OPEN && o->param != WALL_BOTTOM) {
+        room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_OPEN_TOP, number));
+        room_set_metatile(x, y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
+        return;
+    }
     switch (o->param) {
     case WALL_TOP:
-        if (state == DOOR_OPEN) {   // the number stays on the header over the open doorway
-            room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_OPEN_TOP, number));
-            room_set_metatile(x, y + 1, MT_HOTEL_DOOR_OPEN_BOTTOM);
-        } else {
-            room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_TOP, number));
-            room_set_metatile(x, y + 1, state == DOOR_LOCKED ? locked_mt : MT_HOTEL_DOOR_BOTTOM);
-        }
+        room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_DOOR_TOP, number));
+        room_set_metatile(x, y + 1, state == DOOR_LOCKED ? locked_mt : MT_HOTEL_DOOR_BOTTOM);
         break;
     case WALL_LEFT:
     case WALL_RIGHT:
-        if (state == DOOR_OPEN) {
-            room_set_metatile(x, y, MT_HOTEL_SIDE_OPEN_TOP);
-            room_set_metatile(x, y + 1, MT_HOTEL_SIDE_OPEN_BOTTOM);
-        } else {
+        {
             room_set_metatile(x, y, room_make_plate(slot, MT_HOTEL_SIDE_DOOR_TOP, number));
             room_set_metatile(x, y + 1, state == DOOR_LOCKED ? MT_HOTEL_SIDE_DOOR_BOTTOM_LOCKED : MT_HOTEL_SIDE_DOOR_BOTTOM);
         }
@@ -254,9 +281,17 @@ static void apply_room_state(void) {
         door_set(exit_door, exit_state(), run_room + 1);
     if (entry_door)
         door_set(entry_door, DOOR_OPEN, run_room);
-    // Door 50 seals behind you: the Library is entered, not opened into (Minecraft docs 07)
-    if (IN_LIBRARY && entry_door)
-        room_set_metatile(entry_door->x, entry_door->y, MT_HOTEL_WALL_TOP);
+    // Door 50 seals behind you: the Library is entered, not opened into (Minecraft docs 07). So do a chase's
+    // doors (Minecraft docs 08), and the end hallway's, slammed: a bottom-wall doorway becomes wall, a side
+    // door shuts.
+    uint8_t k = run_kind_at(run_room);
+    if (entry_door && (IN_LIBRARY || k == ROOM_KIND_SEEK_4WAY || k == ROOM_KIND_SEEK_END ||
+                       run_kind_at(run_room - 1) == ROOM_KIND_SEEK_END)) {
+        if (entry_door->param == WALL_BOTTOM)
+            room_set_metatile(entry_door->x, entry_door->y, MT_HOTEL_WALL_TOP);
+        else
+            door_set(entry_door, DOOR_CLOSED, run_room);
+    }
 
     uint8_t opened = run_drawers[run_room];
     for (uint8_t i = 0; opened; i++, opened >>= 1)
@@ -289,6 +324,7 @@ static void draw_sprites(void) {
     spr_begin();
     if (!hide_hidden)
         player_draw();
+    seek_draw();
     if (IN_LIBRARY)
         library_draw();
     screech_draw();
@@ -297,6 +333,7 @@ static void draw_sprites(void) {
     eyes_draw();
     if (key_spot)
         spr_draw(&key_sheet, SPR_KEY_KEY, ((int16_t)key_spot->x << 4) - cam_x, ((int16_t)key_spot->y << 4) - cam_y, 0);
+    walleyes_draw();   // last: anything else on the same line wins the hardware's 10
     spr_end();
 }
 
@@ -316,11 +353,32 @@ static void load_room(void) {
     apply_room_state();
 }
 
-// Draws the loaded room around the player, lights first (behind black)
-static void show_room(void) {
+// The loaded room's lights, and who's in it (behind black)
+static void light_up_room(void) {
     light_room(run_flags2[run_room] & RF2_DARK);
     light_player();
     eyes_room_entered();
+}
+
+// Only the sheets this room can show (sprites.h), in the order that changes least from door to door: Rush
+// stays for a few rooms, the rest come and go. Timothy asks for his when he springs (timothy.c).
+static void load_room_sprites(void) {
+    spr_room_begin();
+    entity_need_sprites();
+    if (key_spot)
+        spr_need(&key_sheet, BANK(sprite_key), &sprite_key);
+    eyes_need_sprites();
+    screech_need_sprites();
+    timothy_need_sprites();   // only if he's out (after a Screech bite mid-jump)
+    if (IN_LIBRARY)
+        library_need_sprites();
+    seek_need_sprites();
+    walleyes_need_sprites();
+}
+
+// Draws the lit room around the player
+static void draw_room(void) {
+    load_room_sprites();
     bg_draw_full(camera_target_x(), camera_target_y());
     draw_sprites();
 }
@@ -338,10 +396,8 @@ static void enter_room(uint8_t n, uint8_t via) {
     spr_end();
 
     run_plan(n + 1);
-    if (IN_LIBRARY && n != RUN_LIBRARY_ROOM) {
+    if (IN_LIBRARY && n != RUN_LIBRARY_ROOM)
         library_exit();   // through the padlocked door: Figure and the music stay behind
-        game_init();      // the sprite VRAM he borrowed
-    }
     run_room = n;
     uint8_t first_time = n > run_max_room;
     if (first_time)
@@ -355,12 +411,15 @@ static void enter_room(uint8_t n, uint8_t via) {
     screech_room_entered();
     if (IN_LIBRARY)
         library_enter();
-    show_room();
+    seek_room_entered();
+    walleyes_room_entered();
+    light_up_room();
     // The darkness cue marks the lights going out, so a run of dark rooms announces once (Minecraft docs 05)
     if (light_dark && !was_dark)
         sfx_play(SFX_DARK);
+    entity_room_entered(first_time);   // before the sprites: whether he fires decides his sheet
+    draw_room();
     hud_show(HUD_ENTER_FRAMES);
-    entity_room_entered(first_time);
     game_wait_frames(1);
     game_fade(FADE_BLACK, 0);
     game_state = GAME_PLAYING;
@@ -372,10 +431,9 @@ static void survived_scare(uint8_t cause) {
     game_state = GAME_TRANSITION;
     death_jumpscare(cause);
     game_init();
-    if (IN_LIBRARY && !library_left)
-        library_load_sprites();
     load_room();
-    show_room();
+    light_up_room();
+    draw_room();
     hud_show(150);
     game_wait_frames(1);
     game_fade(FADE_BLACK, 0);
@@ -390,6 +448,7 @@ void game_start(uint16_t seed) BANKED {
     hide_reset();
     library_reset();
     figure_stop();
+    seek_reset();
     light_room(0);
     music_play(MUSIC_NONE);   // no music in the rooms (owner, 2026-10-18: the ambience is gone)
     enter_room(0, VIA_START);
@@ -586,6 +645,35 @@ static void interact(void) {
         interact_at(px - sx, py - sy);
 }
 
+// Fire (MTF_FIRE, Seek's end hallway): the feet's metatile or the one at the body's middle
+static uint8_t on_fire(void) {
+    int16_t x = player_x + PLAYER_FEET_X;
+    uint8_t mx = (uint8_t)(x >> 4);
+    return (mt_flags[room_map[room_row[(uint8_t)((player_y + PLAYER_FEET_Y) >> 4)] + mx]] |
+            mt_flags[room_map[room_row[(uint8_t)((player_y + 6) >> 4)] + mx]]) & MTF_FIRE;
+}
+
+// Chasing, the real door opens by itself as you reach it (Minecraft docs 08: a door that has to be aimed at
+// while running from something is a death with no mechanic under it). Measured to the door's inner edge.
+static void chase_door(void) {
+    uint8_t *f = &run_flags[run_room];
+    if ((*f & RF_EXIT_OPEN) || !exit_door || run_kind_at(run_room) < ROOM_KIND_SEEK_START)
+        return;
+    const room_obj_t *o = exit_door;
+    int16_t x = ((int16_t)o->x << 4) + (o->w << 3), y = ((int16_t)o->y << 4) + (o->h << 3);
+    switch (o->param) {
+    case WALL_TOP:  y = (int16_t)(o->y + o->h) << 4; break;
+    case WALL_LEFT: x = (int16_t)(o->x + o->w) << 4; break;
+    default:        x = (int16_t)o->x << 4; break;
+    }
+    int16_t dx = x - (player_x + PLAYER_FEET_X), dy = y - (player_y + PLAYER_FEET_Y);
+    if (dx > -SEEK_AUTO_OPEN && dx < SEEK_AUTO_OPEN && dy > -SEEK_AUTO_OPEN && dy < SEEK_AUTO_OPEN) {
+        *f |= RF_EXIT_OPEN;
+        door_set(exit_door, DOOR_OPEN, run_room + 1);
+        sfx_play(SFX_DOOR);
+    }
+}
+
 void game_frame(void) BANKED {
     measure_flush();
     input_update();
@@ -604,12 +692,23 @@ void game_frame(void) BANKED {
         open_padlock();
     if (hide_hidden) {
         death = hide_update();
+    } else if (seek_frozen()) {
+        player_moving = 0;   // watching him rise
+        death = DEATH_NONE;
     } else if (lib == LIB_HELD) {
         player_moving = 0;   // standing at the lock: silent
         death = DEATH_NONE;
     } else {
         player_sneak = IN_LIBRARY && (input_held & J_B);   // owner: hold B to sneak (items don't need B there)
         player_update();
+        if (on_fire()) {
+            sfx_play(SFX_FIRE);
+            game_death = DEATH_FIRE;
+            game_state = GAME_DEAD;
+            return;
+        }
+        if (seek_chasing())
+            chase_door();
         // No door takes you anywhere while Rush or Ambush is out (the open ones too)
         if (!entity_active() && check_doors())
             return;
@@ -626,6 +725,8 @@ void game_frame(void) BANKED {
     }
     if (!death && IN_LIBRARY)
         death = library_update();
+    if (!death)
+        death = seek_update();
     if (!death)
         death = entity_update();
     if (!death)

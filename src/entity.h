@@ -25,9 +25,9 @@ extern uint8_t entity_state, entity_kind, entity_room, entity_queued;
 extern int16_t entity_d;            // distance along entity_room's route, px
 extern int16_t entity_x, entity_y;  // where he is in this room (valid when entity_room == run_room)
 
-uint8_t entity_load(uint8_t first_tile, uint8_t first_pal) BANKED;  // sprite sheets; returns tiles used
 void entity_reset(void) BANKED;                       // a new run
 void entity_room_entered(uint8_t first_time) BANKED;  // after a room is loaded
+void entity_need_sprites(void) BANKED;                // after entity_room_entered: his sheet, if he can be here
 uint8_t entity_update(void) BANKED;                   // per frame; DEATH_RUSH / DEATH_AMBUSH if he caught you
 void entity_draw(void) BANKED;
 void entity_lights(uint8_t *dim, uint8_t *tint) BANKED;   // the flicker this frame (dim 0 if none)

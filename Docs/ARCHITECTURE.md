@@ -37,6 +37,8 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `timothy.c/.h` | *Banked.* Timothy: the spider's jump out of a drawer and his scuttle away |
 | `library.c/.h` | *Banked.* The Library (room 50): the books and paper planned from the seed, reading them, the notes and padlock panels, the entry hint, the music |
 | `figure.c/.h` | *Banked.* Figure: hearing, the route search (a flood fill in the room map's spare tail), wandering and hunting, footsteps, contact, the edge arrow |
+| `seek.c/.h` | *Banked.* Seek's chases: the rise in the start hallway, following the door-to-door line room after room, catching, his footsteps, the guide's glow, the slam |
+| `walleyes.c/.h` | *Banked.* Seek's eyes on the walls before a chase: placed from the seed on `wall` metatiles, one per map row, blinking |
 | `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
 | `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
@@ -45,7 +47,7 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `room.c/.h` | The current room: map and objects in WRAM, the tileset's metatile tables in WRAM, collision queries, changing a metatile on screen, door-number plates |
 | `bg.c/.h` | Camera and background streaming (below); the single-tile write queue; STAT-safe VRAM copy; VRAM writes in inline assembly |
 | `hud.c/.h`, `hud_status.c` | The font, the on-demand HUD on the window layer, messages, text printing. `hud.c` (bank 0): the font, and the functions taking text (a string literal is in its caller's bank). `hud_status.c` (banked): timers, the slide, the status line. `hud_state.h`: what the two share |
-| `sprites.c/.h` | Sprite sheets in VRAM, drawing 16×16 frames as two 8×16 hardware sprites (bigger frames as several), the per-frame shadow OAM allocator |
+| `sprites.c/.h` | Sprite sheets in VRAM, loaded per room (`spr_need`), drawing 16×16 frames as two 8×16 hardware sprites (bigger frames as several), the per-frame shadow OAM allocator |
 | `player.c/.h` | *Banked.* 8-direction walking, collision, corner nudging, facing (8 directions), walk animation |
 | `input.c/.h` | Joypad held/pressed; in AUTOTEST builds the recorded run instead of the joypad |
 | `platform.h`, `platform/*/` | Per-console setup, palettes (kept in WRAM, written in VBlank), the fade to black, dimming, Ambush's green tint, Halt's blue tint and his white flash |
@@ -73,13 +75,13 @@ anything in the main loop must fit a DMG frame.
 | Area | Use |
 |---|---|
 | ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB). **90% full on GBC, 77% on DMG** after Phase 6 (88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out) |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
-| VRAM 0x8000–0x8FFF | Sprite tiles: player 0–35, key 36–39, Rush 40–71, Ambush 72–103 (`entity_load`), Eyes 104–133, Screech 134–141, Timothy 142–143. In Halt's hallway Halt (18 tiles) and the TURN AROUND letters (14) borrow Rush's and Ambush's tiles from 40 (no other entity runs there; `game_init` puts them back on the way out). In the Library Figure (28 tiles) and the marks (glint, arrows: 8) do the same, from 40 (`library_load_sprites`; `game_init` on the way out to room 51). Tiles 128 and up are the same memory as background tiles 128 and up, which a jumpscare picture of more than 128 tiles overwrites, so `game_start` (and the room after Screech's bite) reloads every sheet (`game_init`, STAT-safe). Sprites must stay below 184 (the door numbers and the font) |
-| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 the hallway's shut door), **font 192–255** (its space, all black, is darkness's tile) |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
+| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
 | VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock). GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
-| GBC sprite palettes | 0 player, 1 key, 2 Rush, 3 Ambush, 4 Eyes, 5 Screech, 6 Timothy (in Halt's hallway: 2 Halt, 3 the letters; in the Library: 2 Figure, 3 the marks) |
+| GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
 | WRAM | Room map (`room_map`, up to 2,816 metatiles (3,072 until Phase 6: the 256 bytes went to the Library on GBC); `room_row`, each row's offset; in the Library its unused tail holds Figure's route search) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.4 of 8 KB (1.6 KB left under the stack); on GBC, WRAM bank 1 has about 237 bytes left under the stack after Phase 6 (STATUS.md) |
 | SRAM | **Planned**: the save |
 
@@ -246,13 +248,14 @@ a slot per exit). Only those two tiles are copied, so
   into wall (door 50 seals). `library_enter()` (from `enter_room`, before the room is shown) plans the books
   the first time from the seed: the bookcase metatiles (`MTF_BOOKCASE`) with floor below, in map order, eight
   of them picked; a shuffle of the eight shapes; a digit each; a second shuffle's first five for the paper.
-  Then it loads Figure's sheets over Rush's tiles, starts him (deaf for 3 s the first time) and the music.
+  Then it starts him (deaf for 3 s the first time) and the music; the room's sprite loading then asks for
+  his sheet and the marks (`library_need_sprites`, Sprites below).
   Each frame `library_frame()` runs first (Start toggles the notes; the open padlock takes every button, the
   player standing still), then `library_update()` (the entry hint's two lines; Figure). A at a book cell or
   the `paper` object reads it into the HUD. The panels are window rows 2–8 under the status line
   (`hud_panel_set`, `text_print_win`); while one is open, sprites with their middle below its top
   (`spr_clip_y`) aren't drawn. Leaving for room 51: `library_exit()` (Figure stopped, `library_left`, the
-  music off) and `game_init()` for the sprite VRAM.
+  music off); room 51 loads its own sheets.
 - **Figure** (`figure.c`): his feet move along the middles of metatiles, downhill on a distance map: a flood
   fill from his goal over the floor (four neighbours, one byte a cell, 255 unreached) in the room map's tail
   (`room_map + w·h`), its queue (256 cells as x, y) after it. The converter allows a library of at most
@@ -265,6 +268,36 @@ a slot per exit). Only those two tiles are copied, so
   every 28 frames wandering, 14 hunting, volume 15 − distance/32 px (`sfx_play_vol`). Contact (feet within 10
   across and 8 up and down, player not hidden): `DEATH_FIGURE`, his face, the Guiding Light. Off screen, an
   arrow sprite on the edge nearest him.
+- **Seek's chases** (Phase 7, `seek.c`, `walleyes.c`): `run_kind_at(n)` says what a position holds (start,
+  Library, `seek_start` at 30/70, `seek_4way` at 31–34/71–78, `seek_end` at 35/79, else normal); `plan_room`
+  picks a template of that kind entered from the right wall (chase rooms skip the no-repeat rule) and skips
+  every roll in a chase (spawn, dark, Eyes, Dupe; locks need `allow_lock`), and the room before the Library or
+  a chase gets one top door and no Halt (`before_fixed`). A four-way's real exit is `run_exit`; the others
+  get blank plates (no Dupe), so they're fakes. All only if the converter found all three kinds
+  (`ROOM_HAS_SEEK`). `run_wall_eyes(n)` is 1–5 in the five rooms before a start, 6 in it.
+  - *The start hallway*: `seek_room_entered` (from `enter_room`) works out his rise point, three quarters
+    along the route less `RISE_BEHIND` (64 px; or the `seek` object's projection on the route), and the
+    trigger 64 px further, as a coordinate on the route's main axis (no per-frame division). Feet past it:
+    `SEEK_RISE`, 170 frames: the HUD hidden, the player held (`seek_frozen`, game_frame skips
+    `player_update`), the puddle small then large, his top half (`spr_draw_big` 2×1) then all of him. Then
+    `SEEK_CHASE`: `player_fast` (1.4×, player.c), *Here I Come*, and he holds 45 frames.
+  - *The chase*: his position is a room and a distance along its route (Rush's scheme, `entity.c`), placed
+    once per room with two divisions and stepped after; 0x0150 (1.31 px/frame, 0.75 of the player's run). He
+    draws back, side (mirrored to the right) or front frames by the route's direction. Caught: within 24 px of
+    the feet (a circle), or, while moving, being in a room before his (`seek_room > run_room`: you got round
+    him). In the end hallway he stops `STOP_SHORT` (32 px) before its door's middle (`SEEK_STOP`, still
+    deadly up close). Footsteps on CH4 every 14 frames, `15 − d/42`, d his rough route distance.
+  - *Doors*: chasing, the real exit opens when the feet are within 24 px of its inner edge (`chase_door` in
+    game.c, no A). Entries of four-ways, the end hallway and the room after it are sealed (`apply_room_state`:
+    a bottom doorway becomes wall, a side door shuts), so you can't go back. Entering the room after the end
+    hallway: `slam()`: Seek off, the chase marked done, music off, walking speed, `SFX_SLAM`.
+  - *The glow*: in a four-way, the `guide` sprite twinkles 20 px into the room from the real door's middle.
+  - *Fire*: any `fire` metatile (MTF_FIRE) under the feet or the body's middle kills (`on_fire`, every frame
+    after `player_update`): `DEATH_FIRE`, his eye, a hint about going round. Rush and Ambush don't fire into a
+    chase room (a queued one waits, as for the Library).
+  - *The wall eyes*: from the seed (`run_seed ^ 0xE7E5`, the room), up to 40 random cells each scanning on in
+    map order to the next `wall` cell in a row with no eye yet; each blinks (half, shut, half) on its own
+    random timer.
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
   through the exit, just inside that. The doorway cells are the trigger, so arriving never re-triggers.
 - **Using things** (A): the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
@@ -377,8 +410,54 @@ sprite ~3 scanlines).
 
 Frames bigger than 16×16 (Rush, Ambush and Eyes, 32×32) are stored as 16×16 parts, left to right, top to bottom,
 and drawn with `spr_draw_big()`: 8 hardware sprites, 4 on a line, 6 with the player. Figure (32×48) is 12 hardware
-sprites, 4 on a line; with the player, a glint and the arrow, 8. Planned: when more than 10 would share a
-line (Seek), sprites will be cycled between frames in a fixed order.
+sprites, 4 on a line; with the player, a glint and the arrow, 8. Seek (24×32 in a 32×32 frame) is 6, 3 on a
+line; with the player, the glow and one wall eye, 9 (the wall eyes are kept to one per map row for this, and
+drawn last so anything else on their line wins). `spr_draw_big` takes `SPR_FLIPX` for a whole mirrored frame
+(Seek's right-facing side view: the parts right to left, each flipped). Planned: when more than 10 would share
+a line, sprites will be cycled between frames in a fixed order.
+
+**Which sheets are in VRAM** (owner, 2026-10-18: "per room or on demand, whichever frees up more"). The
+player's sheet stays at tile 0, palette 0 (`player_load`, from `game_init`). Every other sheet is asked for
+with `spr_need()` by the room that can show it, and packed after the player's in the order asked: tiles from
+36, GBC palettes from 1. `game.c`'s `load_room_sprites()` runs at each door while the screen is black (after
+`entity_room_entered`, because whether Rush fires there decides his sheet):
+
+| Sheet | Asked for when |
+|---|---|
+| Rush *or* Ambush | he's on his way and this room is on his route (`entity_need_sprites`: not idle, `end_room >= run_room`); they never come together, so only one is ever loaded |
+| Key | it lies in the open here (`key_spot`) |
+| Eyes | he's in this room (`eyes_here`) |
+| Screech | the room is dark (`light_dark`: only set at a door) |
+| Timothy | he springs (`timothy_spring`, mid-room: 2 tiles, well inside a frame), and at a redraw while he's out |
+| The marks, Figure | in the Library; Figure only while he's there (the glints stay after he's gone) |
+| Halt, the letters | Halt's hallway (`halt_run` starts a room of its own) |
+| Seek; his puddle; the guide's glow | any chase room; the start hallway; four-way rooms (`seek_need_sprites`) |
+| The wall eye | a room with Seek's eyes on its walls (`walleyes_need_sprites`) |
+
+Per room rather than per event because one room can have the dark, Eyes, Rush on his way, a key in the open
+and a Timothy drawer at once: loading mid-room would free nothing in that worst case. The loader works
+mid-room anyway (Timothy), for later events like Jack. `spr_slot_src[]` records which sheet each slot holds;
+a sheet asked for in the slot it already has isn't written again, and writing a slot forgets the slots after
+it (they moved), so a door writes only what changed. `spr_forget()` (from `game_init`: the title or a
+jumpscare drew over tiles 128 and up) makes everything load again. The worst cases fit with room to spare:
+
+| Set | Tiles | GBC palettes |
+|---|---|---|
+| A hotel room: player, key, Rush or Ambush, Eyes, Screech, Timothy, the wall eye | 124 of 184 | 7 of 8 |
+| A chase room: player, Seek, the puddle, the glow, the wall eye | 118 | 5 |
+| The Library: player, marks, Figure | 72 | 3 |
+| Halt's hallway: player, Halt, letters | 68 | 3 |
+
+The sheets' frame tables (4 bytes a 16×16 part) are packed the same way into one 128-byte pool
+(`SPR_FRAME_POOL`, worst case the chase's 116) instead of a buffer per sheet: that freed ~200 bytes of the
+GBC's WRAM for Phase 7 (the player keeps its own). (Before per-room loading: all 144 tiles and 7 palettes
+loaded all the time, with Halt and Figure borrowing Rush's.) Each set is
+checked at build time: the converter writes `SPR_<NAME>_TILES` / `_PALETTES` into each sheet's header and
+`TILESET_HOTEL_TILES` into the tileset's, and `SPR_CHECK` (a negative array size: SDCC's `_Static_assert`
+only warns) fails the build if a set passes `SPR_TILE_LIMIT` (184, or 128 if the tileset grows past 128 tiles;
+it's 124 on GBC since the fire), 8 palettes or the frame pool. A new sheet goes into the set(s) it can be in. Both consoles share the layout; the GBC's
+second VRAM bank (384 more tiles, attribute bit 3) is left for later. `scripts/sprite-test.py` checks it in
+PyBoy.
 
 ## Player (`player.c`, banked)
 

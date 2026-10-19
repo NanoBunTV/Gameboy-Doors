@@ -14,6 +14,8 @@
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
 #define MTF_SOLID 0x01
 #define MTF_BOOKCASE 0x02   // a bookcase's bottom half: where the Library's books can be (library.c)
+#define MTF_FIRE 0x04       // walking into it kills (Seek's end hallway; game.c)
+#define MTF_WALL 0x08       // a wall Seek's eyes can appear on before a chase (walleyes.c)
 
 // A tileset: 16x16 metatiles made of four 8x8 tiles (top left, top right, bottom left, bottom right)
 typedef struct {
@@ -39,6 +41,7 @@ typedef struct {
 #define OBJ_BED     7   // a hiding spot (1x2, on bed_top/bed_bottom)
 #define OBJ_PAPER   8   // the Library: the paper on the desk
 #define OBJ_FIGURE  9   // the Library: where Figure starts
+#define OBJ_SEEK    10  // a start hallway: where Seek rises (optional; seek.c)
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2
@@ -50,6 +53,9 @@ typedef struct {
 #define ROOM_KIND_TEST   2
 #define ROOM_KIND_HALT   3   // Halt's hallway: never planned, loaded by halt.c
 #define ROOM_KIND_LIBRARY 4  // the Library: always room RUN_LIBRARY_ROOM (run.c)
+#define ROOM_KIND_SEEK_START 5   // Seek's chases (run.c run_kind_at): the hallway he rises in,
+#define ROOM_KIND_SEEK_4WAY  6   // the rooms with one real door and the rest fake,
+#define ROOM_KIND_SEEK_END   7   // and the hallway with the fire and the door that slams
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

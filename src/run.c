@@ -61,6 +61,36 @@ static uint8_t opposite(uint8_t wall) {
     }
 }
 
+uint8_t run_kind_at(uint8_t n) BANKED {
+    if (n == 0)
+        return ROOM_KIND_START;
+    if (n == RUN_LIBRARY_ROOM)
+        return ROOM_KIND_LIBRARY;
+#if ROOM_HAS_SEEK
+    for (uint8_t c = 0; c < RUN_CHASES; c++) {
+        if (n == RUN_CHASE_START(c))
+            return ROOM_KIND_SEEK_START;
+        if (n > RUN_CHASE_START(c) && n < RUN_CHASE_END(c))
+            return ROOM_KIND_SEEK_4WAY;
+        if (n == RUN_CHASE_END(c))
+            return ROOM_KIND_SEEK_END;
+    }
+#endif
+    return ROOM_KIND_NORMAL;
+}
+
+uint8_t run_wall_eyes(uint8_t n) BANKED {
+#if ROOM_HAS_SEEK
+    for (uint8_t c = 0; c < RUN_CHASES; c++) {
+        uint8_t s = RUN_CHASE_START(c);
+        if (n <= s && n + WALL_EYES_ROOMS >= s)
+            return WALL_EYES_ROOMS + 1 - (s - n);
+    }
+#endif
+    (void)n;
+    return 0;
+}
+
 void run_start(uint16_t seed) BANKED {
     run_seed = seed;
     run_room = 0;
@@ -81,28 +111,29 @@ void run_start(uint16_t seed) BANKED {
 static void plan_room(uint8_t n) {
     rng_seed(run_seed, n);
     uint8_t t = 0;
-    if (n == 0) {
+    uint8_t kind = run_kind_at(n);
+    // A chase room: nothing else is planned in it (Minecraft docs 08: noEntities, neverDark)
+    uint8_t chase = kind >= ROOM_KIND_SEEK_START;
+    // The room before the Library or a chase: one door, on the top wall, and no Halt on it
+    uint8_t before_fixed = n < RUN_LAST_ROOM && (run_kind_at(n + 1) == ROOM_KIND_LIBRARY ||
+                                                 run_kind_at(n + 1) == ROOM_KIND_SEEK_START);
+    if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY) {
         for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
-            if (room_template_info[i][0] == ROOM_KIND_START)
-                t = i;
-    } else if (n == RUN_LIBRARY_ROOM) {
-        for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
-            if (room_template_info[i][0] == ROOM_KIND_LIBRARY)
+            if (room_template_info[i][0] == kind)
                 t = i;
     } else {
         uint8_t need = opposite(room_template_exits[run_template[n - 1]][run_exit[n - 1]]);
         uint8_t candidates[ROOM_TEMPLATE_COUNT], count = 0;
-        // Twice: the second pass drops the no-repeat rule, in case the pool is too small for it
+        // Twice: the second pass drops the no-repeat rule, in case the pool is too small for it. Chase rooms
+        // don't have it: a chase is the same rooms over and over (Minecraft docs 08).
         for (uint8_t pass = 0; pass < 2 && !count; pass++)
             for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++) {
-                if (room_template_info[i][0] != ROOM_KIND_NORMAL || room_template_info[i][1] != need)
+                if (room_template_info[i][0] != kind || room_template_info[i][1] != need)
                     continue;
-                // The room before the Library: one door, on the top wall (scripts/assets.py checks one exists)
-                if (n == RUN_LIBRARY_ROOM - 1 &&
-                    (room_template_exits[i][0] != WALL_TOP || room_template_exits[i][1]))
-                    continue;
+                if (before_fixed && (room_template_exits[i][0] != WALL_TOP || room_template_exits[i][1]))
+                    continue;   // (scripts/assets.py checks one exists for every entry wall)
                 uint8_t recent = 0;
-                for (uint8_t back = 1; pass == 0 && back <= NO_REPEAT_WINDOW && back <= n; back++)
+                for (uint8_t back = 1; pass == 0 && !chase && back <= NO_REPEAT_WINDOW && back <= n; back++)
                     if (run_template[n - back] == i)
                         recent = 1;
                 if (!recent)
@@ -132,7 +163,7 @@ static void plan_room(uint8_t n) {
     }
     // Drawn after everything above, so adding this roll didn't change any room's layout or lock. The
     // Library's rolls are all skipped (nothing from the corridor follows you in).
-    uint8_t lib = n == RUN_LIBRARY_ROOM;
+    uint8_t lib = n == RUN_LIBRARY_ROOM || chase;   // (the Library's rule, and a chase's)
     if (!lib && n >= ENTITY_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < SPAWN_CHANCE_PERCENT) {
         flags |= RF_SPAWN;
         if (rnd_below(100) < AMBUSH_SHARE_PERCENT)
@@ -151,10 +182,10 @@ static void plan_room(uint8_t n) {
         exits++;
     uint8_t real = 0;
     if (exits > 1) {
-        real = rnd_below(exits);
-        if (n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DUPE_CHANCE_PERCENT)
+        real = rnd_below(exits);   // a four-way room: the real door; the others are numberless fakes
+        if (!chase && n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DUPE_CHANCE_PERCENT)
             flags2 |= RF2_DUPE;
-    } else if (!halt_planned && !lib && n != RUN_LIBRARY_ROOM - 1 && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM &&
+    } else if (!halt_planned && !lib && !before_fixed && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM &&
                !(flags & RF_LOCKED) && rnd_below(100) < HALT_CHANCE_PERCENT) {
         flags2 |= RF2_HALT;   // only a plain door: not locked, not a Dupe room (owner)
         halt_planned = 1;

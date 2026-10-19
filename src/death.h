@@ -15,6 +15,8 @@
 #define DEATH_DUPE   6
 #define DEATH_HALT   7
 #define DEATH_FIGURE 8
+#define DEATH_SEEK   9    // caught in a chase (seek.c)
+#define DEATH_FIRE   10   // walked into fire (MTF_FIRE; game.c): his face too
 
 #define DEATH_TRY_AGAIN 0
 #define DEATH_TITLE     1

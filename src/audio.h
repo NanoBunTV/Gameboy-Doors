@@ -13,6 +13,7 @@
 #define MUSIC_TITLE   1   // the owner's Lobby Theme
 #define MUSIC_GUIDING 3   // the Guiding Light (death screen)
 #define MUSIC_LIBRARY 4   // the owner's Unhinged (Library Theme), in room 50 until you walk out
+#define MUSIC_SEEK    5   // the owner's Here I Come (Seek Chase), from his rise to the door slamming
 
 #define SFX_DOOR       1
 #define SFX_DRAWER     2
@@ -26,7 +27,7 @@
 #define SFX_FLICKER    10  // the lights before Rush
 #define SFX_AMBUSH     11  // Ambush's own cue
 #define SFX_SCREAM     12  // jumpscare
-#define SFX_TYPE       13  // Guiding Light typewriter
+#define SFX_TYPE       13  // Guiding Light typewriter (unused since 2026-10-18: it clashed with the song)
 #define SFX_SELECT     14  // menu
 #define SFX_DARK       15  // the lights are out (entering a dark room after a lit one)
 #define SFX_PSST       16  // Screech arrives
@@ -39,7 +40,11 @@
 #define SFX_FIGURE_HEAR 23 // he heard you
 #define SFX_WHEEL      24  // a padlock wheel turns
 #define SFX_BOOK       25  // a book or the paper read
-#define SFX_COUNT      26
+#define SFX_SEEK_STEP  26  // Seek's footstep (sfx_play_vol: louder as he gets closer)
+#define SFX_SEEK_RISE  27  // the puddle, and him coming up out of it
+#define SFX_SLAM       28  // the chase's last door slams behind you
+#define SFX_FIRE       29  // you walked into the fire
+#define SFX_COUNT      30
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1
