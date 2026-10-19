@@ -11,10 +11,13 @@
 #include "ending.h"
 #include "light.h"
 #include "save.h"
+#include "sram.h"
 #include "lift.h"
 
 void main(void) {
     DISPLAY_OFF;  // waits for VBlank
+    ENABLE_RAM;   // SRAM: on for good, with the play bank in (sram.h; save.c borrows bank 0)
+    SWITCH_RAM(SRAM_PLAY_BANK);
     platform_init();
     audio_init();
     // BG tiles at 0x8800-0x97FF (signed), BG map at 0x9800, window map at 0x9C00 (the HUD),

@@ -129,7 +129,8 @@ void garden_update(void) BANKED {
     snare_root = SNARE_ROOT_FRAMES;
     if (run_hp > SNARE_MIN_HP)
         run_hp = run_hp > SNARE_MIN_HP + SNARE_DAMAGE ? run_hp - SNARE_DAMAGE : SNARE_MIN_HP;
-    sfx_play(SFX_SNARE);
+    sfx_play(SFX_SNARE);   // (CH4) and the hurt sound over it (CH1)
+    sfx_play(SFX_HURT);
     hud_message("WATCH YOUR STEP.", 180);
 }
 

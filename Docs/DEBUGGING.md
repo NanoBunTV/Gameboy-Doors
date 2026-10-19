@@ -12,8 +12,10 @@ break one and it may work everywhere except a Game Boy.
   VBlank; never clear LCDC bit 7 by hand.
 - **Don't read uninitialised RAM.** Hardware RAM starts random; emulators start at zero.
 - **Don't use echo RAM** (0xE000–0xFDFF) or the prohibited area (0xFEA0–0xFEFF).
-- **SRAM:** enable it (0x0A to 0x0000–0x1FFF) only while using it, then disable it, so a power-off doesn't corrupt
-  the save. Check a magic number and checksum when loading.
+- **SRAM:** the save's bank (0) is switched in only while it's read or written; a magic number and checksum are
+  checked when loading. Since 2026-10-19 SRAM stays enabled from boot with bank 1 in, which holds play buffers
+  (`sram.h`): a power-off's stray writes can only reach the bank switched in, and a damaged save is caught by
+  its checksum. Nothing an interrupt reads may live in SRAM, and nothing there is zeroed at boot.
 - **Valid header and checksums**, or the boot ROM locks up at the logo (`scripts/check-rom.py`).
 - **GBC double speed:** switch with the documented `STOP` sequence (GBDK's `cpu_fast()`), once at boot.
 - **Sprite limits:** 10 per line, 40 total; hardware drops the extras.

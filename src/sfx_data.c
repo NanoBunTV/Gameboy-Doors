@@ -39,12 +39,15 @@ static const step_t s_heartbeat[] = {
     { 8, 0, DUTY(2), ENV(12, 1), LO(70), HI(70) },
     { 12, 0, DUTY(2), ENV(8, 1), LO(64), HI(64) },
     END };
+// The hurt sound (owner's pick of three, 2026-10-19: "B, ow"): a punchy note, then dropping fast (CH1 sweep).
+// Every blow without a jumpscare plays it: Eyes, Timothy, Halt, Snares, and Hide's GET OUT before its blast
+// (one script: they share CH1)
+#define OW { 3, 0, DUTY(2), ENV(15, 0), LO(520), HI(520) }, { 14, 0x1B, DUTY(2), ENV(15, 2), LO(520), HI(520) }
 static const step_t s_get_out[] = {
+    OW,
     { 40, 0x16, DUTY(3), ENV(15, 4), LO(150), HI(150) },
     END };
-static const step_t s_hurt[] = {
-    { 24, 0x2E, DUTY(2), ENV(13, 2), LO(700), HI(700) },
-    END };
+static const step_t s_hurt[] = { OW, END };
 // The lights: an irregular electrical buzz, about two seconds
 #define BUZZ(frames) { frames, 0, DUTY(0), ENV(5, 0), LO(240), HI(240) }
 static const step_t s_flicker[] = {
@@ -86,9 +89,7 @@ static const step_t s_eyes[] = {
     { 20, 0, DUTY(1), ENV(9, 0), LO(104), HI(104) },
     { 30, 0, DUTY(1), ENV(9, 3), LO(98), HI(98) },
     END };
-static const step_t s_eyes_hit[] = {
-    { 8, 0, DUTY(3), ENV(11, 1), LO(330), HI(330) },
-    END };
+#define s_eyes_hit s_hurt   // SFX_EYES_HIT is unused since the hurt sound (2026-10-19)
 
 // Halt's TURN AROUND: a bright stab sweeping down, twice
 static const step_t s_halt[] = {
@@ -202,12 +203,22 @@ static const step_t s_gulp[] = {
     { 6, 0, 0, ENV(8, 1), 0x67, 0x80 },
     END };
 
+// The desk bell (owner's pick of two, 2026-10-19): a bright strike into a long ring, with a higher partial on the
+// other square channel (two effects started together: game.c)
+static const step_t s_bell[] = {
+    { 2, 0, DUTY(1), ENV(15, 0), LO(4186), HI(4186) },
+    { 50, 0, DUTY(2), ENV(14, 3), LO(2093), HI(2093) },
+    END };
+static const step_t s_bell_hi[] = {
+    { 24, 0, DUTY(2), ENV(9, 2), LO(3136), HI(3136) },
+    END };
+
 const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
     s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
     s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book, s_seek_step, s_seek_rise, s_slam,
     s_fire, s_snare, s_lever, s_slide, s_fuse, s_fuse_in, s_switch, s_breaker_on, s_breaker_off, s_power,
-    s_crash, s_crucifix, s_light, s_gold, s_gulp,
+    s_crash, s_crucifix, s_light, s_gold, s_gulp, s_bell, s_bell_hi,
 };
 const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3,
-                                      3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 1, 1, 0, 3, 0, 3, 0, 3 };
+                                      3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 1, 1, 0, 3, 0, 3, 0, 3, 1, 0 };

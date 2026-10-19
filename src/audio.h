@@ -27,7 +27,7 @@
 #define SFX_HIDE       6   // into or out of a closet / under a bed
 #define SFX_HEARTBEAT  7
 #define SFX_GET_OUT    8   // Hide throws you out
-#define SFX_HURT       9
+#define SFX_HURT       9   // a blow with no jumpscare: Eyes, Timothy, Halt, Snares (Hide's GET OUT has it built in)
 #define SFX_FLICKER    10  // the lights before Rush
 #define SFX_AMBUSH     11  // Ambush's own cue
 #define SFX_SCREAM     12  // jumpscare
@@ -37,7 +37,7 @@
 #define SFX_PSST       16  // Screech arrives
 #define SFX_SCREECH_GONE 17 // ... and leaves, looked at
 #define SFX_EYES       18  // Eyes is in the room
-#define SFX_EYES_HIT   19  // Eyes hurts you (about once a second)
+#define SFX_EYES_HIT   19  // unused since 2026-10-19: Eyes plays SFX_HURT
 #define SFX_HALT       20  // TURN AROUND
 #define SFX_TIMOTHY    21  // the spider's hiss
 #define SFX_FIGURE_STEP 22 // Figure's footstep (sfx_play_vol: louder as he gets closer)
@@ -63,7 +63,9 @@
 #define SFX_LIGHT      41  // a lighter or flashlight on or off
 #define SFX_GOLD       42  // gold, or a battery, taken
 #define SFX_GULP       43  // vitamins, or a bandage
-#define SFX_COUNT      44
+#define SFX_BELL       44  // a desk bell's ring (CH2) ...
+#define SFX_BELL_HI    45  // ... and its higher partial (CH1): played together (owner's pick "B, two-tone", 2026-10-19)
+#define SFX_COUNT      46
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1

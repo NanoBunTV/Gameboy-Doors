@@ -118,9 +118,12 @@ void game_init(void) BANKED {
 // The most one hotel room can ask for at once (load_room_sprites, Timothy mid-room): dark, Eyes, Rush on his
 // way, a key in the open and a Timothy drawer can all fall in one room. Rush and Ambush never come together.
 #define MAX_(a, b) ((a) > (b) ? (a) : (b))
-// Seek's eyes on the walls can be there too (the rooms before a chase).
-SPR_CHECK(SPR_PLAYER_TILES + SPR_KEY_TILES + MAX_(SPR_RUSH_TILES, SPR_AMBUSH_TILES) + SPR_EYES_TILES +
-          SPR_SCREECH_TILES + SPR_TIMOTHY_TILES + SPR_WALLEYE_TILES <= SPR_TILE_LIMIT(TILESET_HOTEL_TILES),
+// Seek's eyes on the walls can be there too (the rooms before a chase). Rush or Ambush go after the tileset when
+// it passes 128 tiles (spr_need_high, 2026-10-19: the owner's decorations), the rest below 128.
+#define HOTEL_LOW_TILES (SPR_PLAYER_TILES + SPR_KEY_TILES + SPR_EYES_TILES + SPR_SCREECH_TILES + SPR_TIMOTHY_TILES +                          SPR_WALLEYE_TILES)
+#define HOTEL_HIGH_TILES MAX_(SPR_RUSH_TILES, SPR_AMBUSH_TILES)
+SPR_CHECK(TILESET_HOTEL_TILES > 128 ? HOTEL_LOW_TILES <= 128 && HOTEL_HIGH_TILES <= SPR_HIGH_ROOM(TILESET_HOTEL_TILES)
+                                    : HOTEL_LOW_TILES + HOTEL_HIGH_TILES <= 184,
           hotel_room_sprites_outgrow_sprite_vram);
 SPR_CHECK(SPR_PLAYER_PALETTES + SPR_KEY_PALETTES + MAX_(SPR_RUSH_PALETTES, SPR_AMBUSH_PALETTES) +
           SPR_EYES_PALETTES + SPR_SCREECH_PALETTES + SPR_TIMOTHY_PALETTES + SPR_WALLEYE_PALETTES <= SPR_PALETTE_LIMIT,
@@ -807,6 +810,10 @@ static uint8_t interact_at(int16_t px, int16_t py) {
             return 1;
         case OBJ_DRAWER:
             use_drawer(o);
+            return 1;
+        case OBJ_BELL:   // rings every time, however fast it's pressed (owner): each press restarts the sound
+            sfx_play(SFX_BELL);
+            sfx_play(SFX_BELL_HI);
             return 1;
         case OBJ_CLOSET:
         case OBJ_BED:

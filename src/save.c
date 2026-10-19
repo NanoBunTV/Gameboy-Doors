@@ -3,12 +3,13 @@
 #include <stddef.h>
 #include <string.h>
 #include "save.h"
+#include "sram.h"
 #include "run.h"
 #include "items.h"
 #include "death.h"
 #include "hud.h"
 
-// SRAM bank 0 at 0xA000. Version 1 (Phase 9b). The statistics are kept from the first save on, for Phase 11's
+// SRAM bank 0 at 0xA000 (sram.h). Version 1 (Phase 9b). The statistics are kept from the first save on, for Phase 11's
 // statistics screen (owner: recorded now so it has history).
 #define SAVE_VERSION 1
 typedef struct {
@@ -34,15 +35,16 @@ static uint16_t checksum(const save_t *s) {
     return sum;
 }
 
+// SRAM stays enabled from boot with the play bank in (sram.h): the save's bank is switched in only while it's used
 static void open_sram(void) {
-    ENABLE_RAM;
-    SWITCH_RAM(0);
+    SWITCH_RAM(SRAM_SAVE_BANK);
 }
 
-// Seals the save and closes SRAM again (a power cut mid-write leaves a bad checksum: the next boot starts fresh)
+// Seals the save and switches the play bank back (a power cut mid-write leaves a bad checksum: the next boot
+// starts fresh)
 static void close_sram(void) {
     SRAM->check = checksum(SRAM);
-    DISABLE_RAM;
+    SWITCH_RAM(SRAM_PLAY_BANK);
 }
 
 static void fresh(void) {
@@ -59,7 +61,7 @@ void save_load(void) BANKED {
         open_sram();
     }
     save_knobs = SRAM->knobs;
-    DISABLE_RAM;
+    SWITCH_RAM(SRAM_PLAY_BANK);
 }
 
 void save_run_end(uint8_t cause) BANKED {

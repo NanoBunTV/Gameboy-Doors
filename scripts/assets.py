@@ -42,7 +42,8 @@ FONT_MAX_TILES = 64
 # Room objects (src/assets.h OBJ_*, WALL_*)
 OBJ_TYPES = {"entry": 1, "exit": 2, "drawer": 3, "keyspot": 4, "spawn": 5, "closet": 6, "bed": 7, "paper": 8,
              "figure": 9, "seek": 10, "snare": 11, "lever": 12, "breaker": 13, "breaker_door": 14,
-             "figure_door": 15, "lift": 16, "light": 17, "safe": 18, "stock": 19, "jeff": 20}
+             "figure_door": 15, "lift": 16, "light": 17, "safe": 18, "stock": 19, "jeff": 20,
+             "bell": 21}
 # Jeff's Shop (room 55, src/shop.c): four places on the counter the run's stock lies on, and where his eyes are
 SHOP_STOCK = 4
 # Hiding spots and the metatiles they must cover (top, bottom)
@@ -401,6 +402,9 @@ def parse_room(tmx: Path):
                 raise AssetError(f"{where}: a drawer is one metatile")
             if ts_names[cells[y * w + x]] != "dresser":
                 raise AssetError(f"{where}: must sit on a 'dresser' metatile, not '{ts_names[cells[y * w + x]]}'")
+        elif name == "bell":
+            if (ow, oh) != (1, 1) or ts_names[cells[y * w + x]] != "desk_bell":
+                raise AssetError(f"{where}: a bell is one metatile on a 'desk_bell' metatile (A rings it)")
         elif name == "paper":
             if (ow, oh) != (1, 1) or ts_names[cells[y * w + x]] != "desk_paper":
                 raise AssetError(f"{where}: the paper is one metatile on a 'desk_paper' metatile")

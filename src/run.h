@@ -9,6 +9,7 @@
 
 #include <gb/gb.h>
 #include <stdint.h>
+#include "sram.h"
 
 #define RUN_LAST_ROOM 100           // room 100's exit doesn't open yet
 #define RUN_ROOMS (RUN_LAST_ROOM + 1)
@@ -102,13 +103,15 @@ extern uint8_t run_room;            // the room the player is in
 extern uint8_t run_max_room;        // the furthest room entered
 extern uint8_t run_key_door;        // number of the door the carried key opens; 0 = no key
 extern uint8_t run_hp;              // 0 - MAX_HP
-extern uint8_t run_template[RUN_ROOMS];
-extern uint8_t run_flags[RUN_ROOMS];
-extern uint8_t run_flags2[RUN_ROOMS];
-extern uint8_t run_key_slot[RUN_ROOMS];
-extern uint8_t run_drawers[RUN_ROOMS];  // opened drawers, one bit per drawer in object order
-extern uint8_t run_banned[RUN_ROOMS];   // hiding spots Hide threw the player out of, one bit per spot
-extern uint8_t run_exit[RUN_ROOMS];     // which of the template's exits is the real one (object order)
+// The per-room arrays live in SRAM bank 1 (sram.h), each at a fixed address
+#define RUN_SRAM(i) __at(SRAM_RUN + (i) * RUN_ROOMS)
+extern uint8_t RUN_SRAM(0) run_template[RUN_ROOMS];
+extern uint8_t RUN_SRAM(1) run_flags[RUN_ROOMS];
+extern uint8_t RUN_SRAM(2) run_flags2[RUN_ROOMS];
+extern uint8_t RUN_SRAM(3) run_key_slot[RUN_ROOMS];
+extern uint8_t RUN_SRAM(4) run_drawers[RUN_ROOMS];  // opened drawers, one bit per drawer in object order
+extern uint8_t RUN_SRAM(5) run_banned[RUN_ROOMS];   // hiding spots Hide threw the player out of, one bit per spot
+extern uint8_t RUN_SRAM(6) run_exit[RUN_ROOMS];     // which of the template's exits is the real one (object order)
 extern uint8_t run_timothy;             // Timothy has been met this run
 extern uint16_t run_seconds;            // the run's clock, shown on the HUD (owner, 2026-10-18: instead of the door
                                         // number, which gave Dupe away); counted by hud_update from sys_time

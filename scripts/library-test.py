@@ -89,8 +89,11 @@ check(sorted(shapes) == list(range(8)), "eight different shapes")
 check(len(set(books)) == 8, "eight different shelves")
 print("  books", books, "code", code)
 paper_obj = next(o for o in g.objects() if o[0] == OBJ_PAPER)
-b.use(paper_obj)
 want = " ".join(f"{k + 1}={SHAPES[shapes[paper[k]]]}" for k in range(5))
+for _ in range(3):   # DMG: the A can fall on a frame the game skipped reading the joypad
+    b.use(paper_obj)
+    if hud_text(g) == want:
+        break
 check(hud_text(g) == want, f"the paper says {want!r} (HUD: {hud_text(g)!r})")
 shot(g, "paper")
 for i, (x, y) in enumerate(books):

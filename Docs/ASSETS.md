@@ -45,8 +45,10 @@ Rules:
   palettes** across the whole tileset (palette 8 is the font's). Colours are compared at GBC precision
   (5 bits per channel), so two colours that differ only slightly count as one.
 - **DMG:** only the 4 greys.
-- At most **184** different 8×8 tiles per console after duplicates are removed (on GBC hotel uses 124, garden
-  93; past 128 the sprites lose tiles 128–183) and **120** metatiles. The rest of the background's VRAM holds door-number plates and the font.
+- At most **184** different 8×8 tiles per console after duplicates are removed (on GBC hotel uses 152 since the
+  decorations, garden 93) and **120** metatiles. Past 128, the tileset's tiles 128 and up are sprite tiles too:
+  Rush and Ambush then go after the tileset's last tile (ARCHITECTURE.md, "Sprites"), so the hotel can grow only
+  while 32 tiles stay free above it (**at most 152**: it's full) unless the sprite plan changes. The rest of the background's VRAM holds door-number plates and the font.
 
 Metatile properties, set in Tiled (select the tile in the tileset, Properties panel):
 
@@ -79,6 +81,8 @@ The hotel metatiles:
 | desk_paper | The desk's middle with the paper on it (the Library's `paper` object sits on it) |
 | door_bottom_padlock | A top-wall door's bottom half with the combination padlock (the Library's exit while it's locked; the game swaps it in) |
 | fire_a, fire_b | Fire (Phase 7, owner's pick from mock-ups): red and cream flames on dark ground, in the carpet's palette (no new palette). `fire`; alternate them so a patch doesn't look tiled. In game every one on screen swaps to the other every 12 frames (the flicker), so they must stay a pair |
+| chair, plant_top, plant_bottom, cart_tl/tr/bl/br | Decorations (owner's request and picks, 2026-10-19; `build/mockups/decor.png`), all solid, no purpose: a red armchair (1×1, the bed's palette), a tall plant in a red faceted pot (1×2), a brass luggage cart with cases (2×2; its arch stands over the floor in the floor's palette). Metatiles 41–47. The tileset's 7 palettes were all used, so they're drawn in existing ones and, like the bed, fill their cells with a dark backing |
+| desk_bell | The counter's middle (desk_m) with a gold bell on it (metatile 48). A `bell` object on it rings when A is pressed (owner, 2026-10-19); the reception has one in its counter's middle |
 
 The garden metatiles (Phase 8a, owner's picks from mock-ups, 2026-10-18; drawn by a script, edit the PNGs to
 change them). 93 GBC tiles in exactly 7 palettes (metal, Greenhouse floor, Snare, wood, grass, brick, trunk),
@@ -152,6 +156,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `closet` | 1×2 rectangle on `closet_top` + `closet_bottom` | A hiding spot (A to get in, A or B to get out) |
   | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
   | `paper` | 1×1 rectangle on `desk_paper` | The Library: the paper (A reads it) |
+  | `bell` | 1×1 rectangle on `desk_bell` | A desk bell: A rings it, every time (any room; the reception has one) |
   | `figure` | point | The Library: where Figure starts |
   | `seek` | point | A `seek_start` hallway (optional): where Seek rises; he does once the player is 4 metatiles past it along the route. Without one, he rises 4 metatiles behind the player at three quarters of the way |
   | `snare` | rectangle (any size) | A Greenhouse room: where Snares may be. Every `floor` cell inside counts; the run picks 3 per room. Needs a tileset with a `snare` metatile; rectangles mustn't overlap or cover the cell just inside a door |

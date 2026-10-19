@@ -50,13 +50,14 @@ roadmap lists the phases). Sections marked **planned** aren't built yet (the eco
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
 | `image.c/.h` | Full-screen pictures (logo, jumpscares) and clearing the screen, STAT-safe |
 | `assets.h` | The data types the generated asset files use: `tileset_t`, `room_def_t`, `room_obj_t`, `sprite_sheet_t`, `font_t`, `image_t`; `TILESET_*`, `OBJ_*`, `WALL_*` |
-| `room.c/.h` | The current room: map and objects in WRAM, the tileset's metatile tables in WRAM, collision queries, changing a metatile on screen, door-number plates |
+| `room.c/.h`, `room_plate.c` | The current room: map and objects in WRAM, the tileset's metatile tables in WRAM, collision queries, changing a metatile on screen. `room_plate.c` (banked since 2026-10-19): door-number plates (`room.c`'s `room_plate_base` copies their base tiles from the tileset's bank) |
 | `bg.c/.h` | Camera and background streaming (below); the single-tile write queue; STAT-safe VRAM copy; VRAM writes in inline assembly |
 | `hud.c/.h`, `hud_status.c` | The font, the on-demand HUD on the window layer, messages, text printing. `hud.c` (bank 0): the font, and the functions taking text (a string literal is in its caller's bank). `hud_status.c` (banked): timers, the slide, the status line. `hud_state.h`: what the two share |
 | `sprites.c/.h` | Sprite sheets in VRAM, loaded per room (`spr_need`), drawing 16×16 frames as two 8×16 hardware sprites (bigger frames as several), the per-frame shadow OAM allocator |
 | `player.c/.h` | *Banked.* 8-direction walking, collision, corner nudging, facing (8 directions), walk animation |
 | `input.c/.h` | Joypad held/pressed; in AUTOTEST builds the recorded run instead of the joypad |
-| `platform.h`, `platform/*/` | Per-console setup, palettes (kept in WRAM, written in VBlank), the fade to black, dimming, Ambush's green tint, Halt's blue tint and his white flash |
+| `platform.h`, `platform/*/` | Per-console setup, palettes (kept in WRAM, written in VBlank), the fade to black, dimming, Ambush's green tint, Halt's blue tint and his white flash. `platform_cgb.c`/`platform_dmg.c` (bank 0): the palette setters (they copy from the caller's asset bank) and the VBlank copy; `platform_*_fx.c` (banked since 2026-10-19): the fade, dim, tint and flash maths |
+| `sram.h` | The cartridge RAM's layout: bank 0 the save, bank 1 play buffers (the run's per-room arrays, the GBC's dim cache) |
 
 ## Two ROM targets
 
@@ -80,16 +81,16 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **95% full on GBC (770 bytes left), 83% on DMG** after Phase 9b; 93% (1,156 bytes) and 80% after Phase 9a (`items.c` is banked; bank 0 got `hud_icons`); 92% (1,256 bytes; 1,152 in the AUTOTEST build) after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **85% full on GBC (2,495 bytes left), 78% on DMG (3,578)** after the memory pass of 2026-10-19 (the platforms' fade/dim maths and the door plates moved into banks: ~1.7 KB); 95% (770 bytes) and 83% after Phase 9b; 93% (1,156 bytes) and 80% after Phase 9a (`items.c` is banked; bank 0 got `hud_icons`); 92% (1,256 bytes; 1,152 in the AUTOTEST build) after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`, `room_plate`, `platform_*_fx`, and the later phases' modules: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
 | VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
 | VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile; 247 the knob (Phase 9b); tiles 248–255, the Library's eight shapes, hold the items' icons everywhere but the Library: `hud_icons`, Phase 9a) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
 | VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 the status line, row 2 the held item and gold since Phase 9a), rows 2–13 a panel over the item row: the Library's (notes, padlock), Room 100's (the Circuit Breaker), the pause. GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
 | GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
-| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has 254 bytes left under the stack after Phase 9b (the stack measured 144 bytes deep: 107 never touched), 307 after Phase 9a (the inventory, the item row's 42 bytes, the loose loot, the leftovers table, the message queue: ~130 bytes), about 439 after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
-| SRAM | Bank 0 at 0xA000: the save (`save.c`, Phase 9b), 42 bytes: "DOOR", a version, the Knobs, runs, escapes, the best door, Knobs ever earned, deaths by cause, a checksum. Enabled only while read or written |
+| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), the light shapes (360 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. The run's seven per-room arrays (707 bytes) and the GBC's dim cache (448 bytes) moved to SRAM bank 1 on 2026-10-19: DMG now has 2.4 KB left under the stack, and the GBC's WRAM bank 1 **1,409 bytes**; before that DMG used ~6.3 of 8 KB (1.7 KB left) and the GBC had 254 bytes after Phase 9b (the stack measured 144 bytes deep: 107 never touched), 307 after Phase 9a (the inventory, the item row's 42 bytes, the loose loot, the leftovers table, the message queue: ~130 bytes), about 439 after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
+| SRAM | Enabled from boot, bank 1 switched in (`sram.h`, 2026-10-19). Bank 0 at 0xA000: the save (`save.c`, Phase 9b), 42 bytes: "DOOR", a version, the Knobs, runs, escapes, the best door, Knobs ever earned, deaths by cause, a checksum; switched in only while read or written. Bank 1: play buffers at fixed addresses (`__at`, so they're in the `.sym`): `run_template`, `run_flags`, `run_flags2`, `run_key_slot`, `run_drawers`, `run_banned`, `run_exit` from 0xA000 (101 bytes each), the GBC's `dim_cache` at 0xA300 (448 bytes). Not zeroed at boot: `run_start` clears or `plan_room` sets each array, and a dim level is read only once made. Banks 2–3 are free |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
 (+ `LCDCF_ON`), set in `main()`. The window is hidden by moving it below the screen (WY = 144).
@@ -100,8 +101,9 @@ MBC5 with RAM and battery (cartridge type `0x1B`). ROM size grows as needed (GBD
 banks; 256 KB on GBC and 128 KB on DMG after Phase 9b). SRAM holds the save (Phase 9b; no mid-run state):
 "DOOR", a version and a checksum over the rest; one that doesn't check out (a new cartridge, a dead battery, a
 power cut mid-write) is replaced by a fresh one, so a cut costs the save rather than corrupting it. It's written
-only at a run's end and when the lift sells something, and SRAM is enabled only while it's read or written
-(`ENABLE_RAM` ... `DISABLE_RAM`). One copy: two written alternately would survive a cut mid-write, if that's
+only at a run's end and when the lift sells something. SRAM stays enabled with bank 1 (play buffers) in, and
+bank 0 is switched in only while the save is read or written (`open_sram` ... `close_sram`); until 2026-10-19
+SRAM was enabled only then (`ENABLE_RAM` ... `DISABLE_RAM`). One copy: two written alternately would survive a cut mid-write, if that's
 ever wanted (achievements in Phase 11 may make it worth it).
 
 ## Frame loop (`main.c`, `game_frame()` in `game.c`)
@@ -471,7 +473,8 @@ draws; on DMG it's just the BGP/OBP registers with every shade shifted toward bl
 **GBC dim cache**: the flicker changes level every 4 frames. Recomputing 28 colours each time (a division per
 channel) cost the GBC 92 of 332 frames during Ambush's flicker. Each level × tint is now computed the first
 time it's needed after the palettes or the fade change, and kept (8 × 56 bytes); a flicker step is a copy.
-Halt's blue tint isn't cached (the hallway sets it once; WRAM bank 1 had no room for 4 more levels), and his
+The cache is in SRAM bank 1 since 2026-10-19 (`sram.h`).
+Halt's blue tint isn't cached (the hallway sets it once), and his
 flash (`platform_set_flash`) writes white over palettes 0–6 (DMG: BGP 0) until turned off. A room
 change: fade out (3 steps × 3 frames), hide sprites and HUD, load and draw the room with the screen black,
 fade in. The LCD stays on throughout: turning it off would flash white on a DMG.
@@ -584,7 +587,7 @@ jumpscare drew over tiles 128 and up) makes everything load again. The worst cas
 
 | Set | Tiles | GBC palettes |
 |---|---|---|
-| A hotel room: player, key, Rush or Ambush, Eyes, Screech, Timothy, the wall eye | 124 of 184 | 7 of 8 |
+| A hotel room: player, key, Rush or Ambush, Eyes, Screech, Timothy, the wall eye | 136: 104 below 128, Rush or Ambush's 32 at 152–183 | 7 of 8 |
 | A chase room: player, Seek, the puddle, the glow, the wall eye | 118 | 5 |
 | A Courtyard or Greenhouse room: the hotel's less the wall eye, plus rain | 120 | 7 |
 | The Library: player, marks, Figure | 72 + Figure's third frame | 3 |
@@ -597,8 +600,12 @@ GBC's WRAM for Phase 7 (the player keeps its own). (Before per-room loading: all
 loaded all the time, with Halt and Figure borrowing Rush's.) Each set is
 checked at build time: the converter writes `SPR_<NAME>_TILES` / `_PALETTES` into each sheet's header and
 `TILESET_<NAME>_TILES` into each tileset's, and `SPR_CHECK` (a negative array size: SDCC's `_Static_assert`
-only warns) fails the build if a set passes `SPR_TILE_LIMIT` (184, or 128 if the tileset grows past 128 tiles;
-it's 124 on GBC since the fire), 8 palettes or the frame pool. A new sheet goes into the set(s) it can be in. Both consoles share the layout; the GBC's
+only warns) fails the build if a set passes `SPR_TILE_LIMIT` (184, or 128 if the tileset grows past 128 tiles), 8 palettes or
+the frame pool. **A tileset over 128 tiles** (the hotel's 152 since the decorations, 2026-10-19) takes sprite tiles
+128 and up: `room.c` then sets `spr_high_from` to its tile count (and forgets every sheet, whenever it loads a
+tileset), and `spr_need_high` (Rush, Ambush: never together) puts its sheet there, up to 184
+(`SPR_HIGH_ROOM`), while every other sheet stays below 128. Places still follow the slot order, so a matching
+slot still means the sheet is where it belongs. A new sheet goes into the set(s) it can be in. Both consoles share the layout; the GBC's
 second VRAM bank (384 more tiles, attribute bit 3) is left for later. `scripts/sprite-test.py` checks it in
 PyBoy.
 

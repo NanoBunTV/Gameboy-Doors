@@ -2,6 +2,7 @@
 #ifndef ROOM_H
 #define ROOM_H
 
+#include <gb/gb.h>
 #include <stdint.h>
 #include "assets.h"
 
@@ -54,6 +55,7 @@ uint8_t room_solid_at(int16_t x, int16_t y);
 // number; PLATE_GARBLED: scribbles.
 #define PLATE_BLANK   0xFF
 #define PLATE_GARBLED 0xFE
-uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number);
+uint8_t room_make_plate(uint8_t slot, uint8_t base, uint8_t number) BANKED;   // room_plate.c
+void room_plate_base(uint8_t base, uint8_t *buf);   // its base tiles' top two (bank 0: the tileset's bank)
 
 #endif

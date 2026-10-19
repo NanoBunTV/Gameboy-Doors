@@ -29,6 +29,13 @@ void spr_room_begin(void);   // a new room: nothing asked for yet
 // Makes sure the sheet is in VRAM for this room (rt: as spr_sheet_load; its frame table goes in a pool shared
 // by the room's sheets). STAT-safe, so it also works mid-room. Asking again in the same room does nothing.
 void spr_need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src);
+// The same for Rush and Ambush: when the room's tileset has more than 128 tiles (its tiles 128 and up are sprite
+// tiles 128 and up), these go just after the tileset's last tile, up to 184, and every other sheet below 128
+// (2026-10-19: the hotel tileset passed 128 with the owner's decorations). Otherwise as spr_need.
+void spr_need_high(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src);
+// Where spr_need_high's sheets start: the loaded tileset's tile count if it's over 128, else 0 (room.c sets it,
+// and forgets every sheet, whenever it loads a tileset). Not static: scripts/sprite-test.py follows the packing.
+extern uint8_t spr_high_from;
 void spr_forget(void);       // sprite VRAM was drawn over (the title, a jumpscare): reload every sheet
 
 // Where room sheets start (after the player's), and where they must end: background tiles 128 and up are
@@ -37,6 +44,8 @@ void spr_forget(void);       // sprite VRAM was drawn over (the title, a jumpsca
 // VRAM together (SPR_CHECK in game.c, halt.c, library.c), from the SPR_*_TILES / SPR_*_PALETTES the
 // converter writes.
 #define SPR_TILE_LIMIT(bg_tiles) ((bg_tiles) > 128 ? 128 : 184)
+// What spr_need_high's sheets have, after a tileset of more than 128 tiles (0: none, they're packed with the rest)
+#define SPR_HIGH_ROOM(bg_tiles) ((bg_tiles) > 128 ? 184 - (bg_tiles) : 0)
 #define SPR_PALETTE_LIMIT 8   // GBC
 // The room sheets' frame tables, 4 bytes a frame (16x16 part): checked with the rest (SPR_*_FRAME_COUNT * 4)
 #define SPR_FRAME_POOL 128

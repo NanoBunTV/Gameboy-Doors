@@ -4,12 +4,16 @@
 #define PLATFORM_H
 
 #include <stdint.h>
+#include <gb/gb.h>
 #include <gb/cgb.h>
 
 #if defined(CGB) == defined(DMG)
 #error "Define exactly one of CGB or DMG (the Makefile does this)"
 #endif
 
+// Each platform's fade, dim and flash maths are banked (platform_*_fx.c, 2026-10-19: bank 0 was 95% full);
+// what stays in bank 0 is what bank-0 code calls with another bank in (the palette setters copy from the
+// caller's asset bank) and the VBlank copy.
 // Short name of the build, shown on screen
 extern const char platform_name[];
 
@@ -25,7 +29,7 @@ void platform_set_sprite_palettes(uint8_t first, const palette_color_t *colours,
 
 // Fade to black: 0 = normal ... FADE_BLACK = everything black. Takes effect in the next VBlank.
 #define FADE_BLACK 3
-void platform_set_fade(uint8_t level);
+void platform_set_fade(uint8_t level) BANKED;
 extern uint8_t platform_fade;
 
 // Dims the room's background only (not sprites, not the GBC text palette): 0 = normal ... 3 = black.
@@ -34,10 +38,10 @@ extern uint8_t platform_fade;
 #define TINT_NONE  0
 #define TINT_GREEN 1
 #define TINT_BLUE  2   // Halt's hallway
-void platform_set_dim(uint8_t level, uint8_t tint);
+void platform_set_dim(uint8_t level, uint8_t tint) BANKED;
 
 // Halt's flash: the whole background white while on (both consoles)
-void platform_set_flash(uint8_t on);
+void platform_set_flash(uint8_t on) BANKED;
 extern uint8_t platform_flash;   // (scripts/scroll-test.py skips flashed frames)
 extern uint8_t platform_dim;   // the current level (scripts/scroll-test.py skips dimmed frames)
 

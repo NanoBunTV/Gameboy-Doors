@@ -48,6 +48,7 @@
 | 2026-10-19 | Phase 9a: items, loot, the item row, the pause | `items-test.py` (DEBUG), then `build.ps1 -Test` after re-recording the replay (`record-run.ps1`: drawers give items now, and B uses them) | **All passed.** items-test on both consoles: every drawer's loot in rooms 1–8 matches `plan.py`'s copy, a full bag leaves the item, the lights, vitamins, a lockpick and the skeleton key, the crucifix against Eyes and Rush, the pause. BGB all three combinations; scroll-test 3,949 (GBC) / 4,130 (DMG) frames, 0 wrong pixels; VBlank GBC 6, DMG 8 of 10 lines; replay reaches room 30 at input frame 10,277 / 10,278; sprite, library, seek, garden, electrical tests pass. Stack at most 142 bytes deep on GBC with **162 bytes never touched** (113 / 1,640 on DMG). Bank 0 GBC 1,156 bytes free |
 | 2026-10-19 | Phase 9b: the save, Knobs, the lift shop, Jeff's Shop | `shop-test.py` (DEBUG), then `build.ps1 -Test` after re-recording the replay (`record-run.ps1`: every run now starts in the lift) | **All passed.** shop-test on both consoles: Knobs paid and listed, kept over a power cycle, a damaged save started fresh; the lift refuses what you can't afford, sells on BUY only, buys nothing on Start or when the song ends; Jeff's counter matches `plan.py`, gold and carry limits checked, the music in his room only; the erase. Three older tests were made robust on the way (the run's seed moved with the new code): the Library's padlock code and Room 100's fuses are now checked as they're entered (DMG had dropped a tap), and `items-test.py`'s warps send off a Rush the room rolled. BGB all three combinations; scroll-test 0 wrong pixels; VBlank GBC 6, DMG 8 of 10 lines; replay reaches room 30 at input frame 10,279 / 10,280. Stack at most 144 bytes deep on GBC, **107 never touched** (130 / 1,570 on DMG). Bank 0 GBC 770 bytes free |
 | | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library; Phase 7's chase; Phase 8a's Courtyard and Greenhouse and the HUD's timer (in a DEBUG build, poke `game_warp` to 50, 30 or 89, or play there) |
+| 2026-10-19 | Phase 10 closed: the hurt sound; the memory pass (SRAM bank 1, banked platform maths and door plates); the decorations, the desk bell, Rush and Ambush after a tileset over 128 tiles | `build.ps1 -Test` (twice: the first run's bell check read PyBoy's sound registers, which are 0 without sound, now `sfx_last`; a DMG Library tap made to retry) | **All tests passed.** BGB all three combinations; 0 wrong background pixels; replay reaches room 30 on both; the bell rings and rings again mid-ring; GBC stack 154 deep with 1,249 bytes never touched (107 before), DMG 130 / 2,274. GBC bank 0 2,397 bytes free. Owner, by hand: not yet |
 
 ## Test checklist for new builds
 
@@ -83,6 +84,9 @@
   all in use, so the pickups share the key's gold palette and one more (the bandage's tan).
 - **Phase 9b's shop numbers are the Minecraft version's**, to play-test: lift prices 50/50/100/100 against about
   a Knob per door, Jeff's 12–70 gold. The lift waits for Elevator Jam (33 s) or Start; there's no clock on screen.
+- **The hotel tileset is full** (152 tiles since the decorations, 2026-10-19): more tiles would take sprite
+  tiles Rush or Ambush need. A new hotel piece has to reuse tiles, or the sprite plan has to change (the GBC's
+  second VRAM bank is unused; the DMG has none).
 - **The save is one copy**: a power cut mid-write loses it (the checksum catches it and it starts fresh) rather
   than corrupting it. Writes take a few hundred cycles, only at a run's end and a lift purchase.
 - **Jeff's Shop is a script-made room** (`jeff_shop.tmx`, 13×10): the owner may want to author his own; two tables
@@ -115,6 +119,11 @@
 - **Memory outlook** (2026-10-18; numbers from `romusage -g`):
   - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
     is 256 KB since Phase 8b (128 KB from Phase 6).
+  - **The memory pass (2026-10-19)**: GBC bank 0 now has **2,495 bytes** free (85%; DMG 3,578, 78%), and the
+    GBC's WRAM bank 1 **1,409 bytes** under the stack (DMG 2,410). The fade/dim/tint/flash maths
+    (`platform_*_fx.c`) and the door plates (`room_plate.c`) moved into banks; the run's seven per-room arrays
+    and the GBC's dim cache moved to SRAM bank 1, which stays enabled from boot (`sram.h`; the save, in bank 0,
+    is switched in only while used). SRAM banks 2–3 and the GBC's WRAM banks 2–7 are still free.
   - *Bank 0 (GBC 95%, **770 bytes left after Phase 9b** (the two songs' cases, `image_show_rows`, the fourth
     tileset's switch, the shop's room kind in the template table); 93% and 1,156 after Phase 9a; 92% and 1,256 after Phase 8b, 1,152 in that AUTOTEST build; DMG 80%)*: a real, fixed
     16 KB. Phase 8b overflowed it in the AUTOTEST build (BGB caught it); Rush's route tables and
@@ -236,7 +245,7 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 8b. Room 100 (**done 2026-10-18**, owner's hands-on test pending) | Room 100 on one floor: the lever (gates, door 100 sealed, the sliding door, Figure out at once), ten fuses and the breaker key, the breaker room Figure never enters, the Circuit Breaker (3 rounds), the power, the escape (Figure on your trail, no hiding), the lift, the ending and the results; *Unhinged II* and the Ending Theme arranged; the `electrical` tileset; `electrical-test.py`. Also from the owner's play: Rush/Ambush by line of sight, Figure's walk, the key underfoot, the fire's flicker, doors lit when near in the dark; ROOM_MAX 2,560 |
 | 9a. Items (owner's split, 2026-10-18; **built 2026-10-19**, owner's hands-on test pending) | Gold, the eight items (lighter and flashlight with fuel, battery, vitamins, bandage, lockpicks, skeleton key, crucifix), loot in drawers and loose spots, the two-row HUD with the held item and gold, Select to cycle, B to use, Start to pause on the inventory, floor pickups |
 | 9b. Shops (**built 2026-10-19**, owner's hands-on test pending) | Knobs (paid at a run's end, on the death screen, the results and the title), the SRAM save with statistics and an erase, the lift before every run with its Knobs shop, Jeff's Shop (55); Elevator Jam and Jeff's Shop Jingle arranged |
-| 10. Audio | The rest (Here I Come, Unhinged II and the Ending Theme came with Phases 7 and 8b); SFX for every entity; a pass by ear over everything |
+| 10. Audio (**done 2026-10-19**: the owner judged the audio good) | Every MIDI is in (the last ones came with Phases 7, 8b and 9b); a general hurt sound (the owner's pick, "B": a note dropping fast) for every blow without a jumpscare (Eyes, Timothy, Halt, Snares, Hide's GET OUT). Also a memory pass: 1.7 KB of bank 0 and 1.2 KB of GBC WRAM freed |
 | 11. Polish | Title screen extras, achievements (paying Knobs), statistics, Super Game Boy border for the DMG ROM, balance; more room templates (an ongoing job: see known issues) |
 
 The owner's MIDI files for later phases are in `assets/music/midi/` (ASSETS.md, "Music").

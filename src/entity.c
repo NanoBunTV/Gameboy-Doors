@@ -57,9 +57,9 @@ void entity_need_sprites(void) BANKED {
     if (entity_state == ENT_IDLE || end_room < run_room)
         return;
     if (entity_kind == ENTITY_AMBUSH)
-        spr_need(&ambush_sheet, BANK(sprite_ambush), &sprite_ambush);
+        spr_need_high(&ambush_sheet, BANK(sprite_ambush), &sprite_ambush);   // after a big tileset (sprites.h)
     else
-        spr_need(&rush_sheet, BANK(sprite_rush), &sprite_rush);
+        spr_need_high(&rush_sheet, BANK(sprite_rush), &sprite_rush);
 }
 
 void entity_reset(void) BANKED {

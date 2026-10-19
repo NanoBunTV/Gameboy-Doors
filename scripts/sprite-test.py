@@ -69,15 +69,26 @@ def main():
         return bytes(g.mem[a:a + n * 16])
 
     def layout():
-        """The room's sheets as (sheet, first tile, first palette), in slot order"""
+        """The room's sheets as (sheet, first tile, first palette), in slot order. After a tileset of more than
+        128 tiles (spr_high_from), Rush and Ambush go just after its last tile, the rest below 128 (sprites.h)"""
         out, tile, pal = [], player["tiles"], 1
+        high_from = g.u8("_spr_high_from")
+        high = high_from
         for i in range(g.u8("_spr_slots")):
             p = g.u8("_spr_slot_src", 2 * i) | g.u8("_spr_slot_src", 2 * i + 1) << 8
             sh = sheets.get(p)
             if sh is None:
                 return None, f"slot {i} points at {p:#06x}, no sprite sheet there"
-            out.append((sh, tile, pal))
-            tile += sh["tiles"]
+            if high_from and sh["name"] in ("rush", "ambush"):
+                out.append((sh, high, pal))
+                high += sh["tiles"]
+                if high > 184:
+                    return None, f"{sh['name']} runs past tile 184 (into the door numbers)"
+            else:
+                out.append((sh, tile, pal))
+                tile += sh["tiles"]
+                if tile > (128 if high_from else 184):
+                    return None, f"{sh['name']} runs past tile {128 if high_from else 184} (into the tileset's tiles)"
             pal += sh["pals"]
         return out, None
 

@@ -61,6 +61,7 @@ typedef struct {
 #define OBJ_SAFE    18  // a rectangle: the breaker room, doorway included, where Figure never goes
 #define OBJ_STOCK   19  // Jeff's Shop: a place on the counter (a 'counter' metatile) the run's stock lies on
 #define OBJ_JEFF    20  // Jeff's Shop: where his eyes are; param: the pixel offset in the cell (x | y << 4)
+#define OBJ_BELL    21  // a desk bell (a 'desk_bell' metatile): A rings it, as often as you like (owner, 2026-10-19)
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2

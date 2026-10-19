@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="41" columns="8">
- <image source="hotel.gbc.png" width="128" height="96"/>
+<tileset version="1.10" tiledversion="1.12.2" name="hotel" tilewidth="16" tileheight="16" tilecount="49" columns="8">
+ <image source="hotel.gbc.png" width="128" height="112"/>
  <tile id="0">
   <properties>
    <property name="name" value="void"/>
@@ -242,6 +242,54 @@
   <properties>
    <property name="name" value="fire_b"/>
    <property name="fire" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="41">
+  <properties>
+   <property name="name" value="chair"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="42">
+  <properties>
+   <property name="name" value="plant_top"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="43">
+  <properties>
+   <property name="name" value="plant_bottom"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="44">
+  <properties>
+   <property name="name" value="cart_tl"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="45">
+  <properties>
+   <property name="name" value="cart_tr"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="46">
+  <properties>
+   <property name="name" value="cart_bl"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="47">
+  <properties>
+   <property name="name" value="cart_br"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="48">
+  <properties>
+   <property name="name" value="desk_bell"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

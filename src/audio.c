@@ -17,6 +17,7 @@ BANKREF_EXTERN(music_elevator)
 BANKREF_EXTERN(music_jeff)
 
 uint8_t music_id;   // MUSIC_* playing (tests read it)
+uint8_t sfx_last;   // the last SFX_* started (tests read it: PyBoy runs them without sound, its registers read 0)
 static uint8_t music_bank;
 
 // ------------------------------------------------------------------------------------------ effects
@@ -52,6 +53,7 @@ static void release(uint8_t ch) {
 void sfx_play_vol(uint8_t id, uint8_t volume) {
     if (!id || id >= SFX_COUNT)
         return;
+    sfx_last = id;
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(sfx_data));
     uint8_t ch = sfx_chan[id];

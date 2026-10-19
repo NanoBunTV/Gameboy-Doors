@@ -38,6 +38,8 @@ uint8_t spr_slots;
 #define slot_src spr_slot_src
 #define slots spr_slots
 static uint8_t next_tile, next_pal, next_frame;
+uint8_t spr_high_from;
+static uint8_t next_high;
 // The room sheets' frame tables, packed like their tiles (one pool rather than a buffer per sheet: 2026-10-18,
 // it freed ~200 bytes of the GBC's WRAM for Seek)
 static uint8_t frame_pool[SPR_FRAME_POOL];
@@ -45,6 +47,7 @@ static uint8_t frame_pool[SPR_FRAME_POOL];
 void spr_room_begin(void) {
     slots = 0;
     next_tile = SPR_PLAYER_TILES;
+    next_high = spr_high_from;
     next_pal = 1;
     next_frame = 0;
 }
@@ -53,12 +56,15 @@ void spr_forget(void) {
     memset(slot_src, 0, sizeof(slot_src));
 }
 
-void spr_need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src) {
+// The place is fixed by the slot order and which sheets go high, so a slot that matches still has its sheet where
+// the packing puts it (as long as the tileset hasn't changed: room.c forgets every sheet when it does)
+static void need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src, uint8_t high) {
     for (uint8_t i = 0; i < slots; i++)
         if (slot_src[i] == src)
             return;
+    uint8_t *next = high && spr_high_from ? &next_high : &next_tile;
     if (slot_src[slots] != src) {
-        spr_sheet_load(rt, bank, src, next_tile, next_pal, frame_pool + next_frame);
+        spr_sheet_load(rt, bank, src, *next, next_pal, frame_pool + next_frame);
         slot_src[slots] = src;
         for (uint8_t i = slots + 1; i < SLOTS; i++)
             slot_src[i] = 0;
@@ -66,13 +72,21 @@ void spr_need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src) {
     // Where the next goes (rt holds this one's place: from this load, or from the room it was loaded in)
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(bank);
-    next_tile += src->tile_count;
+    *next += src->tile_count;
     next_frame += src->frame_count << 2;
 #ifdef CGB
     next_pal += src->palette_count;
 #endif
     SWITCH_ROM(saved);
     slots++;
+}
+
+void spr_need(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src) {
+    need(rt, bank, src, 0);
+}
+
+void spr_need_high(spr_sheet_t *rt, uint8_t bank, const sprite_sheet_t *src) {
+    need(rt, bank, src, 1);
 }
 
 void spr_begin(void) {

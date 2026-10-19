@@ -18,7 +18,7 @@
 #define GRACE_FRAMES 30
 #define HIT_FRAMES   15
 #define DAMAGE       5
-#define CUE_EVERY    4     // the hit sound on every 4th hit: about once a second
+#define CUE_EVERY    2     // the hurt sound on every 2nd hit: twice a second (owner, 2026-10-19)
 
 uint8_t eyes_here;
 int16_t eyes_x, eyes_y;
@@ -94,7 +94,7 @@ uint8_t eyes_update(void) BANKED {
     }
     run_hp -= DAMAGE;
     if (!(++hits % CUE_EVERY))
-        sfx_play(SFX_EYES_HIT);
+        sfx_play(SFX_HURT);
     return DEATH_NONE;
 }
 

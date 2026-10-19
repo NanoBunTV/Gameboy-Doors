@@ -127,6 +127,15 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   Guiding Light and the results, the balance on the title, the lift before every run with its Knobs shop, Jeff's
   Shop at room 55 (a new `shop` room kind and tileset), the owner's Elevator Jam and Jeff's Shop Jingle arranged,
   the save's erase on the title. `shop-test.py`.
+- **2026-10-19**: **Phase 10 (audio) closed and a memory pass.** The owner judged the audio good; every MIDI was
+  already in. A general hurt sound, picked from three MP3s, now plays for every blow without a jumpscare. Memory
+  for the owner's room authoring: the fade/dim maths and door plates moved into banks (GBC bank 0: 770 → 2,495
+  bytes free), and the run's per-room arrays and the GBC's dim cache moved to SRAM bank 1 (GBC WRAM: 254 → 1,409
+  bytes under the stack). Next: the owner authors the rooms, then the game is considered finished.
+- **2026-10-19**: **Decorations and the desk bell.** An armchair, a tall potted plant (redrawn from the owner's
+  reference) and a luggage cart for the hotel tileset, and a counter tile with a bell that rings on A (a new
+  `bell` object, the owner's two-tone ring), placed once in the reception's counter with the owner's permission.
+  The tileset went from 124 to 152 tiles, past the 128 that sprites share: Rush and Ambush now go after it.
 
 ## Decisions and why
 
@@ -263,6 +272,10 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Jeff's Shop has two small tables where the mock-up had bookshelves | My call (2026-10-19): with the shelves the shop's tileset needed 8 GBC palettes (the limit is 7) |
 | The counter is used from in front of it (A at its front, the desk under the items) | My call (2026-10-19): the counter is two metatiles deep, so its top is out of the player's reach |
 | The knob glyph takes the font's last free tile (247; the icon glyphs moved up one, to 248-255) | My call (2026-10-19) |
+| The hurt sound: a punchy note dropping fast (option "B, ow" of three), for Eyes (every 2nd hit, twice a second), Timothy, Halt, Snares (over the snap) and Hide's GET OUT (before its blast, one script: both are on CH1) | Owner's choice (2026-10-19) of the sound and where it plays |
+| Decorations: an armchair (1×1), a tall plant in a red pot (1×2), a luggage cart (2×2), all solid, in the hotel's existing palettes with a dark backing like the bed; a desk bell on the counter's middle that rings on A, as often as pressed (a strike into a ring with a higher partial, two channels) | Owner's request and picks (2026-10-19: the art from mock-ups, sound "B, two-tone" of two). The reception's counter got the bell with the owner's one-time permission to edit that room |
+| When a tileset passes 128 tiles, Rush and Ambush's sheets go after its last tile and the rest below 128 | My call (2026-10-19): the decorations took the hotel to 152 tiles; the worst hotel room needs 136 sprite tiles, which fit only split this way. The owner chose this engine change (with a full test run) over dropping pieces. The hotel tileset is now full (152 at most) |
+| SRAM stays enabled from boot, bank 1 switched in as play memory (the run's per-room arrays, the GBC's dim cache); the save's bank 0 is switched in only while used | My call (2026-10-19), for the owner's request to free memory: a power-off's stray writes reach only the bank switched in, and the checksum still catches a damaged save. Rule: nothing an interrupt reads goes in SRAM |
 | ROOM_MAX 2,560 metatiles (was 2,816); Room 100 at most 896 (28×32 by default) | My call (2026-10-18): Phase 8b's statics left the GBC ~150 bytes under the stack before it had ever been measured. Measured since: 140 bytes deep; with the change ~439 free. Can go back to 2,816 (Room 100 up to 1,024) if a bigger Room 100 is wanted |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
@@ -272,6 +285,10 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 - The owner wants to be asked multiple-choice questions about anything important, big or small, at any point.
 - Test in the project's own **BGB**, `tools\bgb\bgb64.exe`. **Never run or change the owner's BGB install**
   (`E:\ROMs and Emulators\_Emulators\BGB (GameBoy)`), which is for playing (owner, 2026-10-17).
+- **The rooms are the owner's** (2026-10-19): never edit, regenerate, rename or delete `assets/rooms/*.tmx`, and
+  never renumber or remove existing metatiles in `assets/tilesets/`. When the owner's rooms break a test, fix the
+  test or re-record the replay, not the room; when a converter rule rejects one, tell the owner. Ask first about
+  anything else that would change how an existing room plays.
 - Downloaded tools go in `tools/`, which is gitignored.
 - The owner has no real Game Boy, so nothing may rely on emulator leniency (see DEBUGGING.md).
 - Documentation lives in this `Docs/` folder, written so the next session can continue without the chat history.

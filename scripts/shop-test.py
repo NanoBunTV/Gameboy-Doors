@@ -13,6 +13,8 @@ Needs a DEBUG build (game_warp; the script pokes the Knobs, gold and inventory).
   jeff     room 55 is Jeff's Shop: his music, his eyes, the run's four items on the counter (scripts/plan.py);
            too little gold is refused, B buys nothing, a purchase takes the gold and empties its place, a full bag
            is refused before the gold is taken, the music stops at the next door
+  bell     the reception's desk bell (2026-10-19): A at the counter rings it, and A again mid-ring rings it again
+           (it can be spammed)
   erase    Select + B held on the title, then A: the save is empty
 Screenshots go to build/screens/shop-<console>-*.png. Exits non-zero on any failure.
 """
@@ -289,6 +291,25 @@ tap(g, "a", lambda: g.mem[g.syms["_run_flags"] + SHOP] & 0x08)
 b.walk_to((exit_obj[1], exit_obj[2] + 1))
 until(g, lambda: g.room() == SHOP + 1 and g.state() == GAME_PLAYING, 200, J["up"])
 check(g.room() == SHOP + 1 and g.u8("_music_id") == 0, "through door 56: the music stops")
+g.pyboy.stop(save=False)
+
+# ------------------------------------------------------------------------------------------ the desk bell
+# PyBoy runs without sound (its registers read 0): audio.c's sfx_last says which effect started last
+SFX_BELL_HI = 45   # audio.h: SFX_BELL then SFX_BELL_HI
+print(f"{rom}: bell")
+g = Game(rom)
+to_lift(g)
+tap(g, "start", lambda: g.state() != GAME_LIFT)
+to_room0(g)
+for _ in range(60):   # from the spawn (column 7) straight up to the counter, the bell in front
+    g.tick(J["up"])
+poke(g, "_sfx_last", 0)
+check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A at the counter rings the bell")
+for _ in range(12):   # mid-ring
+    g.tick(0)
+poke(g, "_sfx_last", 0)
+check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A again mid-ring rings it again")
+shot(g, "bell")
 g.pyboy.stop(save=False)
 
 # ------------------------------------------------------------------------------------------ erase
