@@ -15,7 +15,7 @@ roadmap lists the phases). Sections marked **planned** aren't built yet (the eco
 | `assets/sprites/` | Sprite sheets: `<name>.gbc.png`, `<name>.dmg.png` and `<name>.json` (frame names) |
 | `assets/fonts/`, `assets/title/`, `assets/scares/` | The font; the title logo; the jumpscare screens |
 | `assets/music/` | hUGETracker songs (`.uge`); `midi/` holds the owner's MIDI files they were arranged from. Sound effects are register scripts in `src/sfx_data.c` |
-| `scripts/` | `assets.py` (asset converter), `check-rom.py`, `bgb-check.ps1`, `run-test.py`, `scroll-test.py`, `vblank-budget.py`, `bot.py`, `record-run.ps1`, `plan.py` (a copy of the run planner, for choosing the test seed) (DEBUGGING.md) |
+| `scripts/` | `assets.py` (asset converter), `check-rom.py`, `bgb-check.ps1`, `run-test.py`, `scroll-test.py`, `vblank-budget.py`, `bot.py`, `record-run.ps1`, `plan.py` (a copy of the run planner, for choosing the test seed), `library-test.py`, `seek-test.py`, `garden-test.py`, `electrical-test.py`, `sprite-test.py`, `render-song.py` (a song to MP3) (DEBUGGING.md) |
 | `tests/` | `autotest_input.c`: the recorded run AUTOTEST builds replay (written by `bot.py`) |
 | `tools/` | Downloaded tools, not in git (`tools/README.md`) |
 | `build/` | Output, not in git: `gen/` (generated C from assets), `gbc/`, `dmg/`, `gbc-autotest/`, `dmg-autotest/`, `gbc-debug/`, `dmg-debug/` (ROM, `.sym`, `.map`, `obj/`), `screens/`, `preview/` |
@@ -76,7 +76,7 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB, 32 templates since Phase 8a). **97% full on GBC (428 bytes left), 85% on DMG** after Phase 8b (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out). Phase 8b added only a tileset case, two songs' cases and the third light source there; Phase 9 should move something out first (STATUS.md) |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **92% full on GBC (1,256 bytes left; 1,152 in the AUTOTEST build), 80% on DMG** after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
 | ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
 | VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
 | VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile) |
@@ -353,12 +353,15 @@ a slot per exit). Only those two tiles are copied, so
     replayed), the display order a shuffle; the display steps every 54 / 36 / 22 frames by round, a 60-frame
     blank after the tenth, then the same again; it runs while the panel is shut too. A flip that makes
     `elec_switch == elec_answer` solves the round: 180 frames blank, the switches off at 90. After the third,
-    `power_on`: the lift's gates and doors open, the breaker door opens, `player_fast`.
+    `power_on`: the lift's gate and doors open (`lift_open_*`), the breaker door opens, `player_fast` 2 (1.5 px/frame,
+    1.2× walking), and Figure's trail starts at the box (`figure_trail_begin`; `figure_trail` each frame).
   - *The escape*: 180 frames later Figure's door opens and `figure_escape` puts him in front of it in
-    `FIG_CHASE`: deaf, he follows a trail of the player's feet (a point every 8 px, 256 points in the room
-    map's tail where his fill was) at 1.31 px/frame, then straight at them; his roar every 3 s; contact
+    `FIG_CHASE`: deaf, he follows the trail of the player's feet that began at the box (a point every 8 px,
+    256 points in the room map's tail where his fill was) at 1.41 px/frame (owner, 2026-10-18: only just
+    outrun him; a trail started when he came out began outside the breaker room, and he walked through its wall
+    to it), then straight at them; his roar every 3 s; contact
     (hiding refused, "NO TIME TO HIDE.") is `DEATH_ESCAPE`. The feet in the lift rectangle: `ELEC_WON`,
-    `GAME_WON`, and `main` runs `ending_run`: the doors shut (metatiles), Figure on for 50 frames, the slam
+    `GAME_WON`, and `main` runs `ending_run`: the doors shut (`lift_shut_*`: the doors without their gate), Figure on for 50 frames, the slam
     and a shake, the fall (shake, rumble, fade), the crash, then the results over the Ending Theme until Start.
   - *Damage taken*: `run_damage`, counted where `hud_update` sees `run_hp` fall.
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
@@ -563,8 +566,8 @@ Runs from the Makefile; writes `build/gen/<kind>_<name>.c/.h`. The `.c` holds th
   on dressers, closets and beds on their metatiles, somewhere for a key when locking is allowed.
 - **Room list** (`roomlist`, all `.tmx` at once): `room_templates.c` in bank 0, with each template's kind,
   entry and exit walls, `allow_lock`, drawer, key-spot and hiding-spot counts (what `run.c` plans with,
-  without switching banks), Rush's route (door centres, in 8 px units) and its length, and
-  `room_template(id, &bank)`. Checks there's exactly one start room and that every exit wall has a
+  without switching banks), and accessors for the banked `room_routes.c` (Phase 8b): Rush's route (door
+  centres, in 8 px units) and its length per exit, and `room_template(id, &bank)` (BANKED). Checks there's exactly one start room and that every exit wall has a
   room that can follow it, and the same for the Library, the chase rooms and the Courtyard and Greenhouse
   (`ROOM_HAS_SEEK`, `ROOM_HAS_GARDEN`), including room 100 after a Greenhouse exit.
 - **Sprite sheet** (`.json` + both PNGs): frames in a grid, named in the JSON; 16×16, or multiples of 16
@@ -575,7 +578,8 @@ Runs from the Makefile; writes `build/gen/<kind>_<name>.c/.h`. The `.c` holds th
 - **Image** (the title logo, the jumpscares; both PNGs): deduplicated tiles (at most 184), a tile map, GBC
   palette per tile.
 - **Songs**: hUGETracker's `uge2source` turns `assets/music/<name>.uge` into `music_<name>.c` (banked);
-  `assets.py songfix` then replaces the empty instrument arrays it writes for an unused instrument kind,
+  `assets.py songfix` then replaces the empty instrument arrays it writes for an unused instrument kind
+  (and the empty wave table of a song with no wave instrument),
   which SDCC rejects.
 
 Rules for the art are in ASSETS.md; the converter stops with an error naming the place that breaks one.

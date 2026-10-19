@@ -68,8 +68,8 @@
   until the room map shrank to 2,560 metatiles (below); Room 100 may be at most 896.
 - **Room 100's numbers are guesses to play-test**: the sliding door's 4 steps of 40 frames, the music 2 s
   after the lever, Figure sent at the lever's front at once (sneak away or hide); the breaker's 54 / 36 / 22
-  frames a number and 60-frame pause; 3 s before Figure comes out after the power; his escape speed 1.31 px/frame
-  against your 1.75 (Seek's numbers); the light pools dead 2–4 s, blinking 2–3 times for 3–10 frames.
+  frames a number and 60-frame pause; 3 s before Figure comes out after the power; his escape speed 1.41 px/frame
+  against your 1.5 (owner: only just outrun him; on diagonals he's slower, moving an axis at a time); the light pools dead 2–4 s, blinking 2–3 times for 3–10 frames.
 - **B sneaks in Room 100** until the escape, as in the Library. That was my call, not the owner's (they chose B
   for the Library because items don't need it there): Phase 9's items will want B, so this needs deciding then.
 - **The breaker's answers aren't replayed**: they're drawn from the run's clock when the tenth fuse goes in, so
@@ -79,8 +79,8 @@
 - **The ending is plain**: the lift's doors shut over the room, the shake and the fall are scroll shakes and a
   fade; no picture of the car or of Figure on the roof. The results have no Knobs or achievements yet (Phases
   9 and 11).
-- **The two new songs are first arrangements** (`electrical.uge`, `ending.uge`), by numbers, for the owner's
-  ears; the new sound effects too (lever, slide, fuse, fuse in, switch, the display's beeps, power, crash).
+- **Unhinged II is a first arrangement** (`electrical.uge`), not yet heard by the owner (render it with
+  `scripts/render-song.py`); the Ending Theme was picked by ear from MP3s. The new sound effects are by numbers too (lever, slide, fuse, fuse in, switch, the display's beeps, power, crash).
 - **Figure's escape trail** holds 256 points 8 px apart (2 KB of walking); a run longer than that behind him
   stops adding points and he walks the last ones straight. Not reachable in the default room.
 
@@ -99,9 +99,9 @@
 - **Memory outlook** (2026-10-18; numbers from `romusage -g`):
   - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
     is 256 KB since Phase 8b (128 KB from Phase 6).
-  - *Bank 0 (GBC 97%, 428 bytes left after Phase 8b; DMG 85%)*: a real, fixed 16 KB. **Phase 9 has to move
-    something out first**. Phase 8b fitted without (its code is banked; bank 0 got a tileset case, two songs'
-    cases and the third light source). Every phase so far added engine code there.
+  - *Bank 0 (GBC 92%, 1,256 bytes left after Phase 8b, 1,152 in the AUTOTEST build; DMG 80%)*: a real, fixed
+    16 KB. Phase 8b overflowed it in the AUTOTEST build (BGB caught it); Rush's route tables and
+    `room_template()` then moved to a bank (`room_routes.c`, ~1 KB). Every phase so far added engine code there.
     The HUD's timers and status line (`hud_status.c`) and the sound effects' scripts (`sfx_data.c`) moved
     out on 2026-10-18 (~1 KB). Next candidates if it fills again: `room.c`'s door and plate painting, parts
     of `sprites.c`; only code that switches banks to read assets, reads text from its caller's bank, or runs

@@ -12,7 +12,8 @@ extern int16_t player_x, player_y;   // top left of the 16x16 sprite, room pixel
 extern uint8_t player_facing;        // DIR_*
 extern uint8_t player_moving;        // a direction was held last update (Figure hears it, figure.c)
 extern uint8_t player_sneak;         // set by game.c: 1 = half speed, silent (B held in the Library)
-extern uint8_t player_fast;          // set by seek.c: 1.4 times walking, running from Seek
+extern uint8_t player_fast;          // seek.c 1: 1.4 times walking, running from Seek; electrical.c 2: 1.2 times,
+                                     // running for Room 100's lift
 
 // Collision box (the feet), relative to the sprite's top left
 #define HB_L 3

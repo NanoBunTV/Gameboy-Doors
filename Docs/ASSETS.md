@@ -59,7 +59,7 @@ Metatile properties, set in Tiled (select the tile in the tileset, Properties pa
 | `wall` | bool | A wall Seek's eyes can appear on before a chase (wall_top, wallpaper, wallpaper_shadow, wainscot) |
 | `snare` | bool | The metatile a Snare is drawn with (at most one per tileset; `garden`'s `snare`). The run puts it on `floor` cells (Rooms, below) |
 | `shelf` | bool | Room 100: a shelf a fuse can be put on, if there's floor below it (`electrical`'s `shelf_bottom`; the run swaps in `shelf_fuse`) |
-| `gate` | bool | Room 100: bars the lever takes away (those in the row just below the lift go when the power comes back) |
+| `gate` | bool | Room 100: bars the lever takes away |
 | `slide` | bool | Room 100: the sliding door Figure waits behind; the lever parts it from the middle outward |
 
 Metatile 0 must stay the **void** (solid black). It's used outside the room and for empty cells.
@@ -113,7 +113,7 @@ door slots carry the copper door's art (Room 100 has no ordinary doors but its e
 | breaker_top, breaker_bottom | The breaker box on a wall |
 | breaker_door_top, breaker_door_bottom | The breaker room's copper door: a warning sign above, a padlock below |
 | copper_top, copper_bottom, copper_open_top, copper_open_bottom | A plain copper door (Figure's, and the breaker room's once shut again) and its open doorway |
-| lift_tl/tr/bl/br, lift_open_tl/tr/bl/br | The lift's two doors in a top wall, 2×2, shut and open (the car lit) |
+| lift_tl/tr/bl/br, lift_open_tl/tr/bl/br, lift_shut_tl/tr/bl/br | The lift's two doors in a top wall, 2×2: shut behind a folding lattice gate (owner's pick from mock-ups, 2026-10-18, over a row of floor gates in front), open with the car lit (the power), and shut without the gate (the ending) |
 | slide | The sliding metal door (`slide`, solid) |
 
 ## Rooms (`assets/rooms/`)
@@ -149,7 +149,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `breaker` | 1×2 on `breaker_top` + `breaker_bottom` | Room 100: the breaker box, in the breaker room's wall |
   | `breaker_door` | 1×2 on `breaker_door_top` + `breaker_door_bottom` | Room 100: the breaker room's locked door (entered going up) |
   | `figure_door` | 1×2 on `copper_top` + `copper_bottom` | Room 100: the door Figure comes out of after the power, in the breaker room's wall |
-  | `lift` | 2×2 on `lift_tl`, `lift_tr`, `lift_bl`, `lift_br` | Room 100: the lift. Put two `gate` cells in the row just below it |
+  | `lift` | 2×2 on `lift_tl`, `lift_tr`, `lift_bl`, `lift_br` | Room 100: the lift (its gate is in its art) |
   | `safe` | rectangle | Room 100: the breaker room, where Figure never goes: its floor and the breaker door's two cells, not the cell below the door |
   | `light` | rectangle, at most 16 cells | Room 100: a pool of light (its `floor` cells blink); at most 6 |
 
@@ -236,7 +236,7 @@ floor below, outside `safe`; at most 6 `light`s; a solid edge (Figure's search);
 (`(ROOM_MAX − 768) / 2`: the search and `electrical.c`'s scratch use the rest of the room map); at most 24
 objects. For every wall room 99 can be entered from, a Greenhouse room with one door, on top, must exist
 (`greenhouse_turn_w` / `_e`, 12×11, were added for that). Default: `electrical` (28×32, made by a script):
-the lift at the top behind two gates, the storage's shelving behind a line of gates, Figure's cage on the left
+the lift at the top, the storage's shelving behind a line of gates, Figure's cage on the left
 with the lever on its south wall, the breaker room on the right (the box and Figure's door in its top wall,
 its locked door in its south wall), a short shelf and closets in the open, six pools of light.
 
@@ -332,7 +332,7 @@ rebuild. The build converts each with `uge2source` into `music_<name>`. Songs mu
 | `library.uge` | The Library (room 50), from entering until you walk out | The owner's `midi/Unhinged (Library Theme).mid`: CH1 the muted guitar's ostinato, CH2 the strings' upper three voices as an arpeggio, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
 | `seek.uge` | Seek's chases, from his rise to the door slamming | The owner's `midi/Here I Come (Seek Chase).mid` (Phase 7) |
 | `electrical.uge` | Room 100, from 2 s after the lever to the lift | The owner's `midi/Unhinged II (Electrical Theme).mid`: CH1 the piano's top line (both guitars double it), CH2 the muted guitar's ostinato, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
-| `ending.uge` | The results after the lift | `midi/Ending Theme.mid`: CH1 the Scifi lead (the synth pluck doubles it) and the jazz guitar where it rests, CH2 the piano's chords as arpeggios, CH3 the strings' lowest voice, CH4 the 808 hats (a 32nd roll in the MIDI, played as 16ths). 70 bpm: 13 ticks a row, every 7th 12 (F0D/F0C on CH4) |
+| `ending.uge` | The results after the lift, once | The owner's second `midi/Ending Theme.mid` (2026-10-18; the first is `Ending Theme_old.mid`): CH1 the Scifi lead (the jazz guitar doubles it), CH2 the piano's chords as one soft note each, CH3 the piano's bass. No arpeggios (owner: the first arrangement's background parts didn't sound good). Volumes balanced by measuring each channel alone (lead 7, piano 8, bass wave 25%). Every note cut where it ends, and **the last order is silent and jumps to itself** (`Bxx` at row 1: hUGEDriver jumps to order xx − 1), so it plays once with no tail. 75 bpm = 12 ticks a row |
 | `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
 
 In both a row is a 16th note and a pattern is 4 bars. The rooms have no music: the hotel ambience

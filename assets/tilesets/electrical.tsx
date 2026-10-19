@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.2" name="electrical" tilewidth="16" tileheight="16" tilecount="66" columns="8">
+<tileset version="1.10" tiledversion="1.12.2" name="electrical" tilewidth="16" tileheight="16" tilecount="70" columns="8">
  <image source="electrical.gbc.png" width="128" height="144"/>
  <tile id="0">
   <properties>
@@ -388,6 +388,30 @@
    <property name="name" value="slide"/>
    <property name="solid" type="bool" value="true"/>
    <property name="slide" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="66">
+  <properties>
+   <property name="name" value="lift_shut_tl"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="67">
+  <properties>
+   <property name="name" value="lift_shut_tr"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="68">
+  <properties>
+   <property name="name" value="lift_shut_bl"/>
+   <property name="solid" type="bool" value="true"/>
+  </properties>
+ </tile>
+ <tile id="69">
+  <properties>
+   <property name="name" value="lift_shut_br"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
 </tileset>

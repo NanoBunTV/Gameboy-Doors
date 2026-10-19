@@ -108,6 +108,13 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   can be won. The GBC's WRAM bank 1 got tight (the statics), so the room map shrank to 2,560 metatiles and
   Room 100 to 28×32; a new test measures the stack (140 bytes deep at most, ~439 free).
 
+- **2026-10-18**: from the owner's first look at Room 100: the lift's bars are a folding lattice gate drawn over
+  its doors (no gate row in front); the escape: Figure follows a trail from the breaker box (he'd walked through
+  the breaker room's wall), you run at 1.2× walking and he at 0.94 of that; the owner's new Ending Theme MIDI
+  arranged without arpeggios, balanced, playing once with no tail (previewed as MP3s rendered from the driver
+  first). Found on the way: the last full test run had failed: the AUTOTEST build overflowed bank 0 by a few
+  bytes; Rush's route tables and `room_template()` moved into a bank (bank 0 92%, 1.2 KB free).
+
 ## Decisions and why
 
 | Decision | Reason |
@@ -208,6 +215,10 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | A picks up a key you're standing on | Owner (2026-10-18): it had to be faced from the next cell |
 | The fire's two flame tiles alternate on screen | Owner (2026-10-18): "the flame does not animate" |
 | In a dark room, the top half of a door you're within 3 metatiles of is lit | Owner's choice (2026-10-18) over always-lit plates or a taller glow: the glow didn't reach a top-wall door's number |
+| The lift behind a folding lattice gate drawn over its doors | Owner's pick from three mock-ups (2026-10-18): the bar gates in front "don't look good" |
+| The escape: you at 1.2× walking (1.5 px/frame), Figure at 0.94 of that, on a trail that starts at the breaker box | Owner (2026-10-18): "speed him up … slow me down a bit so I can only slightly outrun him"; he had walked through the breaker room's wall to a trail that began outside it |
+| The Ending Theme from the owner's second MIDI: the lead, the piano's chords as one soft note, the bass; plays once | Owner (2026-10-18): the first's background parts sounded bad and its tail rang on through the loop; picked after MP3 previews ("good enough"), one part lowered after the first ("far louder than the others") |
+| Music previews as MP3 before building | Owner (2026-10-18): render the candidate arrangements (a GBDK player ROM with hUGEDriver, recorded in PyBoy, hUGETracker's ffmpeg) to choose by ear |
 | B sneaks in Room 100 until the escape | My call (2026-10-18), following the owner's Library choice; to decide with Phase 9's items, which want B |
 | ROOM_MAX 2,560 metatiles (was 2,816); Room 100 at most 896 (28×32 by default) | My call (2026-10-18): Phase 8b's statics left the GBC ~150 bytes under the stack before it had ever been measured. Measured since: 140 bytes deep; with the change ~439 free. Can go back to 2,816 (Room 100 up to 1,024) if a bigger Room 100 is wanted |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |

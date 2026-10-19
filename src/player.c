@@ -18,6 +18,9 @@
 // the chase hands out Speed)
 #define CHASE_SPEED      0x01C0
 #define CHASE_SPEED_DIAG 0x013C
+// Running for Room 100's lift (player_fast 2): 1.2 times walking (owner, 2026-10-18: only just faster than him)
+#define ESCAPE_SPEED      0x0180
+#define ESCAPE_SPEED_DIAG 0x010F
 
 // Walk cycle: idle, step A, idle, step B; each for 8 frames
 #define ANIM_SHIFT 3
@@ -147,6 +150,7 @@ void player_update(void) BANKED {
     player_moving = dx || dy;
     if (player_moving) {
         uint16_t speed = player_sneak ? ((dx && dy) ? SNEAK_SPEED_DIAG : SNEAK_SPEED)
+                       : player_fast == 2 ? ((dx && dy) ? ESCAPE_SPEED_DIAG : ESCAPE_SPEED)
                        : player_fast  ? ((dx && dy) ? CHASE_SPEED_DIAG : CHASE_SPEED)
                                       : ((dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED);
         if (dx && move_x(dx, speed) && !dy)

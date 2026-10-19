@@ -178,7 +178,7 @@ check(g.u8("_electrical_state") in (ELEC_OPENING, ELEC_SEARCH), f"the lever pull
 lift = obj(g, OBJ_LIFT)
 w, h = g.u8("_room_w"), g.u8("_room_h")
 gates = [(x, y) for y in range(h) for x in range(w) if g.mem[g.syms["_mt_flags"] + mt_at(g, x, y)] & MTF_GATE]
-check(sorted(gates) == [(lift[1], lift[2] + 2), (lift[1] + 1, lift[2] + 2)], f"the gates gone but the lift's {gates}")
+check(not gates, f"the gates gone {gates}")
 entry = obj(g, OBJ_ENTRY)
 check(mt_at(g, entry[1], entry[2]) == MT["wall_top"], "door 100 sealed")
 for _ in range(400):
@@ -255,13 +255,30 @@ try:
         if g.u8("_electrical_state") == ELEC_ESCAPE:
             break
     check(g.u8("_electrical_state") == ELEC_ESCAPE and g.u8("_figure_state") == FIG_CHASE, "Figure out of his door")
-    g.mem[g.syms["_figure_state"]] = FIG_OFF
-    walk(b, (lift[1], lift[2] + 3))
+    # Run for the lift with him after you: he must keep to the floor (out through the breaker room's door,
+    # not its wall), and you must make it
+    w = g.u8("_room_w")
+    flags, rmap = g.syms["_mt_flags"], g.syms["_room_map"]
+    through_wall = []
+
+    def watch():
+        fx, fy = g.s16("_figure_x"), g.s16("_figure_y")
+        if g.u8("_figure_state") == FIG_CHASE and g.mem[flags + g.mem[rmap + (fy // 16) * w + fx // 16]] & 1:
+            through_wall.append((fx // 16, fy // 16))
+
+    class Watching(list):   # the bot's hook on input_update appends here once a game frame: check him then
+        def append(self, x):
+            watch()
+            super().append(x)
+    g.record = Watching(g.record)
+    b.walk_to((lift[1], lift[2] + 2), check=False)
     for _ in range(60):
-        quiet(g, J["up"])
-        if g.state() == GAME_WON or g.state() != GAME_PLAYING:
+        g.tick(J["up"])
+        if g.state() != GAME_PLAYING:
             break
-    check(g.u8("_electrical_state") == ELEC_WON, f"into the lift (state {g.u8('_electrical_state')}, game {g.state()})")
+    check(not through_wall, f"Figure kept to the floor {sorted(set(through_wall))[:5]}")
+    check(g.u8("_electrical_state") == ELEC_WON, f"into the lift ahead of him (state {g.u8('_electrical_state')}, "
+                                                 f"game {g.state()}, death {g.u8('_game_death')})")
     for _ in range(600):
         g.tick(0)
     shot(g, "results")

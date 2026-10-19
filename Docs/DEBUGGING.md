@@ -227,6 +227,23 @@ the moment a condition holds can be half-updated (the power's state was set, the
 more before checking the rest. And **on DMG a panel redraw takes frames** (STAT-safe writes), so a 2-frame
 button press can be lost: press until the thing it should change has changed.
 
+The puzzle run also lets Figure chase the bot to the lift after the power and checks, every game frame, that
+he never stands in a solid cell (he once walked through the breaker room's wall: his trail began outside it)
+and that the bot gets there first at the escape's speeds.
+
+### Hearing songs: `scripts/render-song.py`
+
+```
+tools\venv\Scripts\python.exe scripts\render-song.py build\preview\songs 60 assets\music\ending.uge
+```
+
+Builds a minimal player ROM per `.uge` (GBDK, hUGEDriver called once a frame as the game does), records 60 s
+of its sound in PyBoy and writes an MP3 with hUGETracker's ffmpeg. That ffmpeg reads only raw 32-bit float
+samples (`-f f32le`), not WAV. PyBoy's samples are 0–15 (all positive): the script takes the offset out with a
+moving average. It prints whether the last 3 s are silent (a song meant to play once) and the RMS, so a part
+that's too loud can be found by rendering each channel alone. The owner listens before a song goes in
+(2026-10-18).
+
 ### The Library: `scripts/library-test.py`
 
 ```
@@ -297,8 +314,11 @@ reference colour: on GBC the font's black isn't the same screen colour as the wa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 8b: see STATUS.md's memory outlook (GBC bank 0 97%, ~439 bytes for the stack, which goes 140
-deep). **GBC WRAM: read the map file, not only romusage**: Phase 6
+As of Phase 8b: see STATUS.md's memory outlook (GBC bank 0 92%, ~439 bytes for the stack, which goes 140
+deep). **Read the AUTOTEST link's output too**: it puts a little more in bank 0 (the recording's reader, the
+VBlank measure), and in Phase 8b it overflowed while the release ROM still fit. The only sign was the linker's
+"Possible overflow from Bank 0 into Bank 1" among the warnings, and then BGB breaking (the code there was
+overwritten). **GBC WRAM: read the map file, not only romusage**: Phase 6
 first pushed `_DATA` (0xC0A0 + `l__DATA`) past 0xE000, into the stack, while romusage only said "100%".
 The data really ends at `s__HEAP` (`_INITIALIZED` follows `_DATA`); what's left between it and 0xE000 is the
 stack's room, and `electrical-test.py` measures how much of it is used. ROOM_MAX went from 3,072 to 2,816

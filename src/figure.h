@@ -30,8 +30,12 @@ void figure_stop(void) BANKED;
 void figure_nogo(uint8_t x, uint8_t y, uint8_t w, uint8_t h) BANKED;
 // Sends him at a point (room pixels) as if he'd heard it there, without his roar: out of his cage
 void figure_go(int16_t px, int16_t py) BANKED;
-// The escape: he appears at metatile (mx, my) and follows the player's trail from there, deaf, at 0.75 of
-// their running speed (Seek's numbers, owner). Closets don't stop him.
+// The escape. The trail starts when the power comes back (the player at the box) and gets a point every
+// 8 px walked (figure_trail, each frame until he's out; then his own update does it). He appears at metatile
+// (mx, my), beside the box, and follows it, deaf, at 0.94 of the player's escape run (owner: only just
+// outrun him). Closets don't stop him.
+void figure_trail_begin(void) BANKED;
+void figure_trail(void) BANKED;
 void figure_escape(uint8_t mx, uint8_t my) BANKED;
 
 // One frame: hearing, the route search, walking, footsteps. Returns DEATH_FIGURE if he touched you.

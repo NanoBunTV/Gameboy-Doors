@@ -46,10 +46,10 @@ static void lift_shut(void) {
         const room_obj_t *o = &room_objs[i];
         if (o->type != OBJ_LIFT)
             continue;
-        room_set_metatile(o->x, o->y, MT_ELECTRICAL_LIFT_TL);
-        room_set_metatile(o->x + 1, o->y, MT_ELECTRICAL_LIFT_TR);
-        room_set_metatile(o->x, o->y + 1, MT_ELECTRICAL_LIFT_BL);
-        room_set_metatile(o->x + 1, o->y + 1, MT_ELECTRICAL_LIFT_BR);
+        room_set_metatile(o->x, o->y, MT_ELECTRICAL_LIFT_SHUT_TL);
+        room_set_metatile(o->x + 1, o->y, MT_ELECTRICAL_LIFT_SHUT_TR);
+        room_set_metatile(o->x, o->y + 1, MT_ELECTRICAL_LIFT_SHUT_BL);
+        room_set_metatile(o->x + 1, o->y + 1, MT_ELECTRICAL_LIFT_SHUT_BR);
     }
 }
 

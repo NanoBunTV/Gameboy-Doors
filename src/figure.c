@@ -39,7 +39,8 @@
 #define QUEUE_BYTES   512      // 256 cells (x, y); scripts/assets.py LIBRARY_MAX_CELLS assumes this
 // The escape (Room 100): he follows the trail the player's feet leave, a point every TRAIL_STEP px, kept in
 // the route search's space (it isn't needed then): 256 points of 4 bytes, at most 2,048 px behind
-#define CHASE_SPEED   0x0150   // 1.31 px/frame: 0.75 of the player's run (seek.c's SPEED)
+#define CHASE_SPEED   0x0168   // 1.41 px/frame: 0.94 of the player's 1.5 (owner, 2026-10-18: only just outrun
+                               // him; it was Seek's 1.31 against 1.75)
 #define TRAIL_STEP    8
 #define CHASE_SCARE   180      // his roar every 3 s while he comes (Minecraft figure.scare, the escape's metronome)
 
@@ -256,24 +257,16 @@ void figure_go(int16_t px, int16_t py) BANKED {
     fill_start((uint8_t)(px >> 4), (uint8_t)(py >> 4));
 }
 
-void figure_escape(uint8_t mx, uint8_t my) BANKED {
+void figure_trail_begin(void) BANKED {
     uint16_t cells = (uint16_t)room_w * room_h;
     trail = (int16_t *)(room_map + cells);
-    figure_x = ((int16_t)mx << 4) + 8;
-    figure_y = ((int16_t)my << 4) + 8;
-    sub = 0;
     th = tt = 0;
-    last_x = figure_x;
-    last_y = figure_y;
-    figure_hunting = 1;
-    hear_cool = 0;
-    step_t_ = 0;
-    figure_state = FIG_CHASE;
+    last_x = player_x + PLAYER_FEET_X;
+    last_y = player_y + PLAYER_FEET_Y;
 }
 
-// The escape: the player's feet leave a point every TRAIL_STEP px; he walks from point to point (each a
-// few px from the last, so never through a wall), and straight at them once he's on the newest
-static void chase(void) {
+// A point every TRAIL_STEP px of the player's feet, while there's room
+void figure_trail(void) BANKED {
     int16_t px = player_x + PLAYER_FEET_X, py = player_y + PLAYER_FEET_Y;
     if ((uint16_t)abs(px - last_x) + (uint16_t)abs(py - last_y) >= TRAIL_STEP && (uint8_t)(th + 1) != tt) {
         int16_t *p = trail + ((uint16_t)th << 1);
@@ -281,6 +274,25 @@ static void chase(void) {
         p[1] = last_y = py;
         th++;
     }
+}
+
+void figure_escape(uint8_t mx, uint8_t my) BANKED {
+    figure_x = ((int16_t)mx << 4) + 8;
+    figure_y = ((int16_t)my << 4) + 8;
+    sub = 0;
+    figure_hunting = 1;
+    hear_cool = 0;
+    step_t_ = 0;
+    figure_state = FIG_CHASE;
+}
+
+// The escape: the player's feet leave a point every TRAIL_STEP px from the moment the power's back (at the
+// box, beside his door: owner, 2026-10-18, a trail started when he came out began outside the breaker room
+// and he walked through its wall to it); he walks from point to point (each a few px from the last, so never
+// through a wall), and straight at them once he's on the newest
+static void chase(void) {
+    int16_t px = player_x + PLAYER_FEET_X, py = player_y + PLAYER_FEET_Y;
+    figure_trail();
     uint16_t s = (uint16_t)sub + (CHASE_SPEED & 0xFF);
     sub = (uint8_t)s;
     uint8_t steps = (uint8_t)(CHASE_SPEED >> 8) + (uint8_t)(s >> 8);

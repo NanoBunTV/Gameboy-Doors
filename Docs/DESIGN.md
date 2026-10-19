@@ -179,10 +179,11 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 10*), on **one fl
   switches in two rows of five (D-pad, A flips, B leaves; I on, O off). Nothing is checked until all ten
   match; three rounds, each faster; a solved round blanks the display 3 s and turns the switches off halfway.
   The display beeps high for on and low for off, so the pattern can be learned by ear.
-- **The power**: "THE POWER IS BACK.", the lift's gates go and its doors open, the breaker room opens, and
-  you **run** (1.4× walking). 3 s later **Figure comes out of the door beside the box** and follows your trail
-  at 0.75 of your speed (Seek's numbers): stopping is what gets you caught, and **closets don't save you**
-  ("NO TIME TO HIDE."). Caught: his face, then a hint about running.
+- **The power**: "THE POWER IS BACK.", the lift's folding gate goes and its doors open, the breaker room opens, and
+  you **run** (1.2× walking). 3 s later **Figure comes out of the door beside the box** and follows your trail,
+  which starts at the box, so he comes out through the breaker room's door, at 0.94 of your speed (owner,
+  2026-10-18: only just outrun him; first Seek's 1.4× and 0.75): stopping is what gets you caught, and
+  **closets don't save you** ("NO TIME TO HIDE."). Caught: his face, then a hint about running.
 - **The lift**: walk into it. The doors shut, Figure slams into them, the car shakes and falls, a crash in
   the dark. Then **the results**: "YOU ESCAPED THE HOTEL.", the time, the damage taken over the run, the seed,
   over the **Ending Theme** until Start, and the title. Knobs and achievements join the results in Phases 9

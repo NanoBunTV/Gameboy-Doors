@@ -158,11 +158,8 @@ static void set_mt(const room_obj_t *o, uint8_t top, uint8_t bottom) {
     room_set_metatile(o->x, o->y + 1, bottom);
 }
 
-static void lift_gates(uint8_t mt) {
-    room_set_metatile(lift->x, lift->y + 2, mt);
-    room_set_metatile(lift->x + 1, lift->y + 2, mt);
-}
-
+// Powered: its folding gate gone and the doors open (the gate is drawn over the shut doors: owner, 2026-10-18,
+// over a row of floor gates in front)
 static void lift_open(void) {
     room_set_metatile(lift->x, lift->y, MT_ELECTRICAL_LIFT_OPEN_TL);
     room_set_metatile(lift->x + 1, lift->y, MT_ELECTRICAL_LIFT_OPEN_TR);
@@ -170,13 +167,13 @@ static void lift_open(void) {
     room_set_metatile(lift->x + 1, lift->y + 1, MT_ELECTRICAL_LIFT_OPEN_BR);
 }
 
-// Every gate but the lift's two (they go when the power comes back), and door 100 sealed behind you
+// Every gate, and door 100 sealed behind you
 // The map passes walk it with one pointer: a row lookup per cell made the lever's frame several frames long
 static void open_gates(void) {
     const uint8_t *m = room_map;
     for (uint8_t y = 0; y < room_h; y++)
         for (uint8_t x = 0; x < room_w; x++, m++)
-            if ((mt_flags[*m] & MTF_GATE) && !(y == lift->y + 2 && (uint8_t)(x - lift->x) < 2))
+            if (mt_flags[*m] & MTF_GATE)
                 room_set_metatile(x, y, MT_ELECTRICAL_FLOOR);
     for (uint8_t i = 0; i < room_obj_count; i++)
         if (room_objs[i].type == OBJ_ENTRY)
@@ -286,10 +283,8 @@ void electrical_room_loaded(void) BANKED {
         set_mt(bdoor, MT_ELECTRICAL_COPPER_TOP, MT_ELECTRICAL_COPPER_BOTTOM);
     else if (elec_key_taken >= 2 || electrical_state >= ELEC_POWER)
         set_mt(bdoor, MT_ELECTRICAL_COPPER_OPEN_TOP, MT_ELECTRICAL_COPPER_OPEN_BOTTOM);
-    if (electrical_state >= ELEC_POWER) {
-        lift_gates(MT_ELECTRICAL_FLOOR);
+    if (electrical_state >= ELEC_POWER)
         lift_open();
-    }
 }
 
 void electrical_need_sprites(void) BANKED {
@@ -413,10 +408,10 @@ static void close_panel(void) {
 static void power_on(void) {
     electrical_state = ELEC_POWER;
     timer = FIGURE_AFTER;
-    lift_gates(MT_ELECTRICAL_FLOOR);
     lift_open();
     set_mt(bdoor, MT_ELECTRICAL_COPPER_OPEN_TOP, MT_ELECTRICAL_COPPER_OPEN_BOTTOM);
-    player_fast = 1;   // run (Seek's numbers, owner: you at 1.4 times walking, he at 0.75 of that)
+    player_fast = 2;   // run, 1.2 times walking (owner, 2026-10-18: slower than Seek's chase, him only just behind)
+    figure_trail_begin();   // from the box, so he follows you out through the door
     sfx_play(SFX_POWER);
     hud_message("THE POWER IS BACK.", MSG_FRAMES);
 }
@@ -660,6 +655,8 @@ uint8_t electrical_update(void) BANKED {
         return figure_update();
     case ELEC_POWER:
     case ELEC_ESCAPE:
+        if (electrical_state == ELEC_POWER)
+            figure_trail();
         if (electrical_state == ELEC_POWER && !--timer) {
             electrical_state = ELEC_ESCAPE;
             set_mt(fdoor, MT_ELECTRICAL_COPPER_OPEN_TOP, MT_ELECTRICAL_COPPER_OPEN_BOTTOM);

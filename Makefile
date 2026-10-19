@@ -25,7 +25,7 @@ IMAGES   := $(wildcard assets/title/*.gbc.png) $(wildcard assets/scares/*.gbc.pn
 SONGS    := $(wildcard assets/music/*.uge)
 GEN_C := $(patsubst assets/tilesets/%.tsx,$(GEN)/tileset_%.c,$(TILESETS)) \
          $(patsubst assets/rooms/%.tmx,$(GEN)/room_%.c,$(ROOMS)) \
-         $(GEN)/room_templates.c \
+         $(GEN)/room_templates.c $(GEN)/room_routes.c \
          $(patsubst assets/sprites/%.json,$(GEN)/sprite_%.c,$(SPRITES)) \
          $(GEN)/font.c \
          $(patsubst %.gbc.png,$(GEN)/image_%.c,$(notdir $(IMAGES)))
@@ -97,7 +97,7 @@ $(GEN)/sprite_%.c $(GEN)/sprite_%.h: assets/sprites/%.json assets/sprites/%.gbc.
 	$(PYTHON) $(ASSET_TOOL) sprite $< $(GEN)
 
 # Every room template in one table for the generator (src/run.c)
-$(GEN)/room_templates.c $(GEN)/room_templates.h: $(ROOMS) $(TILESETS) $(ASSET_TOOL)
+$(GEN)/room_templates.c $(GEN)/room_templates.h $(GEN)/room_routes.c $(GEN)/room_routes.h: $(ROOMS) $(TILESETS) $(ASSET_TOOL)
 	$(PYTHON) $(ASSET_TOOL) roomlist $(GEN) $(ROOMS)
 
 $(GEN)/image_%.c $(GEN)/image_%.h: assets/title/%.gbc.png assets/title/%.dmg.png $(ASSET_TOOL)

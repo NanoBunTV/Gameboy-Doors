@@ -53,11 +53,14 @@ static uint8_t kind_of(uint8_t room) {
 }
 
 static int16_t route_length(uint8_t room) {
-    return (int16_t)room_template_length[run_template[room]][run_exit[room]];
+    return (int16_t)room_template_length(run_template[room], run_exit[room]);
 }
 
+// The route's door centres (copied out of their bank: room_templates.h)
+static uint8_t route_buf[4];
 static const uint8_t *route(uint8_t room) {
-    return room_template_route[run_template[room]][run_exit[room]];
+    room_template_route(run_template[room], run_exit[room], route_buf);
+    return route_buf;
 }
 
 void seek_reset(void) BANKED {

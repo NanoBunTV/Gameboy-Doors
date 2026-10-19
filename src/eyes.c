@@ -40,7 +40,8 @@ void eyes_room_entered(void) BANKED {
     }
     // Halfway between the two doors: the line the player walks, which is open floor at both ends (Minecraft
     // docs 05). Top-down he floats, so furniture under the midpoint doesn't matter.
-    const uint8_t *r = room_template_route[run_template[run_room]][run_exit[run_room]];
+    uint8_t r[4];
+    room_template_route(run_template[run_room], run_exit[run_room], r);
     eyes_x = ((int16_t)r[0] + r[2]) << 2;
     eyes_y = ((int16_t)r[1] + r[3]) << 2;
     light_set(LIGHT_EYES, LIGHT_LIGHTER, eyes_x >> 3, eyes_y >> 3);
