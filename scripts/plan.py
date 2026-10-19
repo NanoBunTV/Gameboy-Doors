@@ -9,18 +9,30 @@ saw). The search keeps seeds whose first 30 rooms have Halt's door by 22, a Dupe
 without Dupe, a dark room, Eyes, Ambush and Rush; edit the conditions at the bottom for other needs."""
 import re, sys
 
-src = open(sys.argv[1]).read()
-names = re.findall(r'\},\s*// (\w+)', src.split('room_template_info')[1].split('};')[0])
-info = [list(map(int, m)) for m in re.findall(r'\{ (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+) \}',
-                                               src.split('room_template_info')[1].split('};')[0])]
-exits = [list(map(int, m)) for m in re.findall(r'\{ (\d+), (\d+), (\d+) \}',
-                                                src.split('room_template_exits')[1].split('};')[0])]
+names, info, exits = [], [], []
+HAS_SEEK = HAS_GARDEN = False
+
+
+def load(path):
+    """Reads the converter's template tables (build/gen/room_templates.c). scripts/garden-test.py imports this
+    module and calls it."""
+    global HAS_SEEK, HAS_GARDEN
+    src = open(path).read()
+    table = src.split('room_template_info')[1].split('};')[0]
+    names[:] = re.findall(r'\},\s*// (\w+)', table)
+    info[:] = [list(map(int, m)) for m in re.findall(r'\{ (\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+) \}', table)]
+    exits[:] = [list(map(int, m)) for m in re.findall(r'\{ (\d+), (\d+), (\d+) \}',
+                                                     src.split('room_template_exits')[1].split('};')[0])]
+    HAS_SEEK = all(any(x[0] == k for x in info) for k in (5, 6, 7))    # room_templates.h ROOM_HAS_SEEK
+    HAS_GARDEN = all(any(x[0] == k for x in info) for k in (8, 9))     # room_templates.h ROOM_HAS_GARDEN
+
+
 TOP, BOTTOM, LEFT, RIGHT = 1, 2, 3, 4
 OPP = {TOP: BOTTOM, LEFT: RIGHT, RIGHT: LEFT, BOTTOM: TOP}
 M = 0xFFFF
 LIBRARY = 50   # run.h RUN_LIBRARY_ROOM
 CHASES = [(30, 35), (70, 79)]   # run.h RUN_CHASE_START, RUN_CHASE_END
-HAS_SEEK = all(any(x[0] == k for x in info) for k in (5, 6, 7))   # room_templates.h ROOM_HAS_SEEK
+COURTYARD, GREENHOUSE_LAST = 89, 99   # run.h RUN_COURTYARD_ROOM, RUN_GREENHOUSE_LAST
 
 
 def kind_at(n):
@@ -36,6 +48,10 @@ def kind_at(n):
             return 6
         if n == e:
             return 7
+    if HAS_GARDEN and n == COURTYARD:
+        return 8
+    if HAS_GARDEN and COURTYARD < n <= GREENHOUSE_LAST:
+        return 9
     return 0
 
 
@@ -67,8 +83,10 @@ class Plan:
     def room(self, n):
         self.seed_rng(self.seed, n)
         kind = kind_at(n)
-        chase = kind >= 5
-        before_fixed = n < 100 and kind_at(n + 1) in (4, 5)
+        chase = 5 <= kind <= 7
+        garden = kind in (8, 9)
+        safe = kind == 8 or (kind == 9 and n == GREENHOUSE_LAST)
+        before_fixed = n < 100 and kind_at(n + 1) in (4, 5, 8)
         if kind in (1, 4):
             t = [i for i, x in enumerate(info) if x[0] == kind][-1]
         else:
@@ -103,7 +121,7 @@ class Plan:
                 slot = self.below(x[4])
             else:
                 slot = self.below(x[5])
-        lib = n == LIBRARY or chase
+        lib = n == LIBRARY or chase or safe
         if not lib and 3 <= n < 100 and self.below(100) < 18:
             flags |= 0x40
             if self.below(100) < 10:
@@ -111,15 +129,19 @@ class Plan:
         f2 = 0
         if not lib and 15 <= n < 100 and self.below(100) < 10:
             f2 |= 1
+        if kind == 9:
+            f2 = 1
+        elif kind == 8:
+            f2 = 0
         if not lib and 8 <= n < 100 and self.below(100) < 5:
             f2 |= 2
         ne = sum(1 for w in exits[t] if w)
         real = 0
         if ne > 1:
             real = self.below(ne)
-            if not chase and 6 <= n < 100 and self.below(100) < 35:
+            if not chase and not safe and 6 <= n < 100 and (kind == 9 or self.below(100) < 35):
                 f2 |= 8
-        elif (not self.halt_planned and not lib and not before_fixed and 10 <= n < 100 and not (flags & 1)
+        elif (not self.halt_planned and not lib and not garden and not before_fixed and 10 <= n < 100 and not (flags & 1)
               and self.below(100) < 3):
             f2 |= 0x40
             self.halt_planned = True
@@ -149,9 +171,11 @@ def describe(p, upto=32):
         print(f"{n:3} {names[p.t[n]]:12} exit {p.exit[n]}/{ne} {' '.join(bits)}")
 
 
-if len(sys.argv) > 2:
-    describe(plan(int(sys.argv[2], 16)))
-else:
+def main():
+    load(sys.argv[1])
+    if len(sys.argv) > 2:
+        describe(plan(int(sys.argv[2], 16)))
+        return
     best = []
     for s in range(1, 0x10000):
         p = plan(s, 30)
@@ -170,3 +194,7 @@ else:
     for b in best[:12]:
         print(hex(b[1]), 'halt', b[2], 'dupe', b[3], 'fake', b[4], 'dark', b[5], 'eyes', b[6], 'ambush', b[7])
     print(len(best), 'seeds')
+
+
+if __name__ == "__main__":
+    main()

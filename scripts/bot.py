@@ -124,12 +124,14 @@ class Game:
         fx, fy = self.feet()
         return fx // 16, fy // 16
 
-    def grid(self):
+    def grid(self, over_snares=False):
         w, h = self.u8("_room_w"), self.u8("_room_h")
         base = self.syms["_room_map"]
         flags = self.syms["_mt_flags"]
-        # Fire (MTF_FIRE, 4) kills: the bot treats it as wall
-        solid = [[bool(self.mem[flags + self.mem[base + y * w + x]] & 5) for x in range(w)] for y in range(h)]
+        # Fire (MTF_FIRE, 4) kills and a Snare (MTF_SNARE, 0x10) roots: the bot treats both as wall, unless
+        # three Snares closed the way (over_snares: then it walks over one, as a player would have to)
+        mask = 0x05 if over_snares else 0x15
+        solid = [[bool(self.mem[flags + self.mem[base + y * w + x]] & mask) for x in range(w)] for y in range(h)]
         return w, h, solid
 
     def objects(self):
@@ -266,7 +268,7 @@ class Bot:
 
         def distance(o):
             cellpos, _ = self.approach(o)
-            return len(bfs(solid, w, h, here, {cellpos}) or [0] * 999)
+            return len(bfs(solid, w, h, here, {cellpos}) or [0] * 999)   # (behind Snares: last choice)
         spot = min(free, key=distance)
         cellpos, face = self.approach(spot)
         self.log("hiding in", spot, "entity state", self.g.entity())
@@ -315,9 +317,16 @@ class Bot:
         for _ in range(limit):
             if self.g.state() != GAME_PLAYING or self.g.room() != room:
                 return True  # went through a door
+            if "_snare_root" in self.g.syms and self.g.u16("_snare_root"):
+                self.step(0) if check else self.g.tick(0)   # held by a Snare: wait it out
+                stuck = 0
+                continue
             w, h, solid = self.g.grid()
             here = self.g.cell()
             path = cheapest(solid, w, h, here, target, self.eyes())
+            if path is None:
+                w, h, solid = self.g.grid(over_snares=True)
+                path = cheapest(solid, w, h, here, target, self.eyes())
             if path is None:
                 raise RuntimeError(f"no path from {here} to {target}")
             fx, fy = self.g.feet()
@@ -354,9 +363,9 @@ class Bot:
                 return False
         return False
 
-    def approach(self, obj):
+    def approach(self, obj, over_snares=False):
         """A walkable cell next to the object, and the direction to face it from there."""
-        w, h, solid = self.g.grid()
+        w, h, solid = self.g.grid(over_snares)
         t, ox, oy, ow, oh, _ = obj
         options = []
         for y in range(oy, oy + oh):
@@ -372,6 +381,8 @@ class Bot:
             if p is not None and (best is None or len(p) < best[0]):
                 best = (len(p), cellpos, face)
         if best is None:
+            if not over_snares:
+                return self.approach(obj, True)
             raise RuntimeError(f"can't reach object {obj}")
         return best[1], best[2]
 
@@ -480,7 +491,7 @@ class Bot:
                     raise RuntimeError("walked the start hallway and Seek never rose")
                 self.g.tick(0)
             self.log("chase on")
-            while self.kind() >= KIND_SEEK_START:
+            while KIND_SEEK_START <= self.kind() <= KIND_SEEK_END:
                 room = self.g.room()
                 exit_ = self.exits()[1]
                 cellpos, _ = self.approach(exit_)

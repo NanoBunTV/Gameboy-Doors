@@ -13,7 +13,6 @@
 
 extern uint8_t hud_panel;       // rows of panel shown under the status line (0: none)
 
-extern uint8_t hud_ascii[96];   // WRAM copy of the font's ASCII table
 extern char hud_shown[21];      // what the text row currently holds (or is queued to)
 extern char hud_want[21];
 extern uint8_t hud_timer;       // frames left to show

@@ -87,6 +87,15 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   at 0.75 of it, the real door glowing and opening by itself, caught by touch or by being behind him; fire
   tiles; the slam; his eye as the jumpscare; the owner's *Here I Come* arranged. The room sheets' frame tables
   went into one pool to make the GBC's WRAM room. The recorded run now ends with Seek catching the bot.
+- **2026-10-18**: **Phase 8a done** (the Courtyard and the Greenhouse). The owner split Phase 8 in two: 8a,
+  rooms 89–99, then a stop for their play before 8b (Room 100 and the ending). Three rounds of questions and
+  art mock-ups (answers below). The Courtyard (89) safe and rainy; the Greenhouse (90–99) dark throughout
+  with Rush allowed (heard, not flickered), Ambush never, four-ways always Dupe, room 99 safe, metal doors,
+  and Snares; both authorable, on a second tileset (`garden`) that keeps the hotel's door and drawer numbers.
+  The GBC's stack got its room back by reading the font's ASCII table from ROM. Found on the way: an
+  open-ended "is this a chase room" test loaded Seek's sheet in the Greenhouse and overran the frame pool.
+- **2026-10-18**: the HUD's door number replaced by the run's time, and "GOT THE KEY." without a number (owner:
+  the number made Dupe too easy). The status line no longer slides in on entering a room.
 
 ## Decisions and why
 
@@ -166,6 +175,13 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | Seek 24×32; eyes on the walls building up before (anywhere on a wall); footsteps only (no arrow); death by his eye full-screen; the door slams | Owner's choices (2026-10-18) |
 | Seek all black with one white eye, round head; art from the DOORS wiki render and frames the owner linked | Owner (2026-10-18): "Ignore the red highlights, that was just the lighting in the render"; "remove the bump from the top of his head" |
 | The chase music: *Here I Come (Seek Chase)* arranged on three channels, CH4 left for his footsteps | Owner's choice (2026-10-18) |
+| Phase 8 in two halves: 8a the Courtyard and the Greenhouse (89–99), then a stop to play it; 8b Room 100 and the ending on the owner's word | Owner's choice (2026-10-18) |
+| The Courtyard: Minecraft's safe walled yard (about 20×24, red-brick walls, a brick path, grass and trees), never dark, nothing hunts there and anything on its way is sent off | Owner's choices (2026-10-18; the red brick from the mock-up review) |
+| The Greenhouse: fully dark rooms (the glow only); Rush allowed with no flicker, his rumble from when the flicker would be; Ambush never (one drawn there comes as a Rush); Minecraft's two shapes (a hall with six closets, a four-way with eight, always Dupe); room 99 safe | Owner's choices (2026-10-18) over a dim but visible night palette; "extend Rush's audio to start when the warning would usually be" |
+| Snares: Minecraft rules (3 per room from authorable spots, 20% HP never killing, held 5 s with no walking or A, 4 s grace after the hold); a floor tile seen only in your light; the pack's `snare.png` pixel for pixel (DMG: light tops) | Owner's choices (2026-10-18; the art from a second mock-up "with a closer look to the minecraft sprite") |
+| Greenhouse look: stone floor, windowed walls, planters, the hotel's closets (not metal lockers); doors 89–99 grey metal with a light-grey number | Owner's picks from mock-ups (2026-10-18) |
+| Rain in the Courtyard and the Greenhouse: a sound in both, falling streaks over the Courtyard | Owner (2026-10-18): "Courtyard ambience and greenhouse ambience: Rain"; the streaks from the mock-up |
+| No door number on the HUD: the run's time (MM:SS) instead; the key message without a number; the status line only on changes, not on entering | Owner (2026-10-18): the HUD's number "makes surviving Dupe too easy"; picked the run timer over leaving the space for gold, a longer bar or nothing |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 
 ## Owner preferences (for AI assistants)

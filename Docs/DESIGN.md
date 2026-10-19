@@ -31,13 +31,16 @@ the bottom for a few seconds when something changes, then slides out:
 - health changes (hit, heal): health bar;
 - held item changes or is used: item icon, plus its fuel/battery meter or uses left;
 - gold picked up: gold count;
-- entering a room: the door number;
-- messages ("IT'S LOCKED.", "GOT KEY FOR DOOR 012");
-- Select held: everything (health, item, gold, door number).
+- messages ("IT'S LOCKED.", "GOT THE KEY.");
+- Select held: everything (the run's time, health, item, gold).
 
-As built (Phase 3): border line + one text row, `DOOR 012`, a heart and an 8-tile health bar (2 px steps),
-and a key icon at the right end while a key is carried. It slides in on entering a room, when health changes,
-with a message, and while Select is held. It covers the bottom 16 px of the play field (the window layer can't
+**No door number** (owner, 2026-10-18): it told you the real door's number in a Dupe room ("too easy"), so you
+read it off the door you came through, as in DOORS. The key message has none either.
+
+As built (Phase 3, the time from Phase 8a): border line + one text row, the run's time (`12:34`, minutes and
+seconds of real time since the run started, stopping at 99:59; owner's pick), a heart and an 8-tile health bar
+(2 px steps), and a key icon at the right end while a key is carried. It slides in when health changes, with a
+message, and while Select is held (no longer on entering a room). It covers the bottom 16 px of the play field (the window layer can't
 shrink the background). The strip must not show during Halt's and Seek's cutscenes.
 
 ## Health and death
@@ -65,12 +68,13 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
   tutorial). The elevator before it comes with the economy phase.
 - **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
 - **Seek's chases are rooms 30–35 and 70–79** (Phase 7, below). Rooms 29 and 69 always have one door, on top.
-- Fixed rooms still to come: **Jeff's Shop (55)**, the Courtyard and Greenhouse (89–99),
-  Room 100. Halt's hallway is a scripted sequence of its own.
+- **The Courtyard is room 89 and the Greenhouse 90–99** (Phase 8a, below). Room 88 always has one door, on top.
+- Fixed rooms still to come: **Jeff's Shop (55)** and Room 100 (Phase 8b). Halt's hallway is a scripted
+  sequence of its own.
   Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52. For now room 100's
   door says "TO BE CONTINUED...".
-- **Doors**: every door shows its number in brass on a dark header above it, open or shut, and the HUD shows
-  it on entering. An open side door looks like an open top-wall door, number kept (owner, 2026-10-18). **A**
+- **Doors**: every door shows its number in brass on a dark header above it, open or shut (the HUD doesn't:
+  owner, 2026-10-18, it gave Dupe away). An open side door looks like an open top-wall door, number kept (owner, 2026-10-18). **A**
   opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
 - **Locked doors**: 18% of rooms that allow it lock their exit; the key is in that room, in a drawer (mostly)
   or lying in the open (owner: both, mostly drawers). Facing a locked door with A says "IT'S LOCKED." or, with
@@ -131,6 +135,28 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
 - **Art** (owner's picks from mock-ups): Seek all black, one white eye, 24×32 (back, side and front views),
   the eye on the wall, the puddle, the glow, two fire tiles, his eye as the jumpscare.
 
+## The Courtyard and the Greenhouse (built in Phase 8a)
+
+Owner's choices (2026-10-18), after the Minecraft version (*MC 09*):
+
+- **Room 89, the Courtyard**: a big (21×24 metatiles) outdoor yard with red-brick walls, a brick path up the
+  middle, grass and trees either side, and rain (a sound, and streaks falling over the screen). **Nothing
+  hunts you there**: never dark, no Rush, Eyes, Dupe or Halt, and anything still on its way is sent off.
+- **Rooms 90–99, the Greenhouse**: stone floor, windowed walls, planters, the hotel's closets (owner: not
+  metal lockers), rain on the glass (a sound). **Every room is dark** (the usual black-but-for-your-light).
+  Two shapes, both authorable: a straight hall with six closets and a four-way room (one entry, three
+  exits) with eight; the four-ways **always have Dupe** behind their wrong doors.
+- **Rush comes in the dark here**, with no flicker: his rumble starts when the flicker would have (owner) and
+  grows as he nears, so you hear him from the start. **Ambush never comes**: one drawn here comes as a Rush.
+  Screech, Eyes and Dupe as anywhere.
+- **Room 99 is safe**: no Rush, Eyes, Dupe or Snares.
+- **Doors 89–99 are metal**: grey, with a light-grey number on dark grey (owner's pick).
+- **Snares**: three per Greenhouse room, picked per run from the floor cells the room's author marked. A
+  floor tile (the Minecraft pack's `snare.png`, pixel for pixel), so **only seen where your light reaches**.
+  Stepping on one: a snap, "WATCH YOUR STEP.", 20 HP but never below 10 (it can't kill), and **held for 5 s**
+  (no walking, no A). For 4 s after it lets go no Snare catches you. Rush or Screech can still get you while
+  you're held: that's the trap.
+
 ## Hiding (built in Phase 3)
 
 - **Closets and beds** (owner: both). A at one hides: the player sprite disappears and the room darkens
@@ -145,8 +171,9 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
 - **No light item yet** (owner): the player has a small **glow**, a rounded 5×5 tiles, enough to find doors
   and closets. The **lighter** (a circle of radius 3 tiles) and the **flashlight** (a cone 7 tiles long ahead,
   widening to 5, plus the glow) are built and switchable with B in debug builds; Phase 9 makes them items.
-- **Which rooms**: 10% of rooms from room 15 (Minecraft rule). Rush and Ambush never come into a dark room:
-  the flicker is their warning; their spawn waits for a lit room. A sound marks the lights going out (once
+- **Which rooms**: 10% of rooms from room 15 (Minecraft rule), and every Greenhouse room (90–99). Rush and
+  Ambush never come into a dark room: the flicker is their warning; their spawn waits for a lit room. The
+  Greenhouse is the exception for Rush (above). A sound marks the lights going out (once
   for a run of dark rooms).
 - **Eyes glows**: he lights a lighter-sized area around himself.
 
@@ -154,7 +181,7 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
 
 | Entity | Top-down version | Notes |
 |---|---|---|
-| Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed | Kill radius 6 blocks (96 px), ignoring walls (*MC 04*). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
+| Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed. In the Greenhouse: no flicker, the rumble from the start (Phase 8a) | Kill radius 6 blocks (96 px), ignoring walls (*MC 04*). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
 | Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kill radius 8 blocks (128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
 | Screech | **Built (Phase 4).** Dark rooms only: a "psst", and a 16×16 grin hangs just outside your glow, in a direction you're not facing. Walk his way (facing him) for 0.3 s and he leaves with a squeak; after 3 s (owner) he bites for 40 HP with a full-screen face. The chance rises the longer you stay in the dark (~45% for 8 s in a room) | Hiding dismisses him silently (*MC 11*). 20 s cooldown. He picks a spot on screen |
 | Eyes | **Built (Phase 4).** 5% of rooms from room 8: a 32×32 cluster of eyes at the room's middle, glowing in the dark. Facing exactly his direction (one of 8, ±22.5°; owner) drains 5 HP every 0.25 s after 0.5 s. Look away, walk round. Gone when the exit door opens; never blocks a door | Hidden, he can't hurt you. Independent of Rush and Ambush |
@@ -163,6 +190,7 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
 | Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
 | Seek | **Phase 7** (above): eyes on the walls before; the rise; a chase through four-way rooms (one real, glowing door) to an end hallway with fire; caught by touch or by being behind him | Speed boost during the chase (*MC 08*, *MC 11*); he runs at 0.75 of it |
 | Figure | **Phase 6 in the Library** (above); Room 100 in Phase 8. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
+| Snare | **Phase 8a** (above): three floor traps per Greenhouse room, seen only in your light; 20 HP (never below 10) and held 5 s | The 4 s grace starts when the hold ends, so it can't catch you again as you step off (*MC 09*) |
 | Timothy | **Phase 5.** 1 drawer in 200, once a run: a small spider jumps out of the drawer at you, 10 HP, and the drawer is empty after (owner) | Never lethal: leaves at least 1 HP (*MC 12*); never in a drawer holding the key |
 
 Left out (owner, 2026-10-17): **Jack**, **Dread** (modifier-only in DOORS), **Glitch** (catches players behind

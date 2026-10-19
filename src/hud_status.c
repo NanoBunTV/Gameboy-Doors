@@ -30,20 +30,22 @@ void hud_panel_set(uint8_t rows) BANKED {
     hud_show(60);
 }
 
-void text_3digits(char *buf, uint8_t n) BANKED {
-    buf[0] = '0' + n / 100;
-    buf[1] = '0' + (n / 10) % 10;
-    buf[2] = '0' + n % 10;
+static void two_digits(char *buf, uint8_t n) {
+    buf[0] = '0' + n / 10;
+    buf[1] = '0' + n % 10;
 }
 
-// " DOOR 012 @######## ~": the room you're in, health (a heart and an 8-tile bar) and the key if you
-// carry one. The bar's glyphs ('*' empty, '+' '{' '}' 2/4/6 px, '#' full) are in the font (font.json).
+// " 12:34    @######## ~": the run's time (minutes and seconds, stopping at 99:59), health (a heart and an
+// 8-tile bar) and the key if you carry one. No door number: it told you the real door's number in a Dupe room
+// (owner, 2026-10-18). The bar's glyphs ('*' empty, '+' '{' '}' 2/4/6 px, '#' full) are in the font.
 static void status_line(void) {
     static const char bar_glyph[5] = { '*', '+', '{', '}', '#' };
     char *want = hud_want;
     memset(want, ' ', 20);
-    memcpy(want + 1, "DOOR", 4);
-    text_3digits(want + 6, run_room);
+    uint16_t t = run_seconds < 5999 ? run_seconds : 5999;
+    two_digits(want + 1, (uint8_t)(t / 60));
+    want[3] = ':';
+    two_digits(want + 4, (uint8_t)(t % 60));
     want[10] = '@';
     uint8_t px = (uint8_t)(((uint16_t)run_hp * 64 + 50) / 100);   // 0-64 px
     for (uint8_t i = 0; i < 8; i++) {
@@ -59,8 +61,19 @@ void hud_update(void) BANKED {
     static uint8_t last_hp;
     // What the status line was last built from: it's only rebuilt when one changes. Building it every
     // frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines (Phase 4).
-    static uint8_t built_room = 0xFF, built_hp, built_key, built_msg;
+    static uint8_t built_hp = 0xFF, built_key, built_msg;
+    static uint16_t built_seconds;
     uint8_t dirty = 0;
+    // The run's clock, from the VBlank count: real time, so DMG's slow frames and the fades count too
+    uint16_t now = sys_time;
+    uint16_t passed = now - run_clock_last;
+    run_clock_last = now;
+    passed += run_clock_frames;
+    while (passed >= 60) {
+        passed -= 60;
+        run_seconds++;
+    }
+    run_clock_frames = (uint8_t)passed;
     if (input_held & J_SELECT)
         hud_show(30);
     if (run_hp != last_hp) {   // health changed: show it (DESIGN.md, HUD)
@@ -74,9 +87,9 @@ void hud_update(void) BANKED {
             built_msg = 1;
             dirty = 1;
         }
-    } else if (built_msg || run_room != built_room || run_hp != built_hp || run_key_door != built_key) {
+    } else if (built_msg || run_seconds != built_seconds || run_hp != built_hp || run_key_door != built_key) {
         built_msg = 0;
-        built_room = run_room;
+        built_seconds = run_seconds;
         built_hp = run_hp;
         built_key = run_key_door;
         status_line();

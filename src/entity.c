@@ -28,6 +28,7 @@
 #define FIRE_DELAY    45       // frames between walking in and the flicker
 #define START_BEHIND  1000     // px of route behind the player's door he starts from (about 3 s for Rush)
 #define HEAR_DISTANCE 768      // px of route at which his rumble starts (near-distance is 25-30 blocks)
+#define UNLIT_FAR_VOLUME 3     // the Greenhouse: no flicker, so his rumble is heard from the warning on (owner)
 
 uint8_t entity_state, entity_kind, entity_room, entity_queued;
 int16_t entity_d;
@@ -40,6 +41,7 @@ static uint8_t end_room, start_room;
 static int16_t start_d;
 static uint16_t timer;
 static uint8_t legs;           // Ambush: traverses left, one per direction (min/max-movements 3-5)
+static uint8_t unlit;          // fired in the Greenhouse: no flicker, the rumble from the start (Minecraft docs 09)
 static uint8_t anim;
 // His position in the player's room (place())
 static uint8_t placed_room = 0xFF;   // the room xa/ya are for (0xFF: none)
@@ -74,6 +76,11 @@ static int16_t route_length(uint8_t room) {
 static void fire(void) {
     entity_kind = entity_queued;
     entity_queued = 0;
+    // The Greenhouse takes Rush and never Ambush: three to five passes you can't see is guessing, not a
+    // sequence to read (Minecraft docs 09). One drawn there comes as a Rush.
+    unlit = run_kind_at(run_room) == ROOM_KIND_GREENHOUSE;
+    if (unlit)
+        entity_kind = ENTITY_RUSH;
     entity_state = ENT_WAIT;
     timer = FIRE_DELAY;
     end_room = run_room;
@@ -102,16 +109,24 @@ static void fire(void) {
 }
 
 void entity_room_entered(uint8_t first_time) BANKED {
+    uint8_t kind = run_kind_at(run_room);
+    // The Courtyard promises nothing hunts you: whatever was on its way is sent off (the queued spawn stays)
+    if (kind == ROOM_KIND_COURTYARD && entity_state != ENT_IDLE) {
+        entity_state = ENT_IDLE;
+        sfx_rumble(0, RUMBLE_RUSH);
+    }
     if (!first_time || entity_state != ENT_IDLE)
         return;
     if (!entity_queued && (run_flags[run_room] & RF_SPAWN)) {
         entity_queued = (run_flags[run_room] & RF_AMBUSH) ? ENTITY_AMBUSH : ENTITY_RUSH;
         patience = QUEUE_PATIENCE;
     }
-    if (!entity_queued || run_room == RUN_LIBRARY_ROOM || run_kind_at(run_room) >= ROOM_KIND_SEEK_START)
-        return;   // nothing follows you into the Library or a chase: the spawn waits (Minecraft docs 07, 08)
-    // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits.
-    if (hide_free_spots() && !light_dark)
+    if (!entity_queued || run_room == RUN_LIBRARY_ROOM || ROOM_KIND_IS_CHASE(kind) ||
+        kind == ROOM_KIND_COURTYARD || run_room == RUN_GREENHOUSE_LAST)
+        return;   // nothing follows you into the Library, a chase or a safe room: the spawn waits (docs 07-09)
+    // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits. The
+    // Greenhouse is the exception: dark throughout, and Rush comes anyway, heard but not flickered (docs 09).
+    if (hide_free_spots() && (!light_dark || kind == ROOM_KIND_GREENHOUSE))
         fire();
     else if (!--patience)
         entity_queued = 0;   // nowhere to hide for too long: give up rather than block every later roll
@@ -221,7 +236,10 @@ uint8_t entity_update(void) BANKED {
             sfx_play(SFX_AMBUSH);
         } else {
             timer = RUSH_WARN;
-            sfx_play(SFX_FLICKER);
+            if (unlit)
+                sfx_rumble(UNLIT_FAR_VOLUME, RUMBLE_RUSH);   // no lights to flicker: his sound is the warning
+            else
+                sfx_play(SFX_FLICKER);
         }
         return 0;
     case ENT_WARN:
@@ -260,8 +278,10 @@ uint8_t entity_update(void) BANKED {
     else
         placed_room = 0xFF;   // he left: worked out afresh when he's back
     uint16_t d = route_distance();
-    sfx_rumble(d >= HEAR_DISTANCE ? 0 : 15 - (uint8_t)(d / (HEAR_DISTANCE / 15)),
-               entity_kind == ENTITY_AMBUSH ? RUMBLE_AMBUSH : RUMBLE_RUSH);
+    uint8_t vol = d >= HEAR_DISTANCE ? 0 : 15 - (uint8_t)(d / (HEAR_DISTANCE / 15));
+    if (unlit && vol < UNLIT_FAR_VOLUME)
+        vol = UNLIT_FAR_VOLUME;   // heard all the way (Minecraft docs 09: rush.far plays the instant he's released)
+    sfx_rumble(vol, entity_kind == ENTITY_AMBUSH ? RUMBLE_AMBUSH : RUMBLE_RUSH);
     if (caught()) {
         finish();
         return entity_kind == ENTITY_AMBUSH ? DEATH_AMBUSH : DEATH_RUSH;
@@ -283,7 +303,7 @@ static const uint8_t flicker[16] = { 0, 2, 0, 0, 1, 3, 0, 2, 0, 0, 3, 1, 0, 2, 2
 void entity_lights(uint8_t *dim, uint8_t *tint) BANKED {
     *dim = 0;
     *tint = TINT_NONE;
-    if (entity_state == ENT_WARN || (entity_state == ENT_MOVE && entity_room == run_room)) {
+    if (!unlit && (entity_state == ENT_WARN || (entity_state == ENT_MOVE && entity_room == run_room))) {
         *dim = flicker[(anim >> 2) & 15];
         if (entity_kind == ENTITY_AMBUSH)
             *tint = TINT_GREEN;

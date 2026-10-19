@@ -39,6 +39,7 @@ As of Phase 4 (2026-10-18): the engine core (Phase 1), runs of generated rooms w
 | `figure.c/.h` | *Banked.* Figure: hearing, the route search (a flood fill in the room map's spare tail), wandering and hunting, footsteps, contact, the edge arrow |
 | `seek.c/.h` | *Banked.* Seek's chases: the rise in the start hallway, following the door-to-door line room after room, catching, his footsteps, the guide's glow, the slam |
 | `walleyes.c/.h` | *Banked.* Seek's eyes on the walls before a chase: placed from the seed on `wall` metatiles, one per map row, blinking |
+| `garden.c/.h` | *Banked.* The Courtyard and the Greenhouse (Phase 8a): the Snares (placed from the seed, the catch, the hold and its grace), the rain on or off, the Courtyard's rain streaks |
 | `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
 | `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
@@ -74,15 +75,15 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB). **90% full on GBC, 77% on DMG** after Phase 6 (88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out) |
-| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
-| VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table (`room_templates.c`: with Phase 5's per-exit routes ~0.5 KB, 32 templates since Phase 8a). **96% full on GBC (584 bytes left), 84% on DMG** after Phase 8a (90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out). Phase 8b will need to move something out (STATUS.md) |
+| ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 128 KB (64 KB until Phase 6). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
+| VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
 | VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
 | VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock). GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
 | GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
-| WRAM | Room map (`room_map`, up to 2,816 metatiles (3,072 until Phase 6: the 256 bytes went to the Library on GBC); `room_row`, each row's offset; in the Library its unused tail holds Figure's route search) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.4 of 8 KB (1.6 KB left under the stack); on GBC, WRAM bank 1 has about 237 bytes left under the stack after Phase 6 (STATUS.md) |
+| WRAM | Room map (`room_map`, up to 2,816 metatiles (3,072 until Phase 6: the 256 bytes went to the Library on GBC); `room_row`, each row's offset; in the Library its unused tail holds Figure's route search) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has about 283 bytes left under the stack after Phase 8a (reading the font's ASCII table from ROM instead of a 96-byte WRAM copy paid for the garden's 40 bytes; 237 after Phase 6, 224 after Phase 7; STATUS.md) |
 | SRAM | **Planned**: the save |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
@@ -298,6 +299,29 @@ a slot per exit). Only those two tiles are copied, so
   - *The wall eyes*: from the seed (`run_seed ^ 0xE7E5`, the room), up to 40 random cells each scanning on in
     map order to the next `wall` cell in a row with no eye yet; each blinks (half, shut, half) on its own
     random timer.
+- **The Courtyard and the Greenhouse** (Phase 8a, `garden.c`): `run_kind_at` gives 89 `courtyard` and 90–99
+  `greenhouse` when the converter found both (`ROOM_HAS_GARDEN`), and 88 joins `before_fixed`. `plan_room`:
+  the Courtyard and room 99 are *safe* (no spawn, Eyes or Dupe roll, as the Library); every Greenhouse room
+  gets `RF2_DARK` whatever its roll, and a Greenhouse room with more than one exit gets `RF2_DUPE` without a
+  roll; no Halt from 88 to 99. Chase tests use `ROOM_KIND_IS_CHASE(k)` (kinds 5–7): the garden kinds are
+  numbered after the chase's, and a bare `kind >= ROOM_KIND_SEEK_START` loaded Seek's sheet into the
+  Greenhouse until garden-test caught it (its frame tables overran the pool into `room_w`).
+  - *The tileset*: their rooms use `garden`; `room_load` loads a room's tileset when it differs from the one
+    in VRAM (`tileset_load`, behind the fade), so walking 88 → 89 or 99 → 100 swaps it. Shared metatile
+    numbers (ASSETS.md) mean `door_set` and the rest don't know which is loaded.
+  - *Snares*: `garden_room_loaded` (from `load_room`, so after a scare's reload too) counts the `floor` cells
+    inside the room's `snare` rectangles and picks 3 from the seed (`run_seed ^ 0x54A3`, the room; a taken
+    cell moves on to the next), writing the `snare` metatile into the map before it's drawn: the same cells
+    every visit, drawn (or black) like any floor. `garden_update` (every frame after `player_update`): the
+    feet on an `MTF_SNARE` cell, not held and not in the grace, start a 300-frame hold, take 20 HP (never
+    below 10), `SFX_SNARE`, "WATCH YOUR STEP."; while held, `game_frame` skips the player and A
+    (`garden_rooted`); the 240-frame grace starts when the hold ends.
+  - *Rush*: `entity_room_entered` fires a queued spawn into a dark room if it's the Greenhouse (not room 99,
+    not the Courtyard). `fire()` marks him `unlit` and makes an Ambush a Rush. Unlit: no `SFX_FLICKER` and no
+    dimming; the rumble starts at the warning at volume 3 and never drops below it. Entering the Courtyard
+    sends anything travelling away (the queued spawn stays).
+  - *Rain*: `garden_room_entered` turns `audio_rain` on in both kinds (Audio, below); in the Courtyard 8
+    streaks (`rain` sheet) fall 5 px a frame and 1 px left, drawn after the key.
 - **Arriving**: through the entry door, the player stands just inside it facing into the room; coming back
   through the exit, just inside that. The doorway cells are the trigger, so arriving never re-triggers.
 - **Using things** (A): the point 12 px ahead of the feet in the facing direction picks the metatile; a door,
@@ -329,7 +353,7 @@ Numbers come from the Minecraft config (`entities`, `rush`, `ambush`, `hide`), o
   back to where he started, waits 5 s and comes again: 3–5 legs in all (from the seed), so he leaves at the
   far door or the rear. While either is out, no door opens or lets you through.
 - **Kill test**: same room, player not hidden, within 96 px (Rush) / 128 px (Ambush) of him, through walls.
-- **Dark rooms**: never fired into (Darkness, above).
+- **Dark rooms**: never fired into (Darkness, above), except the Greenhouse's (Rooms, above).
 - **Rumble**: continuous CH4 noise whose volume follows his distance along the route, from 768 px.
 - **Hiding**: A at a closet or bed hides (the player sprite goes, the room dims to level 2); A or B leaves.
   Hide: from 7 s a heartbeat that speeds up (with a darker pulse on each beat, the warning without sound),
@@ -373,11 +397,15 @@ fade in. The LCD stays on throughout: turning it off would flash white on a DMG.
 ## HUD (`hud.c`)
 
 The window layer at 0x9C00, 2 rows (and, in the Library, a 7-row panel under them: above): a border line and 20 characters of text, sliding up 2 px a frame from
-WY 144 to 128 while shown. It shows the status line (`DOOR 012`, a heart and an 8-tile health bar in 2 px
-steps from font glyphs, the key icon) on entering a room, when health changes and while Select is held, or a
-centred message ("IT'S LOCKED.", "GOT KEY FOR DOOR 012", "GET OUT!"). Changed characters
-go through the single-tile queue. The status line is rebuilt only when the room, health or key changes:
-building it every frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines. On GBC the window's attributes are all palette 7 (the font's).
+WY 144 to 128 while shown. It shows the status line (the run's time `12:34`, a heart and an 8-tile health bar
+in 2 px steps from font glyphs, the key icon) when health changes and while Select is held, or a centred
+message ("IT'S LOCKED.", "GOT THE KEY.", "GET OUT!"). No door number since Phase 8a (owner: it gave Dupe
+away). The time is `run_seconds`, counted in `hud_update` from GBDK's VBlank counter `sys_time` (real time:
+DMG's slow frames, the fades, Halt's hallway and the scares all count). Changed characters
+go through the single-tile queue. The status line is rebuilt only when the time, health or key changes:
+building it every frame (three divisions and a 20-character compare) took ~45 of the DMG's 154 scanlines.
+Characters map to font tiles through the font's ASCII table, read from ROM (`hud_tile_for` switches to its
+bank; a WRAM copy cost the GBC 96 bytes of stack until Phase 8a). On GBC the window's attributes are all palette 7 (the font's).
 
 ## Title and death screen (`title.c`, `death.c`, `image.c`)
 
@@ -433,6 +461,7 @@ with `spr_need()` by the room that can show it, and packed after the player's in
 | Halt, the letters | Halt's hallway (`halt_run` starts a room of its own) |
 | Seek; his puddle; the guide's glow | any chase room; the start hallway; four-way rooms (`seek_need_sprites`) |
 | The wall eye | a room with Seek's eyes on its walls (`walleyes_need_sprites`) |
+| Rain | the Courtyard (`garden_need_sprites`) |
 
 Per room rather than per event because one room can have the dark, Eyes, Rush on his way, a key in the open
 and a Timothy drawer at once: loading mid-room would free nothing in that worst case. The loader works
@@ -445,6 +474,7 @@ jumpscare drew over tiles 128 and up) makes everything load again. The worst cas
 |---|---|---|
 | A hotel room: player, key, Rush or Ambush, Eyes, Screech, Timothy, the wall eye | 124 of 184 | 7 of 8 |
 | A chase room: player, Seek, the puddle, the glow, the wall eye | 118 | 5 |
+| A Courtyard or Greenhouse room: the hotel's less the wall eye, plus rain | 120 | 7 |
 | The Library: player, marks, Figure | 72 | 3 |
 | Halt's hallway: player, Halt, letters | 68 | 3 |
 
@@ -453,7 +483,7 @@ The sheets' frame tables (4 bytes a 16×16 part) are packed the same way into on
 GBC's WRAM for Phase 7 (the player keeps its own). (Before per-room loading: all 144 tiles and 7 palettes
 loaded all the time, with Halt and Figure borrowing Rush's.) Each set is
 checked at build time: the converter writes `SPR_<NAME>_TILES` / `_PALETTES` into each sheet's header and
-`TILESET_HOTEL_TILES` into the tileset's, and `SPR_CHECK` (a negative array size: SDCC's `_Static_assert`
+`TILESET_<NAME>_TILES` into each tileset's, and `SPR_CHECK` (a negative array size: SDCC's `_Static_assert`
 only warns) fails the build if a set passes `SPR_TILE_LIMIT` (184, or 128 if the tileset grows past 128 tiles;
 it's 124 on GBC since the fire), 8 palettes or the frame pool. A new sheet goes into the set(s) it can be in. Both consoles share the layout; the GBC's
 second VRAM bank (384 more tiles, attribute bit 3) is left for later. `scripts/sprite-test.py` checks it in
@@ -479,8 +509,9 @@ Runs from the Makefile; writes `build/gen/<kind>_<name>.c/.h`. The `.c` holds th
 
 - **Tileset** (`.tsx` + both PNGs): cuts 16×16 metatiles into 8×8 tiles, deduplicates them (separately per
   console), and writes the metatile tables. GBC palettes are found automatically: each 8×8 tile's colours
-  (at most 4) are packed into at most 7 palettes, each sorted light to dark. Tile properties `solid` (bool)
-  and `name` become `mt_flags` and the `MT_*` constants.
+  (at most 4) are packed into at most 7 palettes, each sorted light to dark. Tile properties (`solid`,
+  `bookcase`, `fire`, `wall`, `snare`) and `name` become `mt_flags` and the `MT_*` constants. A tileset other
+  than `hotel` must have the hotel's metatile numbers for the names the code uses (`SHARED_METATILES`).
 - **Room** (`.tmx`): the tile layer becomes a metatile map (empty cells are metatile 0, void); the objects
   (entry, exit, drawer, keyspot, spawn, closet, bed) become a `room_obj_t` list in metatile units, sorted by
   type; map properties `kind` and `allow_lock`. Validated: door sizes and positions, one entry/exit, drawers
@@ -489,7 +520,8 @@ Runs from the Makefile; writes `build/gen/<kind>_<name>.c/.h`. The `.c` holds th
   entry and exit walls, `allow_lock`, drawer, key-spot and hiding-spot counts (what `run.c` plans with,
   without switching banks), Rush's route (door centres, in 8 px units) and its length, and
   `room_template(id, &bank)`. Checks there's exactly one start room and that every exit wall has a
-  room that can follow it.
+  room that can follow it, and the same for the Library, the chase rooms and the Courtyard and Greenhouse
+  (`ROOM_HAS_SEEK`, `ROOM_HAS_GARDEN`), including room 100 after a Greenhouse exit.
 - **Sprite sheet** (`.json` + both PNGs): frames in a grid, named in the JSON; 16×16, or multiples of 16
   stored as 16×16 parts (`SPR_<SHEET>_<FRAME>` is the first part). GBC: each 8×16 column
   gets a palette of up to 3 colours (+ transparency). DMG: each column uses OBP0 (white, dark, black) or OBP1
@@ -508,7 +540,10 @@ Rules for the art are in ASSETS.md; the converter stops with an error naming the
 hUGEDriver 6.1.3 (the release's prebuilt GBDK library) plays one song: `music_play()` calls `hUGE_init` with
 the song's bank switched in, `audio_frame()` calls `hUGE_dosound` once a frame the same way. Songs: the
 Lobby Theme on the title, the Guiding Light on the death screen, *Unhinged* in the Library (Phase 6). The
-other rooms have no music (the owner took the ambience out, 2026-10-18). Starting a song, or silence, first silences what the music left sounding (a
+other rooms have no music (the owner took the ambience out, 2026-10-18). The Courtyard and the Greenhouse
+have **rain** (Phase 8a, owner): `audio_rain(1)`, and `rain_update` writes a soft CH4 noise drop (volume 1–3,
+fading fast, two high pitches) every 1–4 frames from its own generator, whenever no effect or rumble has CH4.
+Any `music_play` turns it off (the death screen). Starting a song, or silence, first silences what the music left sounding (a
 held note rings on once `hUGE_dosound` stops being called), except channels a sound effect is using; Start
 on the title stops the Lobby Theme before the menu blip.
 

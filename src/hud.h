@@ -41,7 +41,4 @@ void hud_font_palette(void);
 // Queues text to a BG or window map address (written in later VBlanks; safe with the LCD on)
 void text_queue(uint16_t addr, const char *text);
 
-// Formats a number as 3 digits into buf (no terminator)
-void text_3digits(char *buf, uint8_t n) BANKED;
-
 #endif

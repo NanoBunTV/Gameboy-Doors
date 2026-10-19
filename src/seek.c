@@ -68,7 +68,7 @@ void seek_reset(void) BANKED {
 
 void seek_need_sprites(void) BANKED {
     uint8_t k = kind_of(run_room);
-    if (k < ROOM_KIND_SEEK_START)
+    if (!ROOM_KIND_IS_CHASE(k))
         return;
     spr_need(&sheet, BANK(sprite_seek), &sprite_seek);
     if (k == ROOM_KIND_SEEK_START)

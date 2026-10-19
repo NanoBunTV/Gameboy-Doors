@@ -44,7 +44,8 @@
 #define SFX_SEEK_RISE  27  // the puddle, and him coming up out of it
 #define SFX_SLAM       28  // the chase's last door slams behind you
 #define SFX_FIRE       29  // you walked into the fire
-#define SFX_COUNT      30
+#define SFX_SNARE      30  // a Snare snaps shut on you
+#define SFX_COUNT      31
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1
@@ -65,5 +66,9 @@ void sfx_play_vol(uint8_t id, uint8_t volume);
 
 // Continuous noise on CH4, volume 0 (off) - 15; retriggered only when the volume changes
 void sfx_rumble(uint8_t volume, uint8_t kind);
+
+// Rain (the Courtyard and the Greenhouse, owner 2026-10-18): soft noise drops on CH4 whenever nothing else
+// (an effect, a rumble) has it. Starting a song stops it.
+void audio_rain(uint8_t on);
 
 #endif

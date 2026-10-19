@@ -18,6 +18,9 @@ uint8_t run_drawers[RUN_ROOMS];
 uint8_t run_banned[RUN_ROOMS];
 uint8_t run_exit[RUN_ROOMS];
 uint8_t run_timothy;
+uint16_t run_seconds;
+uint16_t run_clock_last;
+uint8_t run_clock_frames;
 #if defined(AUTOTEST) || defined(DEBUG)
 uint8_t run_force_timothy;   // scripts poke 1: the next drawer opened (not the key's) holds Timothy
 #endif
@@ -76,6 +79,12 @@ uint8_t run_kind_at(uint8_t n) BANKED {
             return ROOM_KIND_SEEK_END;
     }
 #endif
+#if ROOM_HAS_GARDEN
+    if (n == RUN_COURTYARD_ROOM)
+        return ROOM_KIND_COURTYARD;
+    if (n > RUN_COURTYARD_ROOM && n <= RUN_GREENHOUSE_LAST)
+        return ROOM_KIND_GREENHOUSE;
+#endif
     return ROOM_KIND_NORMAL;
 }
 
@@ -104,6 +113,9 @@ void run_start(uint16_t seed) BANKED {
     memset(run_banned, 0, sizeof(run_banned));
     memset(run_exit, 0, sizeof(run_exit));
     run_timothy = 0;
+    run_seconds = 0;
+    run_clock_last = sys_time;
+    run_clock_frames = 0;
     halt_planned = 0;
     run_plan(1);
 }
@@ -113,10 +125,13 @@ static void plan_room(uint8_t n) {
     uint8_t t = 0;
     uint8_t kind = run_kind_at(n);
     // A chase room: nothing else is planned in it (Minecraft docs 08: noEntities, neverDark)
-    uint8_t chase = kind >= ROOM_KIND_SEEK_START;
-    // The room before the Library or a chase: one door, on the top wall, and no Halt on it
-    uint8_t before_fixed = n < RUN_LAST_ROOM && (run_kind_at(n + 1) == ROOM_KIND_LIBRARY ||
-                                                 run_kind_at(n + 1) == ROOM_KIND_SEEK_START);
+    uint8_t chase = ROOM_KIND_IS_CHASE(kind);
+    // The Courtyard and the Greenhouse (Minecraft docs 09); room 99 is safe
+    uint8_t garden = kind == ROOM_KIND_COURTYARD || kind == ROOM_KIND_GREENHOUSE;
+    uint8_t safe = kind == ROOM_KIND_COURTYARD || (kind == ROOM_KIND_GREENHOUSE && n == RUN_GREENHOUSE_LAST);
+    // The room before the Library, a chase or the Courtyard: one door, on the top wall, and no Halt on it
+    uint8_t next = n < RUN_LAST_ROOM ? run_kind_at(n + 1) : ROOM_KIND_NORMAL;
+    uint8_t before_fixed = next == ROOM_KIND_LIBRARY || next == ROOM_KIND_SEEK_START || next == ROOM_KIND_COURTYARD;
     if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY) {
         for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
             if (room_template_info[i][0] == kind)
@@ -163,7 +178,7 @@ static void plan_room(uint8_t n) {
     }
     // Drawn after everything above, so adding this roll didn't change any room's layout or lock. The
     // Library's rolls are all skipped (nothing from the corridor follows you in).
-    uint8_t lib = n == RUN_LIBRARY_ROOM || chase;   // (the Library's rule, and a chase's)
+    uint8_t lib = n == RUN_LIBRARY_ROOM || chase || safe;   // (the Library's rule, a chase's, the safe rooms')
     if (!lib && n >= ENTITY_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < SPAWN_CHANCE_PERCENT) {
         flags |= RF_SPAWN;
         if (rnd_below(100) < AMBUSH_SHARE_PERCENT)
@@ -174,6 +189,10 @@ static void plan_room(uint8_t n) {
     uint8_t flags2 = 0;
     if (!lib && n >= DARK_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DARK_CHANCE_PERCENT)
         flags2 |= RF2_DARK;
+    if (kind == ROOM_KIND_GREENHOUSE)
+        flags2 = RF2_DARK;   // every Greenhouse room (owner: fully dark), the roll above or not
+    else if (kind == ROOM_KIND_COURTYARD)
+        flags2 = 0;          // never dark
     if (!lib && n >= EYES_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < EYES_CHANCE_PERCENT)
         flags2 |= RF2_EYES;
     // Phase 5's: which exit is real (rooms with more than one), Dupe behind the others, Halt
@@ -183,9 +202,10 @@ static void plan_room(uint8_t n) {
     uint8_t real = 0;
     if (exits > 1) {
         real = rnd_below(exits);   // a four-way room: the real door; the others are numberless fakes
-        if (!chase && n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM && rnd_below(100) < DUPE_CHANCE_PERCENT)
-            flags2 |= RF2_DUPE;
-    } else if (!halt_planned && !lib && !before_fixed && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM &&
+        if (!chase && !safe && n >= DUPE_FIRST_ROOM && n < RUN_LAST_ROOM &&
+            (kind == ROOM_KIND_GREENHOUSE || rnd_below(100) < DUPE_CHANCE_PERCENT))
+            flags2 |= RF2_DUPE;   // a Greenhouse four-way: always (Minecraft alwaysDupe)
+    } else if (!halt_planned && !lib && !garden && !before_fixed && n >= HALT_FIRST_ROOM && n < RUN_LAST_ROOM &&
                !(flags & RF_LOCKED) && rnd_below(100) < HALT_CHANCE_PERCENT) {
         flags2 |= RF2_HALT;   // only a plain door: not locked, not a Dupe room (owner)
         halt_planned = 1;

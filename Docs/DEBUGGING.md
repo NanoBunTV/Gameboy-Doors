@@ -124,7 +124,8 @@ room, play on until something comes, stand still to be caught, skip the Guiding 
 pick Try again. Since Phase 7 room 30 is Seek's start hallway, so the recorded run ends by walking up it until he
 rises and standing still: his rise, his catch and his eye are in every BGB and scroll-test run. The bot plays a
 whole chase (`play_chase`: up the hallway, then each room's real door, round the fire) when `--rooms` goes past
-30; it treats fire as wall.
+30; it treats fire as wall, and Snares too unless three of them close the way (then it walks over one and
+waits out the hold, as a player would have to).
 
 `--record` writes the buttons held at every `input_update()` call, run-length coded, to
 `tests/autotest_input.c` (about 1.5 KB for 30 rooms and the death). It records from a PyBoy hook on
@@ -172,6 +173,29 @@ end hallway, room 36, the fire, his eye. About a minute a console.
 
 To look at the glow by hand: warp to a four-way room (31–34), then poke `seek_state` 3 and `seek_room` to the
 room before (a chase in progress, him a room behind).
+
+### The Courtyard and the Greenhouse: `scripts/garden-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\garden-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\garden-test.py build\dmg-debug\doors.gb
+```
+
+Five runs in a DEBUG ROM, each from a fresh boot and warped. **plan**: `scripts/plan.py` (imported: `load()`,
+`plan()`) against the ROM's `run_template`, `run_flags`, `run_flags2`, `run_exit` and `run_key_slot` for rooms
+0–100 at the boot's seed (state bits the player sets are masked out). **rules**: room 88 has one top door; 89
+is the Courtyard, lit, nothing planned, with rain streaks on screen (at least 6 sprites in shadow OAM); 90–98
+dark, 3 Snares (`snare_x/y`) on `snare` metatiles inside the room's `snare` rectangles, four-ways Dupe; 99 no
+Snares, Dupe, Eyes or spawn; no Halt in 88–99. **snare**: walks onto one: 20 HP, held (pushing and A for 120
+frames don't move the feet), let go and into the grace, standing on it through the grace doesn't catch; at 15
+HP it leaves 10. Screech is kept away during it (`screech_state` poked to 0): a held player can't face him,
+which is the Greenhouse working as meant but muddles the numbers. **rush**: an Ambush queued (`entity_queued`
+= 2) into a new Greenhouse room fires as a Rush in the dark; the bot hides. **walk**: the bot plays 89 to 100
+(it skips the wrong doors here) and room 100 is a hotel room with its door shut. Screenshots
+`build/screens/garden-<console>-*.png` (each room, the Courtyard, a Snare's catch). About two minutes a console.
+
+DMG drops frames in these rooms, so the script waits on the game's own counters (`snare_grace`) rather than
+emulator frames, and steps off a Snare by a short push: a long one walked back out through the entry door.
 
 ### The Library: `scripts/library-test.py`
 
@@ -243,7 +267,7 @@ reference colour: on GBC the font's black isn't the same screen colour as the wa
 tools\gbdk\bin\romusage.exe build\gbc\doors.map
 ```
 
-As of Phase 6: see STATUS.md's memory outlook. **GBC WRAM: read the map file, not only romusage**: Phase 6
+As of Phase 8a: see STATUS.md's memory outlook (GBC bank 0 96%, stack 283 bytes). **GBC WRAM: read the map file, not only romusage**: Phase 6
 first pushed `_DATA` (0xC0A0 + `l__DATA`) past 0xE000, into the stack, while romusage only said "100%".
 `grep l__DATA build/gbc/doors.map`; what's left between the end and 0xE000 is the stack's room. ROOM_MAX went
 from 3,072 to 2,816 to make room. As of Phase 5: bank 0 88% (GBC, 1.9 KB free) / 76% (DMG); DMG WRAM about 6.4 of 8 KB; GBC WRAM bank 1 (0xD000) 96%.

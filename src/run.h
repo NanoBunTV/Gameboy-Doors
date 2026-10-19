@@ -57,6 +57,14 @@
 #define RUN_CHASE_END(c)   ((c) ? 79 : 35)
 #define WALL_EYES_ROOMS 5
 
+// The Courtyard and the Greenhouse (Minecraft docs 09, owner 2026-10-18): room 89 the Courtyard, outdoors
+// and safe (nothing is planned there, and anything on its way is sent off: entity.c); 90-99 the Greenhouse,
+// every room dark, Rush allowed in the dark (no flicker: his sound starts when the flicker would; an Ambush turns
+// into a Rush), Snares, its four-way rooms always Dupe. Room 99 is safe. Room 88 has one door, on top. Only
+// when the converter found both kinds (ROOM_HAS_GARDEN); else ordinary rooms. Rain in both (garden.c).
+#define RUN_COURTYARD_ROOM 89
+#define RUN_GREENHOUSE_LAST 99
+
 #define MAX_HP 100
 
 // run_flags[n]
@@ -92,6 +100,10 @@ extern uint8_t run_drawers[RUN_ROOMS];  // opened drawers, one bit per drawer in
 extern uint8_t run_banned[RUN_ROOMS];   // hiding spots Hide threw the player out of, one bit per spot
 extern uint8_t run_exit[RUN_ROOMS];     // which of the template's exits is the real one (object order)
 extern uint8_t run_timothy;             // Timothy has been met this run
+extern uint16_t run_seconds;            // the run's clock, shown on the HUD (owner, 2026-10-18: instead of the door
+                                        // number, which gave Dupe away); counted by hud_update from sys_time
+extern uint16_t run_clock_last;         // sys_time when it last counted
+extern uint8_t run_clock_frames;        // frames toward the next second
 
 void run_start(uint16_t seed) BANKED;
 
@@ -106,7 +118,8 @@ uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED;
 // so a replay meets him in the same drawer.
 uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED;
 
-// The kind of room the plan puts at n (ROOM_KIND_*: the start room, the Library, a chase room, else normal)
+// The kind of room the plan puts at n (ROOM_KIND_*: the start room, the Library, a chase room, the Courtyard,
+// the Greenhouse, else normal)
 uint8_t run_kind_at(uint8_t n) BANKED;
 
 // How many of Seek's eyes are on room n's walls: 1-5 in the rooms before a chase, 6 in its start hallway

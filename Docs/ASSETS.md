@@ -27,8 +27,17 @@ is drawn a shade darker than a straight conversion so the wall stays dark.
 
 ## Tilesets (`assets/tilesets/`)
 
-A tileset is a grid of **16×16 metatiles** (one DOORS "block"): `hotel.gbc.png`, `hotel.dmg.png` and
-`hotel.tsx` (the Tiled tileset). The image width must stay a multiple of 16; the `.tsx` says how many columns.
+A tileset is a grid of **16×16 metatiles** (one DOORS "block"): `<name>.gbc.png`, `<name>.dmg.png` and
+`<name>.tsx` (the Tiled tileset). The image width must stay a multiple of 16; the `.tsx` says how many columns.
+There are two: `hotel` (everything but rooms 89–99) and `garden` (the Courtyard and the Greenhouse, Phase 8a).
+A room's tileset is loaded in the fade when the previous room used the other one.
+
+**Every tileset keeps the hotel's numbers for the metatiles the code names**: void, floor, the door, side
+door and doorway metatiles, wall_top and dresser_open (`SHARED_METATILES` in `scripts/assets.py`, which checks
+it), so the same code opens doors and searches drawers whatever tileset a room uses. `garden` copies the
+hotel's first 41 slots for that: its own art for the floor and walls, the hotel's doors recoloured to metal,
+the hotel's closets and dressers, and the slots it doesn't need (carpets, desks, beds, shelves, fire) blank
+and named `unused_*`. Its own metatiles follow from 41. Metatile names must be different within a tileset.
 
 Rules:
 
@@ -36,8 +45,8 @@ Rules:
   palettes** across the whole tileset (palette 8 is the font's). Colours are compared at GBC precision
   (5 bits per channel), so two colours that differ only slightly count as one.
 - **DMG:** only the 4 greys.
-- At most **184** different 8×8 tiles per console after duplicates are removed (the hotel set uses 90) and
-  **120** metatiles. The rest of the background's VRAM holds door-number plates and the font.
+- At most **184** different 8×8 tiles per console after duplicates are removed (on GBC hotel uses 124, garden
+  93; past 128 the sprites lose tiles 128–183) and **120** metatiles. The rest of the background's VRAM holds door-number plates and the font.
 
 Metatile properties, set in Tiled (select the tile in the tileset, Properties panel):
 
@@ -48,6 +57,7 @@ Metatile properties, set in Tiled (select the tile in the tileset, Properties pa
 | `bookcase` | bool | A bookcase's bottom half: one of the Library's books can be here if there's floor below it |
 | `fire` | bool | Walking into it kills (Seek's end hallway, but it works in any room). Must not be `solid` |
 | `wall` | bool | A wall Seek's eyes can appear on before a chase (wall_top, wallpaper, wallpaper_shadow, wainscot) |
+| `snare` | bool | The metatile a Snare is drawn with (at most one per tileset; `garden`'s `snare`). The run puts it on `floor` cells (Rooms, below) |
 
 Metatile 0 must stay the **void** (solid black). It's used outside the room and for empty cells.
 
@@ -67,6 +77,23 @@ The hotel metatiles:
 | door_bottom_padlock | A top-wall door's bottom half with the combination padlock (the Library's exit while it's locked; the game swaps it in) |
 | fire_a, fire_b | Fire (Phase 7, owner's pick from mock-ups): red and cream flames on dark ground, in the carpet's palette (no new palette). `fire`; alternate them so a patch doesn't look tiled |
 
+The garden metatiles (Phase 8a, owner's picks from mock-ups, 2026-10-18; drawn by a script, edit the PNGs to
+change them). 93 GBC tiles in exactly 7 palettes (metal, Greenhouse floor, Snare, wood, grass, brick, trunk),
+so a new colour means sharing one of those:
+
+| Metatiles | Notes |
+|---|---|
+| floor, floor_shadow | The Greenhouse's stone tiles (greenish grey) |
+| wall_top, wallpaper, wainscot, wallpaper_shadow | The Greenhouse's walls: dark stone cap, a stone wall with a window (bluish glass), plain stone below; in the metal palette |
+| the door metatiles | The hotel's doors in grey metal (owner's pick): the number shows light grey on dark grey |
+| closet_top/bottom, dresser, dresser_open, table | The hotel's, unchanged (owner: the Greenhouse keeps the original closets) |
+| snare | The Minecraft pack's `assets/doors/textures/item/snare.png` pixel for pixel on the floor, in 4 colours (owner's pick of a second try); on DMG its tops are white. `snare` |
+| planter | A bush over a wooden box (solid) |
+| grass_a, grass_b, grass_c | The Courtyard's grass, three speckles to mix |
+| path | The Courtyard's red-brick path |
+| brick_top, brick_wall | The Courtyard's red-brick walls (owner: red brick): the top edge and the face (both solid) |
+| tree_tl, tree_tr, tree_bl, tree_br | A tree, 2×2: canopy above, the trunk standing on grass (solid) |
+
 ## Rooms (`assets/rooms/`)
 
 A room is a Tiled map (`.tmx`) using one tileset:
@@ -78,7 +105,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
 
   | Property | Type | Meaning |
   |---|---|---|
-  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right), `library` (always room 50; at most one; below), or one of Seek's chase rooms: `seek_start`, `seek_4way`, `seek_end` (below) |
+  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right), `library` (always room 50; at most one; below), one of Seek's chase rooms: `seek_start`, `seek_4way`, `seek_end`, or `courtyard` (room 89) or `greenhouse` (90–99) (below) |
   | `allow_lock` | bool | The room may lock its exit (18% chance) and hide the key inside it. Needs at least one drawer or key spot |
 
 - **Objects** on an object layer, named:
@@ -95,6 +122,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `paper` | 1×1 rectangle on `desk_paper` | The Library: the paper (A reads it) |
   | `figure` | point | The Library: where Figure starts |
   | `seek` | point | A `seek_start` hallway (optional): where Seek rises; he does once the player is 4 metatiles past it along the route. Without one, he rises 4 metatiles behind the player at three quarters of the way |
+  | `snare` | rectangle (any size) | A Greenhouse room: where Snares may be. Every `floor` cell inside counts; the run picks 3 per room. Needs a tileset with a `snare` metatile; rectangles mustn't overlap or cover the cell just inside a door |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
@@ -155,6 +183,20 @@ no-repeat rule: a chase is the same rooms over and over). No drawers, key spots,
 Seek runs the straight line from the entry's middle to the real exit's middle, through anything, as Rush
 does. The defaults were made by a script; the owner will author their own (DESIGN.md).
 
+Phase 8a, **the Courtyard and the Greenhouse** (both kinds or neither: without them, rooms 89–99 are ordinary).
+They use the `garden` tileset:
+
+- `courtyard` (room 89): entered from the **bottom** (room 88 has one door, on top), 1–3 exits, no Snares.
+  Default: `courtyard` (21×24): red-brick walls, a path up the middle, ten trees.
+- `greenhouse` (90–99): one entry, 1–3 exits (more than one: the run picks the real one and **always** puts
+  Dupe behind the others, except in room 99), `snare` rectangles. For every wall a Courtyard or Greenhouse
+  exit is on, a Greenhouse room must be entered from the opposite wall, and for every Greenhouse exit a normal
+  room (room 100); the converter checks. Give them plenty of closets (Rush comes with no flicker here) and
+  room to step round three Snares: a corridor one cell wide can be closed by them. Defaults:
+  `greenhouse_hall_s` (9×22, bottom → top), `greenhouse_hall_w` / `_e` (22×10, side → far side), six closets
+  each; `greenhouse_4way_s` / `_w` / `_e` (15×13, three exits as the Seek four-ways), eight closets each;
+  planters in all.
+
 To preview a room as an image: `F:\Programs\Tiled\tmxrasterizer.exe --scale 2 assets\rooms\lounge.tmx build\preview\lounge.png`.
 
 ## Sprites (`assets/sprites/`)
@@ -194,7 +236,9 @@ linked: `static.wikitide.net/doorswiki/9/9e/Seek_render.png`, `.../d/d7/Seek_eye
 (32×32 frames, the 24×32 figure in the left part: `front`, `back_a`, `back_b`, `left_a`, `left_b`; right
 is left mirrored): all black (the render's red is lighting, owner), one white eye, round head; `walleye`
 (16×16: `open`, `half`, `shut`), his eye in a blob of black goo; `puddle` (32×16: `small`, `large`), the black
-pool he rises from; `guide` (16×16: `glow`, `small`), the blue sparkle at a four-way's real door. Rush and
+pool he rises from; `guide` (16×16: `glow`, `small`), the blue sparkle at a four-way's real door. Phase 8a:
+`rain` (16×16: `streak`, a 1×6 slanting line in the left column), light blue (white on DMG), falling over the
+Courtyard. Rush and
 Ambush were pixelated (2026-10-17) from the DOORS wiki pictures the owner
 pointed to (`static.wikitide.net/doorswiki/3/36/Rushvnew.webp`, `.../1/1a/Ambush_sprite.png`): Rush black
 smoke with a grey face and white teeth, Ambush green and white. `eyes` (32×32, `f0`/`f1`, the aura jittered)
@@ -250,4 +294,5 @@ the whole of a Rush or Ambush pass), so any song that plays during a run must le
 Jam, Jeff's Shop Jingle, Here I Come, Ending Theme, Unhinged II for Room 100) are for later phases and get arranged when those come.
 
 Sound effects aren't files: they're register scripts in `src/sfx_data.c` (`s_door`, `s_flicker`, …), one table
-of steps each.
+of steps each. The rain in the Courtyard and the Greenhouse (Phase 8a, owner) isn't a file either: `audio.c` plays soft
+noise drops on CH4 at uneven gaps (`rain_update`) whenever no effect or rumble has the channel.

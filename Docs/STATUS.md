@@ -39,15 +39,17 @@
 | 2026-10-18 | Phase 7: Seek's chases (30–35, 70–79), the wall eyes, fire, the slam, his eye, *Here I Come*; side doors keep their number open; no typing sound | `seek-test.py` (new, DEBUG builds), both consoles | **All passed.** Eyes 1–6 in rooms 25–30, none in 23. The rise after ~253 frames walking up (the player held), the chase through 30–35 (every real door opened by itself) to 36: Seek gone, walking speed, door 36 shut. Standing still: caught (cause 9) ~77 frames after the rise. Round him: caught once he goes on into 31. Fire: cause 10. Screenshots: the rise, the glow, the fire, his eye. Side doors checked by screenshot (006/004 kept open, the next room's side entry numbered) |
 | 2026-10-18 | same, recorded run re-recorded (room 29 is now always one top door; it ends with Seek catching the bot) | `build.ps1 -Test` (now with `seek-test.py`) | **All passed.** BGB all three combinations, 15 s. scroll-test 3,971 (GBC) / 4,192 (DMG) frames, **0 wrong pixels**. VBlank DMG 8 of 10, GBC 6 of 10. Replay reaches room 30 at input frame **10,287** on both. sprite-test: Seek, the puddle and the wall eye among the sheets seen, every drawn sprite's sheet in VRAM. library-test: the sneak check now allows Figure wandering into the player (cause 8, not hearing): with the new boot timing his path crossed the test's lane |
 | 2026-10-18 | same | Lag frames in a chase (bot, 30–35) | GBC: 1 per room. DMG: 1–6 per room (the start hallway 6 of 61, the end hallway 3 of 279) |
-| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library; Phase 7's chase (in a DEBUG build, poke `game_warp` to 50 or 30, or play there) |
+| 2026-10-18 | Phase 8a: the Courtyard (89) and the Greenhouse (90–99), Snares, rain, Rush in the dark, metal doors, the `garden` tileset | `garden-test.py` (new, DEBUG builds), both consoles, before the HUD change | **All passed.** `plan.py` matches the ROM for rooms 0–100 (two seeds). 88 one top door; 89 lit, nothing planned, 7 sprites of rain; 90–98 dark with 3 Snares each in their rectangles, four-ways Dupe; 99 safe; no Halt. Snare: 100 → 80 HP, held (no movement for 120 frames of pushing and A), let go, not caught in the grace, 15 → 10. A queued Ambush comes as Rush in the dark; the bot hid. The bot walked 89 → 100 (DMG hid twice). Found and fixed: Seek's sheet loading in the Greenhouse overran the frame pool into `room_w`; the default rooms were tight enough for three Snares to wall a corner off |
+| 2026-10-18 | The HUD's door number replaced by the run's time; "GOT THE KEY."; no slide-in on entering | Build only (owner: the suite on this build deferred to the next phase's) | Both ROMs, release and debug, build without warnings. GBC stack 301 bytes (release). **Not run**: `build.ps1 -Test` (BGB had passed all three combinations on it when the run was stopped) |
+| | | Owner, by hand | Not yet: dark rooms, Screech, Eyes, the new doors, the silence after Start; Phase 5's Dupe rooms, Halt, Timothy; Phase 6's Library; Phase 7's chase; Phase 8a's Courtyard and Greenhouse and the HUD's timer (in a DEBUG build, poke `game_warp` to 50, 30 or 89, or play there) |
 
 ## Test checklist for new builds
 
 1. `.\build.ps1 -Test`: both ROMs build without warnings, headers valid; on the AUTOTEST ROMs the BGB check
    passes (`doors.gbc` as GBC, `doors.gb` as DMG and as GBC), `scroll-test.py` finds no wrong pixels,
    `vblank-budget.py` stays under 10 lines, the recorded run still reaches room 30 and `sprite-test.py`
-   finds every drawn sprite's sheet in VRAM; on the DEBUG ROMs `library-test.py` (room 50) and `seek-test.py`
-   (30–36) pass. Look at
+   finds every drawn sprite's sheet in VRAM; on the DEBUG ROMs `library-test.py` (room 50), `seek-test.py`
+   (30–36) and `garden-test.py` (88–100) pass. Look at
    the screenshots
    in `build/screens/`. If the recorded run fails after a deliberate change, re-record it
    (`.\scripts\record-run.ps1`).
@@ -73,26 +75,37 @@
 - **Memory outlook** (2026-10-18; numbers from `romusage -g`):
   - *ROM banks 1+ show 100%*: not a problem. Autobanking adds banks as needed (MBC5 allows 8 MB); the ROM
     is 128 KB since Phase 6.
-  - *Bank 0 (GBC 84%, 2.6 KB left; DMG 73%)*: a real, fixed 16 KB. Every phase so far added engine code there.
+  - *Bank 0 (GBC 96%, 584 bytes left after Phase 8a; DMG 84%)*: a real, fixed 16 KB. **Phase 8b has to move
+    something out first** (Room 100's code itself can be banked, but anything new in bank 0 won't fit long). Every phase so far added engine code there.
     The HUD's timers and status line (`hud_status.c`) and the sound effects' scripts (`sfx_data.c`) moved
     out on 2026-10-18 (~1 KB). Next candidates if it fills again: `room.c`'s door and plate painting, parts
     of `sprites.c`; only code that switches banks to read assets, reads text from its caller's bank, or runs
     the per-frame streaming has to stay. After Phase 5: GBC 88% (1.9 KB free), DMG 76% (the route tables for
-    Dupe rooms' exits grew `room_templates.c`). After Phase 6: GBC 90% (1.6 KB free), DMG 77%.
+    Dupe rooms' exits grew `room_templates.c`). After Phase 6: GBC 90% (1.6 KB free), DMG 77%. Phase 7 and 8a
+    (the template table at 32 rooms, `audio.c`'s rain, the second tileset's switch) took it to 96%.
   - *WRAM*: DMG has 8 KB in all, ~1.6 KB free under the stack after Phase 6 (the room map takes 2.75 KB).
     **GBC is the tight one**: Phase 6's first build ran `_DATA` past 0xE000 into the stack (romusage just
     said 100%; DEBUGGING.md has how to read the map file). ROOM_MAX went from 3,072 to 2,816 metatiles to
     fit, leaving ~237 bytes for the stack. Phase 7: ~224 (the frame-table pool freed ~200 bytes, Seek and the
-    wall eyes took about as much). Figure's route search costs no WRAM (the Library's unused room
+    wall eyes took about as much). Phase 8a: ~283 (the garden's ~40 bytes, paid for by reading the font's
+    ASCII table from ROM instead of a 96-byte copy). Figure's route search costs no WRAM (the Library's unused room
     map tail). Later phases (Seek, the inventory, the shop) need more: the cartridge's 32 KB SRAM works as
     extra RAM on both consoles (enable it, use it, disable it); GBC's WRAM banks 2–7 (24 KB) are unused (the
     dim cache, 448 bytes, is the obvious first thing to move there); the room map could shrink further.
   - *Sprite VRAM* (per-room loading since 2026-10-18, ARCHITECTURE.md "Sprites"): a hotel room's worst case
     is 124 of 184 tiles and 7 of 8 GBC palettes with Seek's wall eye (was 144 and 7, all loaded all the time);
-    a chase room 118 / 5; the Library 72 / 3, Halt's hallway 68 / 3. The tileset is 124 tiles on GBC since the
+    a chase room 118 / 5; a Courtyard or Greenhouse room 120 / 7; the Library 72 / 3, Halt's hallway 68 / 3. The tileset is 124 tiles on GBC since the
     fire: past 128, sprites must stay under 128 (the build checks), which every set does today. Each set is checked at build time, so Seek or an item that doesn't fit fails the
     build. If palettes run out first: sheets with the same colours could share one, or GBC-only extras could
     go in the second VRAM bank.
+- **The Courtyard and the Greenhouse rooms are defaults made by a script** (`courtyard`,
+  `greenhouse_hall_s/w/e`, `greenhouse_4way_s/w/e`); the owner authors the real ones. Three Snares can still
+  close a narrow way: then you walk over one (20 HP, 5 s) — fair, but worth keeping corridors two wide.
+- **Snare, rain and Rush-in-the-dark numbers are guesses to play-test**: 3 Snares a room, 20 HP / never below
+  10, held 5 s, 4 s grace; Rush's far rumble at volume 3 from his warning; the rain a soft noise drop every
+  1–4 frames (by numbers, not by ear). Held by a Snare you can't turn to face Screech, so he can bite you:
+  intended (the Minecraft "he sets you up"), but harsh in a fully dark room with only the glow.
+- **The garden tileset is 7 palettes exactly**: a new colour there means sharing one (ASSETS.md).
 - **Seek's numbers are guesses to play-test**: his reach 24 px (the Minecraft 2 blocks is 32; the camera
   shows only 72 px behind you), the puddle 64 px behind you, 45 frames' hold after the rise, 1.31 px/frame
   against your 1.75. Standing still after the rise, he has you in about 75 frames.
@@ -140,7 +153,8 @@
 - **Tables look like dark blocks** in the placeholder tileset.
 - **Camera jumps of more than 4 px per frame** aren't streamed (by design, ARCHITECTURE.md); anything that
   teleports the camera must redraw with `bg_draw_full()` behind a fade, as room changes do.
-- **Only one tileset** is wired up (`tileset_load()` in `room.c`); adding a second needs a switch on the id.
+- **Two tilesets** (`hotel`, `garden`; `tileset_load()` in `room.c` switches on the id). A third needs a case
+  there and `TILESET_*` in `assets.h`, and must keep the hotel's shared metatile numbers (the converter checks).
 - **VBlank headroom on DMG is 2 scanlines.** Every frame writes either one column/row or up to 20 single tiles.
   Effects that must happen in VBlank on top of that (palette changes for the light flicker) need the writes
   made faster first, e.g. dropping the per-byte STAT check while LY shows enough VBlank left.
@@ -149,8 +163,8 @@
   fix it; aim for at least 4–5 per entry wall.
 - **GBC palette writes rely on running in VBlank** (`platform_vblank()` from `bg_flush`); BGB's exception
   breaks don't cover palette RAM, so this isn't machine-checked.
-- **Door numbers are small** (3×5 digits on the door's header): readable on screen, not big. The HUD shows
-  the number too.
+- **Door numbers are small** (3×5 digits on the door's header): readable on screen, not big. The HUD no longer
+  shows it (owner, 2026-10-18: it gave Dupe away); it shows the run's time instead.
 - **The bot cheats a little**: it knows which drawer holds the key from WRAM, though it still opens drawers in
   order until it finds it, as a player would.
 
@@ -168,7 +182,8 @@ Each phase ends with both ROMs working in BGB and these docs updated.
 | 5. Dupe, Halt, Timothy (**done 2026-10-18**, owner's hands-on test pending) | Five Dupe rooms (2–3 doors, the real one per run), Dupe's wrong numbers and full-screen face, numberless fakes; Halt's blue-lit sideways hallway with TURN AROUND; Timothy's spider in a drawer; the HUD and effect scripts out of bank 0; cheaper sprite drawing |
 | 6. The Library (50) (**done 2026-10-18**, owner's hands-on test pending) | Room 50 with eight books, the paper, the notes panel and the five-wheel padlock; Figure (hearing, sneaking with B, hunting, footsteps, the edge arrow, his face); the Library theme; door 50 sealing; room 49 one-door; `game_warp` and `library-test.py` |
 | 7. Seek (**done 2026-10-18**, owner's hands-on test pending) | Chases at 30–35 and 70–79 from authorable start, four-way and end rooms; eyes on the walls before; the rise; the chase (1.4× run, he at 0.75), the glowing real door that opens itself, caught by touch or from behind; fire; the slam; his eye; *Here I Come*; side doors keep their number open; the Guiding Light's typing sound gone; `seek-test.py` |
-| 8. Courtyard, Greenhouse, Room 100 | Rooms 89–100, the fuses and the escape, the ending |
+| 8a. Courtyard, Greenhouse (**done 2026-10-18**, owner's hands-on test pending) | Rooms 89–99: the safe, rainy Courtyard; the dark Greenhouse with Rush heard not flickered, no Ambush, Dupe four-ways, Snares, room 99 safe, metal doors; a second tileset; rain; `garden-test.py`. Also: the HUD's door number replaced by the run's time, "GOT THE KEY." |
+| 8b. Room 100 (on the owner's word, questions first) | Room 100, the fuses and the escape, the ending; *Unhinged II* and the Ending Theme arranged |
 | 9. Economy and items | Gold, Knobs, Jeff's Shop (55), the elevator shop, the eight items (the lighter and flashlight's light is built: give it fuel, batteries and a slot), the on-demand HUD's item and gold parts, SRAM save; the Elevator Jam and Jeff's Shop Jingle MIDIs arranged |
 | 10. Audio | The rest: Seek's chase (Here I Come MIDI, Phase 7) and the Ending Theme (Phase 8) when those come; SFX for every entity; a pass by ear over everything |
 | 11. Polish | Title screen extras, achievements (paying Knobs), statistics, Super Game Boy border for the DMG ROM, balance; more room templates (an ongoing job: see known issues) |

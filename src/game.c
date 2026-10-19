@@ -22,8 +22,10 @@
 #include "figure.h"
 #include "seek.h"
 #include "walleyes.h"
+#include "garden.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
+#include "tileset_garden.h"
 #include "sprite_key.h"
 #include "sprite_player.h"
 #include "sprite_rush.h"
@@ -35,6 +37,7 @@
 #include "sprite_seek.h"
 #include "sprite_puddle.h"
 #include "sprite_guide.h"
+#include "sprite_rain.h"
 
 #define SCREEN_W 160
 #define SCREEN_H 144
@@ -47,7 +50,6 @@
 #define IN_LIBRARY (run_room == RUN_LIBRARY_ROOM)
 
 #define FADE_STEP_FRAMES 3
-#define HUD_ENTER_FRAMES 120
 #define HUD_MESSAGE_FRAMES 120
 
 uint8_t game_state;
@@ -112,6 +114,16 @@ SPR_CHECK(SPR_PLAYER_PALETTES + SPR_KEY_PALETTES + MAX_(SPR_RUSH_PALETTES, SPR_A
 SPR_CHECK((SPR_KEY_FRAME_COUNT + MAX_(SPR_RUSH_FRAME_COUNT, SPR_AMBUSH_FRAME_COUNT) + SPR_EYES_FRAME_COUNT +
            SPR_SCREECH_FRAME_COUNT + SPR_TIMOTHY_FRAME_COUNT + SPR_WALLEYE_FRAME_COUNT) * 4 <= SPR_FRAME_POOL,
           hotel_room_frame_tables_outgrow_the_pool);
+// A Courtyard or Greenhouse room: the hotel's set less the wall eyes (no chase near), plus the Courtyard's rain
+SPR_CHECK(SPR_PLAYER_TILES + SPR_KEY_TILES + MAX_(SPR_RUSH_TILES, SPR_AMBUSH_TILES) + SPR_EYES_TILES +
+          SPR_SCREECH_TILES + SPR_TIMOTHY_TILES + SPR_RAIN_TILES <= SPR_TILE_LIMIT(TILESET_GARDEN_TILES),
+          garden_room_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_KEY_PALETTES + MAX_(SPR_RUSH_PALETTES, SPR_AMBUSH_PALETTES) +
+          SPR_EYES_PALETTES + SPR_SCREECH_PALETTES + SPR_TIMOTHY_PALETTES + SPR_RAIN_PALETTES <= SPR_PALETTE_LIMIT,
+          garden_room_sprites_need_over_8_gbc_palettes);
+SPR_CHECK((SPR_KEY_FRAME_COUNT + MAX_(SPR_RUSH_FRAME_COUNT, SPR_AMBUSH_FRAME_COUNT) + SPR_EYES_FRAME_COUNT +
+           SPR_SCREECH_FRAME_COUNT + SPR_TIMOTHY_FRAME_COUNT + SPR_RAIN_FRAME_COUNT) * 4 <= SPR_FRAME_POOL,
+          garden_room_frame_tables_outgrow_the_pool);
 // A chase room: Seek, his puddle (the start hallway), the guide's glow, the wall eyes
 SPR_CHECK(SPR_PLAYER_TILES + SPR_SEEK_TILES + SPR_PUDDLE_TILES + SPR_GUIDE_TILES + SPR_WALLEYE_TILES <=
           SPR_TILE_LIMIT(TILESET_HOTEL_TILES), chase_sprites_outgrow_sprite_vram);
@@ -333,6 +345,7 @@ static void draw_sprites(void) {
     eyes_draw();
     if (key_spot)
         spr_draw(&key_sheet, SPR_KEY_KEY, ((int16_t)key_spot->x << 4) - cam_x, ((int16_t)key_spot->y << 4) - cam_y, 0);
+    garden_draw();     // the Courtyard's rain
     walleyes_draw();   // last: anything else on the same line wins the hardware's 10
     spr_end();
 }
@@ -351,6 +364,7 @@ static void load_room(void) {
     const room_def_t *def = room_template(run_template[run_room], &bank);
     room_load(bank, def);
     apply_room_state();
+    garden_room_loaded();   // the Greenhouse's Snares into the map
 }
 
 // The loaded room's lights, and who's in it (behind black)
@@ -374,6 +388,7 @@ static void load_room_sprites(void) {
         library_need_sprites();
     seek_need_sprites();
     walleyes_need_sprites();
+    garden_need_sprites();
 }
 
 // Draws the lit room around the player
@@ -413,13 +428,13 @@ static void enter_room(uint8_t n, uint8_t via) {
         library_enter();
     seek_room_entered();
     walleyes_room_entered();
+    garden_room_entered();
     light_up_room();
     // The darkness cue marks the lights going out, so a run of dark rooms announces once (Minecraft docs 05)
     if (light_dark && !was_dark)
         sfx_play(SFX_DARK);
     entity_room_entered(first_time);   // before the sprites: whether he fires decides his sheet
     draw_room();
-    hud_show(HUD_ENTER_FRAMES);
     game_wait_frames(1);
     game_fade(FADE_BLACK, 0);
     game_state = GAME_PLAYING;
@@ -449,6 +464,7 @@ void game_start(uint16_t seed) BANKED {
     library_reset();
     figure_stop();
     seek_reset();
+    garden_reset();
     light_room(0);
     music_play(MUSIC_NONE);   // no music in the rooms (owner, 2026-10-18: the ambience is gone)
     enter_room(0, VIA_START);
@@ -486,9 +502,7 @@ static uint8_t check_doors(void) {
 }
 
 static void message_key(void) {
-    static char msg[] = "GOT KEY FOR DOOR 000";
-    text_3digits(msg + 17, run_room + 1);
-    hud_message(msg, HUD_MESSAGE_FRAMES);
+    hud_message("GOT THE KEY.", HUD_MESSAGE_FRAMES);   // no number: it would name the real door (owner)
 }
 
 static void take_key(void) {
@@ -657,7 +671,7 @@ static uint8_t on_fire(void) {
 // while running from something is a death with no mechanic under it). Measured to the door's inner edge.
 static void chase_door(void) {
     uint8_t *f = &run_flags[run_room];
-    if ((*f & RF_EXIT_OPEN) || !exit_door || run_kind_at(run_room) < ROOM_KIND_SEEK_START)
+    if ((*f & RF_EXIT_OPEN) || !exit_door || !ROOM_KIND_IS_CHASE(run_kind_at(run_room)))
         return;
     const room_obj_t *o = exit_door;
     int16_t x = ((int16_t)o->x << 4) + (o->w << 3), y = ((int16_t)o->y << 4) + (o->h << 3);
@@ -698,6 +712,10 @@ void game_frame(void) BANKED {
     } else if (lib == LIB_HELD) {
         player_moving = 0;   // standing at the lock: silent
         death = DEATH_NONE;
+    } else if (garden_rooted()) {
+        player_moving = 0;   // a Snare holds you: no walking, no A (Minecraft docs 09)
+        garden_update();
+        death = DEATH_NONE;
     } else {
         player_sneak = IN_LIBRARY && (input_held & J_B);   // owner: hold B to sneak (items don't need B there)
         player_update();
@@ -707,6 +725,7 @@ void game_frame(void) BANKED {
             game_state = GAME_DEAD;
             return;
         }
+        garden_update();   // a Snare under your feet
         if (seek_chasing())
             chase_door();
         // No door takes you anywhere while Rush or Ambush is out (the open ones too)

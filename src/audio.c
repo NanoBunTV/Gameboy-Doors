@@ -19,6 +19,8 @@ static uint8_t music_id, music_bank;
 static const step_t *playing[4];
 static uint8_t left[4];
 static uint8_t rumble_vol, rumble_kind, rumble_hw;   // wanted, and what CH4 is doing now
+static uint8_t rain_on, rain_wait;
+static uint16_t rain_rng = 0xACE1u;
 
 static void write_step(uint8_t ch, const step_t *s) {
     switch (ch) {
@@ -83,6 +85,32 @@ static void rumble_update(void) {
     rumble_hw = rumble_vol;
 }
 
+void audio_rain(uint8_t on) {
+    if (on == rain_on)
+        return;
+    rain_on = on;
+    rain_wait = 0;
+    if (!on && !playing[3] && !rumble_hw) {
+        NR42_REG = 0;
+        NR44_REG = 0x80;
+    }
+}
+
+// A drop now and then: short, quiet, high noise bursts at uneven gaps, which together read as rain
+static void rain_update(void) {
+    if (!rain_on || playing[3] || rumble_vol || rain_wait--)
+        return;
+    rain_rng ^= rain_rng << 7;
+    rain_rng ^= rain_rng >> 9;
+    rain_rng ^= rain_rng << 8;
+    uint8_t r = (uint8_t)rain_rng;
+    rain_wait = 1 + (r & 3);
+    NR41_REG = 0;
+    NR42_REG = ENV(1 + ((r >> 2) & 1) + ((r >> 3) & 1), 1);   // volume 1-3, fading fast
+    NR43_REG = (r & 0x40) ? 0x01 : 0x11;                       // high hiss, two shades
+    NR44_REG = 0x80;
+}
+
 // ------------------------------------------------------------------------------------------ music
 
 void audio_init(void) {
@@ -105,6 +133,7 @@ void music_play(uint8_t id) {
     if (id == music_id)
         return;
     music_id = id;
+    audio_rain(0);   // the death screen's song, the title's: no rain under them
     silence_music();
     const hUGESong_t *song;
     switch (id) {
@@ -146,4 +175,5 @@ void audio_frame(void) {
     }
     SWITCH_ROM(saved);
     rumble_update();
+    rain_update();
 }

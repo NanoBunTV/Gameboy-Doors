@@ -106,7 +106,7 @@ check(g.u8("_seek_state") == SEEK_CHASE and g.u8("_player_fast") == 1, "then the
 b.chasing = True
 rooms = [g.room()]
 try:
-    while g.u8("_room_template_info", g.u8("_run_template", g.room()) * 7) >= 5:
+    while 5 <= g.u8("_room_template_info", g.u8("_run_template", g.room()) * 7) <= 7:
         exit_ = b.exits()[1]
         cellpos, _ = b.approach(exit_)
         if g.room() == START + 2:

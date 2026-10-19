@@ -11,22 +11,25 @@
 // string literal lives in the caller's bank, which is only mapped while bank 0 code runs). The rest of the
 // HUD is in hud_status.c.
 
-uint8_t hud_ascii[96];
 char hud_shown[21];
 char hud_want[21];
 uint8_t hud_timer, hud_msg_timer, hud_msg_new;
 uint8_t hud_panel;
 
+// Read from the font's ROM table (a WRAM copy cost 96 bytes of the GBC's stack until Phase 8)
 uint8_t hud_tile_for(char c) {
     uint8_t code = (uint8_t)c;
-    return (code >= 32 && code < 128) ? hud_ascii[code - 32] : hud_ascii[0];
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(BANK(font));
+    uint8_t t = font.ascii[(code >= 32 && code < 128) ? code - 32 : 0];
+    SWITCH_ROM(saved);
+    return t;
 }
 
 void hud_init(void) {
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(font));
     set_bkg_data(FONT_FIRST_TILE, font.tile_count, font.tiles);
-    memcpy(hud_ascii, font.ascii, sizeof(hud_ascii));
 #ifdef CGB
     platform_set_bkg_palettes(PAL_TEXT, font.palette, 1);
 #endif

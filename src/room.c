@@ -4,6 +4,7 @@
 #include "bg.h"
 #include "platform.h"
 #include "tileset_hotel.h"
+#include "tileset_garden.h"
 
 uint8_t room_w, room_h;
 uint16_t room_px_w, room_px_h;
@@ -25,11 +26,14 @@ static const tileset_t *ts;
 
 // Loads a tileset's tiles into VRAM and its metatile tables into WRAM. Switches banks; the caller restores.
 static void tileset_load(uint8_t id) {
-    // Only TILESET_HOTEL so far. With more, switch on id here; BANK() can't go in a static table because
-    // it isn't a constant expression for SDCC.
-    (void)id;
-    ts = &tileset_hotel;
-    ts_bank = BANK(tileset_hotel);
+    // BANK() can't go in a static table because it isn't a constant expression for SDCC
+    if (id == TILESET_GARDEN) {
+        ts = &tileset_garden;
+        ts_bank = BANK(tileset_garden);
+    } else {
+        ts = &tileset_hotel;
+        ts_bank = BANK(tileset_hotel);
+    }
     SWITCH_ROM(ts_bank);
     // BG tile data uses the 0x8800 area (LCDC bit 4 clear, main.c): tiles 0-127 at 0x9000, 128-255 at 0x8800.
     // Copied with vram_write (STAT-safe) because this can happen with the LCD on, behind a fade to black.

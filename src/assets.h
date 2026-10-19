@@ -10,12 +10,15 @@
 // Tilesets, numbered for room_def_t.tileset. Add one here when adding assets/tilesets/<name>.tsx,
 // and a case to tileset_load() in room.c.
 #define TILESET_HOTEL 0
+#define TILESET_GARDEN 1    // the Courtyard and the Greenhouse (rooms 89-99): the hotel's metatile numbers for
+                            // doors, walls and drawers (scripts/assets.py checks), its own art
 
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
 #define MTF_SOLID 0x01
 #define MTF_BOOKCASE 0x02   // a bookcase's bottom half: where the Library's books can be (library.c)
 #define MTF_FIRE 0x04       // walking into it kills (Seek's end hallway; game.c)
 #define MTF_WALL 0x08       // a wall Seek's eyes can appear on before a chase (walleyes.c)
+#define MTF_SNARE 0x10      // the Greenhouse's trap: stepping on it (garden.c)
 
 // A tileset: 16x16 metatiles made of four 8x8 tiles (top left, top right, bottom left, bottom right)
 typedef struct {
@@ -42,6 +45,7 @@ typedef struct {
 #define OBJ_PAPER   8   // the Library: the paper on the desk
 #define OBJ_FIGURE  9   // the Library: where Figure starts
 #define OBJ_SEEK    10  // a start hallway: where Seek rises (optional; seek.c)
+#define OBJ_SNARE   11  // the Greenhouse: a rectangle of cells a Snare may be on (garden.c)
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2
@@ -56,6 +60,9 @@ typedef struct {
 #define ROOM_KIND_SEEK_START 5   // Seek's chases (run.c run_kind_at): the hallway he rises in,
 #define ROOM_KIND_SEEK_4WAY  6   // the rooms with one real door and the rest fake,
 #define ROOM_KIND_SEEK_END   7   // and the hallway with the fire and the door that slams
+#define ROOM_KIND_IS_CHASE(k) ((k) >= ROOM_KIND_SEEK_START && (k) <= ROOM_KIND_SEEK_END)
+#define ROOM_KIND_COURTYARD  8   // room 89 (run.c run_kind_at): outdoors, safe, rain
+#define ROOM_KIND_GREENHOUSE 9   // rooms 90-99: dark, Snares, rain on the glass
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

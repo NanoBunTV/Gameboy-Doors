@@ -56,14 +56,16 @@ if ($Test) {
         & .\tools\venv\Scripts\python.exe scripts\sprite-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
     }
-    # The Library (room 50) and Seek's chase (30-36), which the recorded run doesn't play: a DEBUG build warps
-    # there (game_warp)
+    # The Library (room 50), Seek's chase (30-36) and the Courtyard and Greenhouse (88-100), which the recorded
+    # run doesn't play: a DEBUG build warps there (game_warp)
     & $make DEBUG=1 $Target
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
     foreach ($r in ($roms -replace '\\(gbc|dmg)\\', '\$1-debug\')) {
         & .\tools\venv\Scripts\python.exe scripts\library-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
         & .\tools\venv\Scripts\python.exe scripts\seek-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
+        & .\tools\venv\Scripts\python.exe scripts\garden-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
     }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }
