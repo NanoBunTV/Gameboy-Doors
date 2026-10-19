@@ -10,6 +10,7 @@
 #include "hide.h"
 #include "audio.h"
 #include "death.h"
+#include "items.h"
 #include "sprite_figure.h"
 #include "sprite_marks.h"
 
@@ -51,6 +52,7 @@ uint8_t figure_state;
 int16_t figure_x, figure_y;
 uint8_t figure_hunting;          // walking at a noise (else wandering)
 static uint8_t sub, grace, noise_t, hear_cool, step_t_, pause, anim;
+static uint16_t frozen;   // the crucifix stopped him where he stands (owner: 10 s)
 static uint16_t speed;
 static uint8_t goal_mx, goal_my;
 static int16_t goal_x, goal_y;
@@ -228,6 +230,7 @@ static uint16_t player_dist(void) {
 }
 
 void figure_start(uint8_t mx, uint8_t my, uint8_t deaf) BANKED {
+    frozen = 0;
     uint16_t cells = (uint16_t)room_w * room_h;
     dist = room_map + cells;
     queue = dist + cells;
@@ -325,6 +328,10 @@ static void chase(void) {
 uint8_t figure_update(void) BANKED {
     if (figure_state == FIG_OFF)
         return DEATH_NONE;
+    if (frozen) {
+        frozen--;
+        return DEATH_NONE;
+    }
     anim++;
     if (grace)
         grace--;
@@ -364,8 +371,13 @@ uint8_t figure_update(void) BANKED {
         break;
     }
     if ((!hide_hidden || figure_state == FIG_CHASE) && abs(figure_x - (player_x + PLAYER_FEET_X)) < TOUCH_X &&
-        abs(figure_y - (player_y + PLAYER_FEET_Y)) < TOUCH_Y)
+        abs(figure_y - (player_y + PLAYER_FEET_Y)) < TOUCH_Y) {
+        if (items_crucifix()) {   // stopped where he stands, 10 s (Minecraft docs 12)
+            frozen = FREEZE_FRAMES;
+            return DEATH_NONE;
+        }
         return DEATH_FIGURE;
+    }
     return DEATH_NONE;
 }
 

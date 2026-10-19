@@ -9,6 +9,7 @@
 #include "input.h"
 #include "platform.h"
 #include "electrical.h"
+#include "items.h"
 
 // The banked part of the HUD (moved out of bank 0, 2026-10-18): timers, the slide, the status line
 #define SLIDE_SPEED 2
@@ -26,6 +27,8 @@ void hud_hide_now(void) BANKED {
 
 void hud_panel_set(uint8_t rows) BANKED {
     hud_panel = rows;
+    if (!rows)
+        hud_rebuild = 1;   // the panel was over the item row
     // At once both ways: the status line stays up a moment after a panel closes
     bg_wy = rows ? HUD_PANEL_ROW_Y(rows) : HUD_Y_SHOWN;
     hud_show(60);
@@ -66,6 +69,37 @@ static void status_line(void) {
             want[9] = '0' + electrical_carried;
         }
     }
+}
+
+// The item row (Phase 9a, layout A of the owner's mock-up): the held item's icon and its meter (the lights: 4
+// tiles, 2 px steps) or count (vitamins), and the gold at the right: " %  ####        ^123"
+static uint8_t meter_px(uint16_t v, uint16_t full) {
+    return (uint8_t)(((uint32_t)v * 32 + full - 1) / full);   // 0-32, a sliver until it's empty
+}
+
+static void item_line(uint8_t px) {
+    static const char bar_glyph[5] = { '*', '+', '{', '}', '#' };
+    static const char icon[4] = { ' ', ICON_LIGHTER, ICON_FLASHLIGHT, ICON_VITAMINS };
+    char *want = hud_want2;
+    memset(want, ' ', 20);
+    want[1] = icon[inv_held];
+    if (inv_held == HELD_VITAMINS) {
+        want[3] = 'X';
+        want[4] = '0' + inv_vitamins;
+    } else if (inv_held) {
+        for (uint8_t i = 0; i < 4; i++) {
+            uint8_t fill = px > 8 ? 8 : px;
+            px -= fill;
+            want[3 + i] = bar_glyph[fill >> 1];
+        }
+    }
+    want[16] = ICON_GOLD;
+    uint16_t g = inv_gold;
+    want[19] = '0' + g % 10;
+    if (g >= 10)
+        want[18] = '0' + (g / 10) % 10;
+    if (g >= 100)
+        want[17] = '0' + g / 100;
 }
 
 void hud_update(void) BANKED {
@@ -112,6 +146,31 @@ void hud_update(void) BANKED {
     }
     if (hud_timer)
         hud_timer--;
+    // The item row, rebuilt when what it shows changes (never under a panel, which prints over it)
+    static uint8_t built_held = 0xFF, built_px, built_lit, built_vit;
+    static uint16_t built_gold;
+    uint8_t px = inv_held == HELD_LIGHTER ? meter_px(inv_fuel, LIGHTER_FUEL)
+               : inv_held == HELD_FLASHLIGHT ? meter_px(inv_charge, FLASH_CHARGE) : 0;
+    uint8_t dirty2 = 0;
+    if (hud_rebuild) {
+        hud_rebuild = 0;
+        built_held = 0xFF;
+        memset(hud_shown2, 0, 20);   // matches nothing: every tile is written again
+        memset(hud_shown, 0, 20);
+        dirty = 1;
+        if (!hud_msg_timer)
+            status_line();
+    }
+    if (!hud_panel && (inv_held != built_held || px != built_px || inv_lit != built_lit ||
+                       inv_vitamins != built_vit || inv_gold != built_gold)) {
+        built_held = inv_held;
+        built_px = px;
+        built_lit = inv_lit;
+        built_vit = inv_vitamins;
+        built_gold = inv_gold;
+        item_line(px);
+        dirty2 = 1;
+    }
 
     // Queue the characters that changed (the text row is window row 1)
     if (dirty)
@@ -119,6 +178,12 @@ void hud_update(void) BANKED {
             if (hud_shown[i] != hud_want[i]) {
                 hud_shown[i] = hud_want[i];
                 bg_queue_tile(WIN_MAP + 32 + i, hud_tile_for(hud_want[i]), PAL_TEXT);
+            }
+    if (dirty2)
+        for (uint8_t i = 0; i < 20; i++)
+            if (hud_shown2[i] != hud_want2[i]) {
+                hud_shown2[i] = hud_want2[i];
+                bg_queue_tile(WIN_MAP + 64 + i, hud_tile_for(hud_want2[i]), PAL_TEXT);
             }
 
     uint8_t target = hud_panel ? HUD_PANEL_ROW_Y(hud_panel) : hud_timer ? HUD_Y_SHOWN : HUD_Y_HIDDEN;

@@ -24,9 +24,13 @@
 #include "walleyes.h"
 #include "garden.h"
 #include "electrical.h"
+#include "items.h"
+#include "lift.h"
+#include "shop.h"
 #include "room_templates.h"
 #include "tileset_hotel.h"
 #include "tileset_garden.h"
+#include "tileset_shop.h"
 #include "sprite_key.h"
 #include "sprite_player.h"
 #include "sprite_rush.h"
@@ -39,6 +43,7 @@
 #include "sprite_puddle.h"
 #include "sprite_guide.h"
 #include "sprite_rain.h"
+#include "sprite_jeff.h"
 
 #define SCREEN_W 160
 #define SCREEN_H 144
@@ -62,6 +67,12 @@ static const room_obj_t *entry_door, *exit_door;    // exit_door: this run's rea
 static const room_obj_t *exits[ROOM_EXITS_MAX];      // every exit, in object order (Dupe rooms have 2-3)
 static uint8_t exit_count;
 static const room_obj_t *key_spot;   // where the key lies in the open, or 0
+// Loot lying in the open (Phase 9a) on the key spots the key isn't on: what each holds (rolled at the door, so
+// finding a flashlight meanwhile doesn't change what's lying there) and its frame, or 0xFF
+#define LOOSE_MAX 2
+static const room_obj_t *loose[LOOSE_MAX];
+static loot_t loose_loot[LOOSE_MAX];
+static uint8_t loose_frame[LOOSE_MAX];
 
 #ifdef AUTOTEST
 // Worst case of how far into VBlank bg_flush() got, in scanlines (VBlank is lines 144-153, i.e. 0-9 here;
@@ -87,8 +98,9 @@ void game_wait_frames(uint8_t n) BANKED {
 }
 
 #if defined(AUTOTEST) || defined(DEBUG)
-// Debug builds only, until the items exist (Phase 9): B cycles the player's light between the glow, the
-// lighter and the flashlight (owner, 2026-10-18). Not in the Library, where B is sneaking.
+// Debug builds only: with nothing held, B cycles the player's light between the glow, the lighter and the
+// flashlight (owner, 2026-10-18; the play-testing bot's recorded run lights dark rooms all three ways). Not in
+// the Library or Room 100, where B is sneaking.
 #define LIGHT_DEBUG
 uint8_t game_light_tool;
 // Scripts poke a room number: the next frame enters it through its entry door (scripts/bot.py --warp)
@@ -134,6 +146,10 @@ SPR_CHECK(SPR_PLAYER_PALETTES + SPR_SEEK_PALETTES + SPR_PUDDLE_PALETTES + SPR_GU
 SPR_CHECK((SPR_SEEK_FRAME_COUNT + SPR_PUDDLE_FRAME_COUNT + SPR_GUIDE_FRAME_COUNT + SPR_WALLEYE_FRAME_COUNT) * 4 <=
           SPR_FRAME_POOL, chase_frame_tables_outgrow_the_pool);
 
+// Jeff's Shop: the player and his eyes
+SPR_CHECK(SPR_PLAYER_TILES + SPR_JEFF_TILES <= SPR_TILE_LIMIT(TILESET_SHOP_TILES), shop_sprites_outgrow_sprite_vram);
+SPR_CHECK(SPR_PLAYER_PALETTES + SPR_JEFF_PALETTES <= SPR_PALETTE_LIMIT, shop_sprites_need_over_8_gbc_palettes);
+
 static uint8_t player_light(void) {
 #ifdef LIGHT_DEBUG
     if (game_light_tool == 1)
@@ -141,7 +157,7 @@ static uint8_t player_light(void) {
     if (game_light_tool == 2)
         return LIGHT_FLASH + player_facing;
 #endif
-    return LIGHT_GLOW;
+    return items_light();
 }
 
 static void light_player(void) {
@@ -360,6 +376,20 @@ static void apply_room_state(void) {
     key_spot = 0;
     if ((f & RF_LOCKED) && !(f & (RF_KEY_TAKEN | RF_KEY_DRAWER)))
         key_spot = (f & RF_KEY_FIXED) ? find_fixed_keyspot() : find_obj(OBJ_KEYSPOT, run_key_slot[run_room]);
+    // The other key spots may hold loot; the key's holds only the key (Minecraft docs 12), taken or not
+    uint8_t key_k = (f & (RF_LOCKED | RF_KEY_DRAWER | RF_KEY_FIXED)) == RF_LOCKED ? run_key_slot[run_room] : 0xFF;
+    for (uint8_t k = 0; k < LOOSE_MAX; k++) {
+        loose[k] = 0;
+        const room_obj_t *o = find_obj(OBJ_KEYSPOT, k);
+        if (!o || k == key_k || (run_drawers[run_room] & RUN_LOOSE_BIT(k)) || run_kind_at(run_room) != ROOM_KIND_NORMAL)
+            continue;
+        loot_t *l = &loose_loot[k];
+        run_loot(run_room, k, 1, inv_flashlight, l);
+        if (l->battery || l->bandage || l->gold) {
+            loose[k] = o;
+            loose_frame[k] = l->battery ? SPR_KEY_BATTERY : l->bandage ? SPR_KEY_BANDAGE : SPR_KEY_GOLD;
+        }
+    }
 }
 
 // In the dark, the top half of the door you're within DOOR_LIGHT_NEAR metatiles of lights up so its number
@@ -412,12 +442,16 @@ static void draw_sprites(void) {
         library_draw();
     if (in_electrical)
         electrical_draw();
+    shop_draw();
     screech_draw();
     timothy_draw();
     entity_draw();
     eyes_draw();
     if (key_spot)
         spr_draw(&key_sheet, SPR_KEY_KEY, ((int16_t)key_spot->x << 4) - cam_x, ((int16_t)key_spot->y << 4) - cam_y, 0);
+    for (uint8_t k = 0; k < LOOSE_MAX; k++)
+        if (loose[k])
+            spr_draw(&key_sheet, loose_frame[k], ((int16_t)loose[k]->x << 4) - cam_x, ((int16_t)loose[k]->y << 4) - cam_y, 0);
     garden_draw();     // the Courtyard's rain
     walleyes_draw();   // last: anything else on the same line wins the hardware's 10
     spr_end();
@@ -439,6 +473,7 @@ static void load_room(void) {
     apply_room_state();
     garden_room_loaded();   // the Greenhouse's Snares into the map
     electrical_room_loaded();   // Room 100's fuses, and what the lever and the power changed
+    shop_room_loaded();         // Jeff's stock on his counter
     find_fire();
 }
 
@@ -455,7 +490,7 @@ static void light_up_room(void) {
 static void load_room_sprites(void) {
     spr_room_begin();
     entity_need_sprites();
-    if (key_spot)
+    if (key_spot || loose[0] || loose[1])
         spr_need(&key_sheet, BANK(sprite_key), &sprite_key);
     eyes_need_sprites();
     screech_need_sprites();
@@ -464,6 +499,7 @@ static void load_room_sprites(void) {
         library_need_sprites();
     if (in_electrical)
         electrical_need_sprites();
+    shop_need_sprites();
     seek_need_sprites();
     walleyes_need_sprites();
     garden_need_sprites();
@@ -493,8 +529,11 @@ static void enter_room(uint8_t n, uint8_t via) {
         library_exit();   // through the padlocked door: Figure and the music stay behind
     if (in_electrical && n != run_room)
         electrical_exit();   // back to room 99, before the lever
+    if (run_room == RUN_SHOP_ROOM && n != run_room)
+        shop_exit();         // Jeff's jingle stays in his shop
     run_room = n;
     in_electrical = run_kind_at(n) == ROOM_KIND_ELECTRICAL;
+    hud_icons(!IN_LIBRARY);   // the Library's shapes are the items' icons everywhere else
     uint8_t first_time = n > run_max_room;
     if (first_time)
         run_max_room = n;
@@ -509,6 +548,7 @@ static void enter_room(uint8_t n, uint8_t via) {
         library_enter();
     if (in_electrical)
         electrical_enter();
+    shop_enter();
     seek_room_entered();
     walleyes_room_entered();
     garden_room_entered();
@@ -540,6 +580,9 @@ static void survived_scare(uint8_t cause) {
 
 void game_start(uint16_t seed) BANKED {
     run_start(seed);
+    items_reset();
+    items_lift(lift_bought);   // what the lift shop sold
+    lift_bought = 0;
     game_init();   // sprite tiles: a jumpscare may have used their VRAM
     entity_reset();
     screech_reset();
@@ -615,13 +658,17 @@ static void use_exit(void) {
         return;
     }
     if (*f & RF_LOCKED) {
-        if (run_key_door != run_room + 1) {
+        if (run_key_door == run_room + 1) {
+            run_key_door = 0;  // the key is used up (Minecraft version: "Take the key when it turns")
+            hud_message("UNLOCKED.", HUD_MESSAGE_FRAMES);
+        } else if (items_unlock()) {   // no key: a lockpick, else the skeleton key (owner: the key first)
+            *f |= RF_KEY_TAKEN;   // its key has nothing left to open: gone (Minecraft docs 02, discardKeysFor)
+            key_spot = 0;
+        } else {
             hud_message("IT'S LOCKED.", HUD_MESSAGE_FRAMES);
             sfx_play(SFX_LOCKED);
             return;
         }
-        run_key_door = 0;  // the key is used up (Minecraft version: "Take the key when it turns")
-        hud_message("UNLOCKED.", HUD_MESSAGE_FRAMES);
         sfx_play(SFX_UNLOCK);
     } else {
         sfx_play(SFX_DOOR);
@@ -654,6 +701,12 @@ static void use_fake(const room_obj_t *o) {
         sfx_play(SFX_LOCKED);
         return;
     }
+    // The crucifix: the door stays shut and he's spent on it (its scribbles come all the same)
+    if (items_crucifix()) {
+        *f2 |= hit;
+        door_set(o, DOOR_CLOSED, fake_label(o));
+        return;
+    }
     // The door opens on him: a beat, then his face (owner: full-screen) and 40 HP. Not progress, so Eyes
     // stays. The door then shuts with scribbles where its number was.
     game_state = GAME_TRANSITION;
@@ -672,10 +725,14 @@ static void use_fake(const room_obj_t *o) {
     }
 }
 
+static uint8_t drawer_left(uint8_t d);
+
 static void use_drawer(const room_obj_t *o) {
     uint8_t bit = 1 << drawer_index(o);
-    if (run_drawers[run_room] & bit)
+    if (run_drawers[run_room] & bit) {
+        drawer_left(drawer_index(o));
         return;
+    }
     run_drawers[run_room] |= bit;
     room_set_metatile(o->x, o->y, MT_HOTEL_DRESSER_OPEN);
     sfx_play(SFX_DRAWER);
@@ -684,12 +741,37 @@ static void use_drawer(const room_obj_t *o) {
         timothy_spring(o->x, o->y);
         return;
     }
-    uint8_t f = run_flags[run_room];
-    if ((f & (RF_LOCKED | RF_KEY_DRAWER | RF_KEY_TAKEN)) == (RF_LOCKED | RF_KEY_DRAWER) &&
-        drawer_index(o) == run_key_slot[run_room])
+    uint8_t f = run_flags[run_room], d = drawer_index(o), got = 0;
+    if ((f & (RF_LOCKED | RF_KEY_DRAWER | RF_KEY_TAKEN)) == (RF_LOCKED | RF_KEY_DRAWER) && d == run_key_slot[run_room]) {
         take_key();
-    else
+        got = 1;
+    }
+    // The key goes in first and the loot rolls after (Minecraft docs 12): a drawer can hold both
+    loot_t l;
+    run_loot(run_room, d, 0, inv_flashlight, &l);
+    if (l.gold || l.item || l.battery || l.bandage)
+        run_set_left(run_room, d, items_take(&l, 0x0F));
+    else if (!got)
         hud_message("NOTHING.", 60);
+}
+
+// An opened drawer that kept what didn't fit: A again tries that
+static uint8_t drawer_left(uint8_t d) {
+    uint8_t left = run_left(run_room, d);
+    if (!left)
+        return 0;
+    loot_t l;
+    run_loot(run_room, d, 0, inv_flashlight, &l);
+    run_set_left(run_room, d, items_take(&l, left));
+    return 1;
+}
+
+// Loot lying in the open: taken unless it doesn't fit (a bandage at full health stays put)
+static void take_loose(uint8_t k) {
+    if (items_take(&loose_loot[k], 0x0F))
+        return;
+    run_drawers[run_room] |= RUN_LOOSE_BIT(k);
+    loose[k] = 0;
 }
 
 // Uses whatever is at room pixel (px, py). Returns 1 if there was something.
@@ -701,10 +783,17 @@ static uint8_t interact_at(int16_t px, int16_t py) {
         return 1;
     if (in_electrical && electrical_use_at(mx, my))
         return 1;
+    if (shop_use_at(mx, my))
+        return 1;
     if (key_spot && inside(key_spot, mx, my)) {
         take_key();
         return 1;
     }
+    for (uint8_t k = 0; k < LOOSE_MAX; k++)
+        if (loose[k] && inside(loose[k], mx, my)) {
+            take_loose(k);
+            return 1;
+        }
     for (uint8_t i = 0; i < room_obj_count; i++) {
         const room_obj_t *o = &room_objs[i];
         if (!inside(o, mx, my))
@@ -745,11 +834,16 @@ static void interact(void) {
     // underfoot had to be stepped off to be picked up). The feet's cell or the body's middle: in 3/4 view a
     // player drawn over the key can have their feet in the cell below it.
     uint8_t fx = (uint8_t)((player_x + PLAYER_FEET_X) >> 4);
-    if (key_spot && (inside(key_spot, fx, (uint8_t)((player_y + PLAYER_FEET_Y) >> 4)) ||
-                     inside(key_spot, fx, (uint8_t)((player_y + 6) >> 4)))) {
+    uint8_t fy = (uint8_t)((player_y + PLAYER_FEET_Y) >> 4), my = (uint8_t)((player_y + 6) >> 4);
+    if (key_spot && (inside(key_spot, fx, fy) || inside(key_spot, fx, my))) {
         take_key();
         return;
     }
+    for (uint8_t k = 0; k < LOOSE_MAX; k++)   // loot underfoot too
+        if (loose[k] && (inside(loose[k], fx, fy) || inside(loose[k], fx, my))) {
+            take_loose(k);
+            return;
+        }
     if (in_electrical && electrical_use_at(fx, (uint8_t)((player_y + PLAYER_FEET_Y) >> 4)))
         return;   // Room 100's key underfoot (the feet's cell is floor: nothing else is used there)
     int8_t ax = ahead_x[player_facing], ay = ahead_y[player_facing];
@@ -808,6 +902,7 @@ void game_frame(void) BANKED {
     if (in_electrical && electrical_frame() == ELEC_HELD)
         lib = LIB_HELD;   // the breaker's panel has the buttons
     if (hide_hidden) {
+        items_frame(ITEMS_HIDDEN);   // a light goes out in a closet (Minecraft docs 04); B is getting out
         death = hide_update();
     } else if (seek_frozen()) {
         player_moving = 0;   // watching him rise
@@ -820,8 +915,20 @@ void game_frame(void) BANKED {
         garden_update();
         death = DEATH_NONE;
     } else {
-        // Owner: hold B to sneak in the Library (items don't need B there); Room 100 the same, until the escape
-        player_sneak = (IN_LIBRARY || (in_electrical && !ELECTRICAL_RUNNING())) && (input_held & J_B);
+        // Owner: hold B to sneak in the Library (items don't need B there); Room 100 the same, until the escape.
+        // Nothing is held there (owner, Phase 9a).
+        uint8_t sneak_room = IN_LIBRARY || (in_electrical && !ELECTRICAL_RUNNING());
+        player_sneak = sneak_room && (input_held & J_B);
+#ifdef LIGHT_DEBUG
+        if ((input_pressed & J_B) && !sneak_room && !inv_held)
+            game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
+#endif
+        items_frame(sneak_room ? ITEMS_SNEAK : ITEMS_FREE);
+        // Start pauses on what you carry (the Library's Start is its notes)
+        if ((input_pressed & J_START) && !IN_LIBRARY) {
+            items_pause();
+            return;
+        }
         player_update();
         if (on_fire()) {
             sfx_play(SFX_FIRE);
@@ -840,10 +947,6 @@ void game_frame(void) BANKED {
             if (game_state != GAME_PLAYING)   // Dupe's last blow
                 return;
         }
-#ifdef LIGHT_DEBUG
-        if ((input_pressed & J_B) && !IN_LIBRARY && !in_electrical)
-            game_light_tool = game_light_tool == 2 ? 0 : game_light_tool + 1;
-#endif
         death = DEATH_NONE;
     }
     if (!death && IN_LIBRARY)
@@ -862,13 +965,16 @@ void game_frame(void) BANKED {
     if (!death)
         death = eyes_update();
     if (!death && screech_update()) {
-        if (run_hp > SCREECH_DAMAGE) {
+        if (items_crucifix()) {
+            screech_ward();   // gone, and kept away a minute (owner)
+        } else if (run_hp > SCREECH_DAMAGE) {
             run_hp -= SCREECH_DAMAGE;
             survived_scare(DEATH_SCREECH);
             return;
+        } else {
+            run_hp = 0;
+            death = DEATH_SCREECH;
         }
-        run_hp = 0;
-        death = DEATH_SCREECH;
     }
     if (death) {
         game_death = death;

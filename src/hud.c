@@ -13,6 +13,10 @@
 
 char hud_shown[21];
 char hud_want[21];
+char hud_shown2[21];
+char hud_want2[21];
+uint8_t hud_rebuild;
+static uint8_t icons_on;   // the shape glyphs show the item icons
 uint8_t hud_timer, hud_msg_timer, hud_msg_new;
 uint8_t hud_panel;
 
@@ -34,8 +38,10 @@ void hud_init(void) {
     platform_set_bkg_palettes(PAL_TEXT, font.palette, 1);
 #endif
     SWITCH_ROM(saved);
+    icons_on = 0;
 
-    // Window map: row 0 a border line, row 1 the text, rows 2 and down the Library's panel (hud_panel_set)
+    // Window map: row 0 a border line, row 1 the status line, row 2 the item row, rows 2 and down a panel
+    // (hud_panel_set)
     uint8_t row[20];
     memset(row, hud_tile_for('_'), 20);
     set_win_tiles(0, 0, 20, 1, row);
@@ -51,6 +57,8 @@ void hud_init(void) {
 #endif
     memset(hud_shown, ' ', 20);
     hud_shown[20] = 0;
+    memset(hud_shown2, ' ', 20);
+    hud_shown2[20] = 0;
     WX_REG = 7;
     bg_wy = HUD_Y_HIDDEN;
     WY_REG = HUD_Y_HIDDEN;
@@ -95,6 +103,16 @@ void text_print_bg(uint8_t x, uint8_t y, const char *text) {
 
 void text_print_win(uint8_t x, uint8_t y, const char *text) {
     print_at(WIN_MAP, x, y, text);
+}
+
+void hud_icons(uint8_t on) {
+    if (on == icons_on)
+        return;
+    icons_on = on;
+    uint8_t saved = CURRENT_BANK;
+    SWITCH_ROM(BANK(font));
+    vram_write(bg_tile_addr(FONT_ALT_TILE), font.tiles + (on ? FONT_ALT_OTHER : FONT_ALT_NORMAL), FONT_ALT_COUNT * 16);
+    SWITCH_ROM(saved);
 }
 
 void hud_font_palette(void) {

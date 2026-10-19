@@ -190,7 +190,11 @@ check(g.u8("_electrical_state") == ELEC_SEARCH and not slides, f"the sliding doo
 shot(g, "lever")
 try:
     for i, (x, y) in enumerate(fs):
-        use_up(b, x, y)
+        before = g.u8("_electrical_carried")
+        for _ in range(4):   # until it's taken (DMG: a tap can fall on a frame the game skipped reading the joypad)
+            use_up(b, x, y)
+            if g.u8("_electrical_carried") != before:
+                break
         if i == 4:
             shot(g, "fuse")
     check(g.u8("_electrical_carried") == FUSES and g.u16("_elec_taken") == 0x3FF,

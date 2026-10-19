@@ -24,10 +24,13 @@ roadmap lists the phases). Sections marked **planned** aren't built yet (the eco
 
 | File | What it does |
 |---|---|
-| `main.c` | Startup (LCDC setup, sound), title → run → death screen → run or title; or, won, the ending → title |
-| `title.c/.h` | *Banked.* The title screen (logo, blinking PRESS START, the Lobby Theme) and the run's seed |
+| `main.c` | Startup (LCDC setup, sound, the save), title → the lift → run → death screen → the lift or title; or, won, the ending → title |
+| `title.c/.h` | *Banked.* The title screen (logo, blinking PRESS START, the Lobby Theme, the Knobs, the save's erase) and the run's seed |
+| `save.c/.h` | *Banked.* Phase 9b: the save in SRAM (Knobs and statistics, checksummed), paying a run's Knobs (`save_run_end`), the lift's spending, the erase; the Knobs lines on the death screen and the results |
+| `lift.c/.h` | *Banked.* Phase 9b: the lift before every run (its picture, the Knobs shop, Elevator Jam, the doors opening); what it sold goes to `items_lift` in `game_start` |
+| `shop.c/.h` | *Banked.* Phase 9b: Jeff's Shop (room 55): the run's stock on the counter, his eyes, the price panel and buying, his music |
 | `game.c/.h` | *Banked.* Playing a run: entering rooms (fades, placing the player at the door), door states and numbers (the real exit and a Dupe room's wrong doors), drawers, keys, pressing A, walking through doors, the camera, the light level, the player's light, Screech's bite and Dupe's |
-| `run.c/.h` | *Banked.* The run: seed, per-room random generator, which template each room uses (and which of its exits is real), locks and key places, spawn, dark-room, Eyes, Dupe and Halt rolls, Dupe's wrong numbers, Timothy's drawer, what's been opened, health, Hide's bans |
+| `run.c/.h` | *Banked.* The run: seed, per-room random generator, which template each room uses (and which of its exits is real), locks and key places, spawn, dark-room, Eyes, Dupe and Halt rolls, Dupe's wrong numbers, Timothy's drawer, what's been opened, health, Hide's bans; the loot in each drawer and key spot (`run_loot`, from the seed) and what an opened drawer still holds (`run_left`) |
 | `entity.c/.h` | *Banked.* Rush and Ambush: the spawn queue, the route, the flicker, the rumble, the kill test |
 | `hide.c/.h` | *Banked.* Closets and beds, and Hide's timer, heartbeat and eviction |
 | `screech.c/.h` | *Banked.* Screech: the roll in dark rooms, where he waits, the look, the bite |
@@ -41,6 +44,7 @@ roadmap lists the phases). Sections marked **planned** aren't built yet (the eco
 | `garden.c/.h` | *Banked.* The Courtyard and the Greenhouse (Phase 8a): the Snares (placed from the seed, the catch, the hold and its grace), the rain on or off, the Courtyard's rain streaks |
 | `electrical.c/.h` | *Banked.* Room 100 (Phase 8b): the lever, the gates and the sliding door, the fuses and the key (from the seed), the breaker box and the Circuit Breaker's panel, the light pools, the power, the escape's start, the lift |
 | `ending.c/.h` | *Banked.* The ending: the lift scene and the results screen |
+| `items.c/.h` | *Banked.* Phase 9a: what's carried (gold, lockpicks, the skeleton key's uses, the crucifix, the lighter's fuel, the flashlight's charge, vitamins), taking loot (`items_take`), Select and B, the lights' drain, vitamins, lock tools (`items_unlock`), the crucifix (`items_crucifix`, asked by each entity), the queued messages, the Start panel (`items_pause`) |
 | `light.c/.h`, `light_move.c`, `light_shapes.c` | Darkness (below). `light.c` (bank 0): what streaming asks. `light_move.c` (banked): moving a light. `light_shapes.c` (banked): the shapes, made at boot |
 | `death.c/.h` | *Banked.* The jumpscares (also Screech's bite when you live), the Guiding Light (typed hint, Try again / Title) |
 | `audio.c/.h`, `sfx_data.c/.h` | hUGEDriver music (one song at a time) and the sound-effect player (bank 0); the effects' register scripts (`sfx_data.c`, banked: `audio.c` switches `BANK(sfx_data)` in to read them) |
@@ -76,16 +80,16 @@ anything in the main loop must fit a DMG frame.
 
 | Area | Use |
 |---|---|
-| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **92% full on GBC (1,256 bytes left; 1,152 in the AUTOTEST build), 80% on DMG** after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
+| ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **95% full on GBC (770 bytes left), 83% on DMG** after Phase 9b; 93% (1,156 bytes) and 80% after Phase 9a (`items.c` is banked; bank 0 got `hud_icons`); 92% (1,256 bytes; 1,152 in the AUTOTEST build) after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
 | ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
 | VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
-| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile) |
+| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile; 247 the knob (Phase 9b); tiles 248–255, the Library's eight shapes, hold the items' icons everywhere but the Library: `hud_icons`, Phase 9a) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
-| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 text), rows 2–8 the Library's panel (notes, padlock) and Room 100's (the Circuit Breaker). GBC: attributes all palette 7 |
+| VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 the status line, row 2 the held item and gold since Phase 9a), rows 2–13 a panel over the item row: the Library's (notes, padlock), Room 100's (the Circuit Breaker), the pause. GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
 | GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
-| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has about 439 bytes left under the stack after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
-| SRAM | **Planned**: the save |
+| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), run state (~700 bytes for 101 rooms), the light shapes (360 bytes), the GBC's cached dim levels (448 bytes; the blue tint isn't cached), `run_exit` (101 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. DMG uses ~6.3 of 8 KB (1.7 KB left under the stack); on GBC, WRAM bank 1 has 254 bytes left under the stack after Phase 9b (the stack measured 144 bytes deep: 107 never touched), 307 after Phase 9a (the inventory, the item row's 42 bytes, the loose loot, the leftovers table, the message queue: ~130 bytes), about 439 after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
+| SRAM | Bank 0 at 0xA000: the save (`save.c`, Phase 9b), 42 bytes: "DOOR", a version, the Knobs, runs, escapes, the best door, Knobs ever earned, deaths by cause, a checksum. Enabled only while read or written |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
 (+ `LCDCF_ON`), set in `main()`. The window is hidden by moving it below the screen (WY = 144).
@@ -93,10 +97,12 @@ LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 |
 ## Cartridge
 
 MBC5 with RAM and battery (cartridge type `0x1B`). ROM size grows as needed (GBDK's autobanking assigns
-banks; the ROM is 32 KB as of Phase 1). SRAM will hold the save (Knobs, achievements, statistics, settings;
-no mid-run state) with a magic number and checksum, and is enabled only while it's being read or written.
-Keeping two copies and writing them alternately would protect against power loss mid-write (**to decide**
-when the save is built).
+banks; 256 KB on GBC and 128 KB on DMG after Phase 9b). SRAM holds the save (Phase 9b; no mid-run state):
+"DOOR", a version and a checksum over the rest; one that doesn't check out (a new cartridge, a dead battery, a
+power cut mid-write) is replaced by a fresh one, so a cut costs the save rather than corrupting it. It's written
+only at a run's end and when the lift sells something, and SRAM is enabled only while it's read or written
+(`ENABLE_RAM` ... `DISABLE_RAM`). One copy: two written alternately would survive a cut mid-write, if that's
+ever wanted (achievements in Phase 11 may make it worth it).
 
 ## Frame loop (`main.c`, `game_frame()` in `game.c`)
 
@@ -374,6 +380,36 @@ a slot per exit). Only those two tiles are copied, so
 - **Corner nudge** (`player.c`): walking straight into a wall with a gap within 6 px to one side slides the
   player 1 px toward the gap, so 16 px doors don't need pixel-exact lining up.
 
+## Items (`items.c`, Phase 9a)
+
+- **Loot** is decided by `run_loot(n, slot, loose, flash)` from (seed, room, slot) when it's needed: a drawer
+  rolls gold, an item, a battery and a bandage on their own; a loose spot one thing. Every roll is drawn
+  whether it can count or not (a battery before you own a flashlight), so owning one changes no other roll.
+  `scripts/plan.py`'s `loot()` is a copy the tests check the ROM against. Nothing is stored for it: a drawer's
+  bit in `run_drawers` says it was opened, and a key spot's loot taken is a bit of the same byte from the top
+  (`RUN_LOOSE_BIT`; the converter keeps drawers plus key spots to 8, key spots to 2). What didn't fit (a full
+  bag, full health for a bandage, a full flashlight) is remembered in `run.c`'s six-entry table (`run_left`),
+  the oldest forgotten; A on the opened drawer takes it then. Loose loot is rolled when the room loads (so a
+  flashlight found meanwhile doesn't change what's lying there) and drawn from the key sheet.
+- **Messages** queue (four at most, 90 frames each) behind whatever the HUD shows: a drawer can hold four
+  things and the key's message comes first.
+- **Held items**: `inv_held` (none, lighter, flashlight, vitamins). `items_light()` gives the player's light
+  shape (`game.c`'s `player_light`; in DEBUG and AUTOTEST builds `game_light_tool` overrides it, and B with
+  nothing held still cycles it for the play-testing bot). Fuel and charge are frames, drained while lit.
+  `items_frame(mode)`: in the Library and Room 100 before the power (`ITEMS_SNEAK`) the held item is stashed
+  and comes back after; hidden (`ITEMS_HIDDEN`) the light goes out.
+- **Vitamins** add `VITAMIN_BOOST` (0.3 of walking) to whatever speed `player.c` picks, sneaking aside.
+- **Lock tools**: `items_unlock()` at a locked door with no key (`use_exit`, and Room 100's breaker door).
+  A door opened so marks its key taken (the key vanishes, as the Minecraft version's `discardKeysFor`).
+- **The crucifix**: every entity that hits asks `items_crucifix()` first, and reacts itself when it's spent:
+  Rush and Ambush `finish()` and set `ward_rush` (their spawn waits while `run_seconds < ward_rush`), Eyes is
+  dismissed and `ward_eyes` keeps him out, Screech gets a 3,600-frame cooldown (`screech_ward`), Seek and Figure
+  set `frozen` (600 frames: no moving, no catching), Halt's step returns `ESCAPED`, a Dupe door stays shut with
+  its scribbles. Snares, Timothy and Hide never ask.
+- **The pause** (`items_pause`): prints the panel into window rows 2 and down, hides the sprites (they'd draw
+  over it), loops on VBlank, the queue, audio and the joypad until Start or B, then moves `run_clock_last` past
+  the pause so the time doesn't count it.
+
 ## Rush, Ambush, hiding and Hide (`entity.c`, `hide.c`)
 
 Numbers come from the Minecraft config (`entities`, `rush`, `ambush`, `hide`), one block = 16 px, 20 ticks =
@@ -440,10 +476,39 @@ flash (`platform_set_flash`) writes white over palettes 0–6 (DMG: BGP 0) until
 change: fade out (3 steps × 3 frames), hide sprites and HUD, load and draw the room with the screen black,
 fade in. The LCD stays on throughout: turning it off would flash white on a DMG.
 
+## The save, the lift and Jeff's Shop (`save.c`, `lift.c`, `shop.c`, Phase 9b)
+
+- **The save**: `save_load()` at boot reads the Knobs into `save_knobs` (the only part kept in WRAM: the title and
+  the lift show it); the statistics are only ever updated in SRAM. `save_run_end(cause)` is called by
+  `death_run` and `ending_run` before anything else (the bag is emptied by the next `game_start`): a Knob per door
+  reached (`run_max_room`), 50 for escaping, one per 10 gold, kept in `knobs_doors`/`_escape`/`_gold` for the
+  screens' lines (`save_print_knobs`).
+- **The lift** (`lift_run`, between the title or the death screen and `game_start`): the picture `lift.{gbc,dmg}.png`
+  is the car with its doors shut over the same with them open; `image_show_rows` draws one half (the tiles of both
+  are loaded) and the panel is printed under it in the font. Offers are bits (`LIFT_*`, `items.h`); BUY spends with
+  `save_spend` and leaves `lift_bought` for `game_start`, which hands it to `items_lift` after `items_reset`. The
+  loop counts frames from the song's start: at 1,954 (Elevator Jam's last note, 304 rows of 6 and 7 ticks) it
+  leaves as Start does. `game_state` is `GAME_LIFT` there.
+- **Jeff's Shop**: a fixed template of a new room kind (`shop`, `ROOM_KIND_SHOP`) on its own tileset (`shop.tsx`:
+  the hotel's numbers, what it doesn't use blanked, plus the dark doorway and the counter with each item). The
+  converter checks one `entry` at the bottom, one `exit` on top, four `stock` places on `counter` metatiles and a
+  `jeff` point. `run_shop_item(k)` shuffles the six from (seed, 55) and takes four (`plan.py`'s `shop_items`);
+  bought ones are bits of `run_drawers[55]`. `shop_room_loaded` writes the stock's metatiles into the fresh map;
+  A at a place (or the desk under it: the counter's top is out of reach) opens a 3-row panel and waits for A or
+  B (`items_buy` checks the carry limit before `shop.c` takes the gold). Entering plays `MUSIC_JEFF`, leaving
+  stops it; `entity.c` sends anything on its way off, as in the Courtyard.
+
 ## HUD (`hud.c`)
 
-The window layer at 0x9C00, 2 rows (and, in the Library, a 7-row panel under them: above): a border line and 20 characters of text, sliding up 2 px a frame from
-WY 144 to 128 while shown. It shows the status line (the run's time `12:34`, a heart and an 8-tile health bar
+The window layer at 0x9C00, 3 rows since Phase 9a (and a panel of up to 12 rows from row 2, over the item row:
+above): a border line, 20 characters of status line and 20 of item row, sliding up 2 px a frame from
+WY 144 to 120 while shown. The item row (`hud_status.c`, `item_line`): the held item's icon at column 1, its
+4-tile meter (the lights; 2 px steps, a sliver until empty) or `X2` (vitamins), and the coin icon and the gold
+at columns 16–19; rebuilt only when one of those changes, never while a panel is open, and written whole again
+when a panel closes (`hud_rebuild`). The icons are the font's last eight characters (`%[&$()^]`, the
+Library's shapes) drawn differently: `font.json`'s `alt_chars` puts their second look after the font, and
+`hud_icons(1)` copies it over tiles 248–255 (247–254 until Phase 9b, when the knob glyph took 247) on every door outside the Library (`hud_icons(0)` the shapes in it),
+STAT-safe, so the icons cost no VRAM. It shows the status line (the run's time `12:34`, a heart and an 8-tile health bar
 in 2 px steps from font glyphs, the key icon) when health changes and while Select is held, or a centred
 message ("IT'S LOCKED.", "GOT THE KEY.", "GET OUT!"). No door number since Phase 8a (owner: it gave Dupe
 away). The time is `run_seconds`, counted in `hud_update` from GBDK's VBlank counter `sys_time` (real time:

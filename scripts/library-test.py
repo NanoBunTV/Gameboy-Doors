@@ -55,12 +55,12 @@ def shot(g, name):
 def hud_text(g):
     """The HUD's text row (window row 1), as characters"""
     tiles = [g.mem[0x9C20 + i] for i in range(20)]
-    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=%[&$()^]"
+    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]"
     return "".join(chars[t - 192] if 192 <= t < 192 + len(chars) else "?" for t in tiles).strip()
 
 
 def win_row(g, y):
-    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=%[&$()^]"
+    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]"
     return "".join(chars[g.mem[0x9C00 + y * 32 + i] - 192] for i in range(20)).rstrip()
 
 
@@ -102,16 +102,20 @@ for i, (x, y) in enumerate(books):
     check(hud_text(g) == want, f"book {i} says {want!r} (HUD: {hud_text(g)!r})")
     if i == 0:
         shot(g, "book")
-for _ in range(2):
-    g.tick(J["start"])
-for _ in range(4):
-    g.tick(0)
+def start_until(cond):
+    """Taps Start until cond() holds (on DMG a tap can fall on a frame the game skipped reading the joypad)"""
+    for _ in range(8):
+        g.tick(J["start"])
+        for _ in range(4):
+            g.tick(0)
+        if cond():
+            return
+
+
+start_until(lambda: g.u8("_hud_panel") > 0)
 check(win_row(g, 5).strip() == "BOOKS  8 OF 8", f"notes: {win_row(g, 5).strip()!r}")
 shot(g, "notes")
-for _ in range(2):
-    g.tick(J["start"])
-for _ in range(4):
-    g.tick(0)
+start_until(lambda: g.u8("_hud_panel") == 0)
 exit_obj = next(o for o in g.objects() if o[0] == OBJ_EXIT)
 cellpos, face = b.approach(exit_obj)
 b.walk_to(cellpos)
@@ -121,12 +125,26 @@ check(win_row(g, 2).strip() == "PADLOCK", "the padlock's panel is open")
 g.tick(J["up"]); g.tick(0); g.tick(0)
 g.tick(J["a"]); g.tick(0); g.tick(0)
 check(win_row(g, 5).strip() == "0 0 0 0 0" and "WRONG" in hud_text(g), "a wrong code resets the wheels")
+def wheels():
+    return [int(c) for c in win_row(g, 5).split()]
+
+
 for k, d in enumerate(code):
-    for _ in range(d):
+    # Each turn checked on the wheel (DMG: a one-frame tap can fall on a frame the game skipped reading the joypad)
+    for _ in range(40):
+        if wheels()[k] == d:
+            break
         g.tick(J["up"])
         g.tick(0)
-    g.tick(J["right"])
-    g.tick(0)
+        g.tick(0)
+    nxt = 5 + ((k + 1) % len(code)) * 2   # library.c draw_wheels: the cursor '^' under the wheel
+    for _ in range(8):
+        if len(win_row(g, 4)) > nxt and win_row(g, 4)[nxt] == "^":
+            break
+        g.tick(J["right"])
+        g.tick(0)
+        g.tick(0)
+check(wheels() == code, f"the code on the wheels ({wheels()})")
 shot(g, "padlock")
 g.tick(J["a"]); g.tick(0); g.tick(0)
 check(g.flags() & RF_EXIT_OPEN, "the code opens the padlock")

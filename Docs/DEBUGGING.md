@@ -197,7 +197,8 @@ through room 90 killed the held player from across the room). Screenshots
 `build/screens/garden-<console>-*.png` (each room, the Courtyard, a Snare's catch). About two minutes a console.
 
 DMG drops frames in these rooms, so the script waits on the game's own counters (`snare_grace`) rather than
-emulator frames, and steps off a Snare by a short push: a long one walked back out through the entry door.
+emulator frames, and steps off a Snare by walking to the cell it stepped on from (a blind push back walked out
+through the entry door when the seed put the Snare beside it, 2026-10-18).
 
 ### Room 100 and the ending: `scripts/electrical-test.py`
 
@@ -230,6 +231,47 @@ button press can be lost: press until the thing it should change has changed.
 The puzzle run also lets Figure chase the bot to the lift after the power and checks, every game frame, that
 he never stands in a solid cell (he once walked through the breaker room's wall: his trail began outside it)
 and that the bot gets there first at the escape's speeds.
+
+### Items: `scripts/items-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\items-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\items-test.py build\dmg-debug\doors.gb
+```
+
+Seven parts in a DEBUG ROM, each from a fresh boot. **hud**: the item row's coin and gold; tiles 248–255 hold
+the icons outside the Library and the shapes in it. **loot**: rooms 1–8 planned, then a seed found (with
+`scripts/plan.py`'s `loot()`, the copy of `run_loot`) whose drawers there hold gold, an item and a bandage and
+whose key spots hold gold, poked into `run_seed` (only the loot changes: the plan is made); every drawer's take
+is checked against the copy, the first item with that item's count full (it stays; A again takes it), a bandage
+at 50 HP (75 after), gold on a key spot. **light**: the lighter poked into the bag: B lights it (light source 0
+is the lighter's shape), fuel burns, Select puts it out, burnt out it's gone; the flashlight's cone faces the
+player's way. **vitamins**: B takes one (+10 HP), the player covers more ground in 24 frames, a second does
+nothing. **locks**: two locked rooms with no key: a lockpick, then the skeleton key (4 uses left). **crucifix**:
+Eyes forced into a room (`run_flags2`): looking at him costs nothing, the crucifix is spent, he's gone and
+`ward_eyes` is set; Rush queued into a room not yet entered (he only comes on a first visit): the player
+stands in the open and lives, then the next queued spawn waits. **pause**: Start until the panel's up, the
+player and the clock stand still, Start again. Screenshots `build/screens/items-<console>-*.png`. About three
+minutes a console.
+
+### Shops and the save: `scripts/shop-test.py`
+
+```
+tools\venv\Scripts\python.exe scripts\shop-test.py build\gbc-debug\doors.gbc
+tools\venv\Scripts\python.exe scripts\shop-test.py build\dmg-debug\doors.gb
+```
+
+Phase 9b in a DEBUG ROM. Every boot gets the cartridge RAM it's handed (`Game(rom, ram)` in `bot.py`: blank by
+default, never the `.ram` file PyBoy would look for next to the ROM), and a "power cycle" is
+`pyboy.stop(save=True, ram_file=...)` into a new `Game`. **knobs**: the lift comes after the title (Elevator Jam,
+a balance of 0); a death poked in room 7 with 95 gold pays 16 Knobs, listed on the Guiding Light; the title shows
+them; SRAM holds them, one run and best door 7, after a power cycle; a damaged byte makes a fresh save. **lift**:
+an offer you can't afford is refused; lockpicks and the flashlight picked (Knobs poked to 400), BUY spends 150 and
+the bag has two lockpicks and a half-charged flashlight, saved; Start buys nothing; waiting out the song buys
+nothing. **jeff**: warped to 55: the counter's metatiles are `plan.py`'s `shop_items` for the seed, his music,
+his eyes; no gold refused, B buys nothing, a purchase takes the price and empties the place, a full bag is
+refused with the gold kept, door 56 stops the music. **erase**: Select + B held on the title, A: the save is
+empty in SRAM too. Screenshots `build/screens/shop-<console>-*.png`.
 
 ### Hearing songs: `scripts/render-song.py`
 

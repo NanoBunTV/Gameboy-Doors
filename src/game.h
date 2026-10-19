@@ -12,6 +12,7 @@
 #define GAME_DEAD       3
 #define GAME_HALT       4   // in Halt's hallway (halt.c)
 #define GAME_WON        5   // into Room 100's lift: the ending (ending.c)
+#define GAME_LIFT       6   // the lift and its shop before a run (lift.c)
 // The seed AUTOTEST builds always use (title and Try again). 0x1331 (Phase 5) has, within the recorded 30
 // rooms: Ambush (5), Dupe rooms (9, 12, 18) and ones without him (2, 7, 13, ...), Halt's door (10), Eyes
 // (11, and 18 in the dark), dark rooms from 15.

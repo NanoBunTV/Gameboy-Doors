@@ -1,6 +1,7 @@
 #pragma bank 255
 #include <gb/gb.h>
 #include "player.h"
+#include "items.h"
 #include "input.h"
 #include "room.h"
 #include "bg.h"
@@ -21,6 +22,9 @@
 // Running for Room 100's lift (player_fast 2): 1.2 times walking (owner, 2026-10-18: only just faster than him)
 #define ESCAPE_SPEED      0x0180
 #define ESCAPE_SPEED_DIAG 0x010F
+// Vitamins (Phase 9a, owner): 0.3 of walking on top of whatever the speed is, so they work in a chase too
+#define VITAMIN_BOOST      0x0060
+#define VITAMIN_BOOST_DIAG 0x0044
 
 // Walk cycle: idle, step A, idle, step B; each for 8 frames
 #define ANIM_SHIFT 3
@@ -153,6 +157,8 @@ void player_update(void) BANKED {
                        : player_fast == 2 ? ((dx && dy) ? ESCAPE_SPEED_DIAG : ESCAPE_SPEED)
                        : player_fast  ? ((dx && dy) ? CHASE_SPEED_DIAG : CHASE_SPEED)
                                       : ((dx && dy) ? WALK_SPEED_DIAG : WALK_SPEED);
+        if (inv_vit_t && !player_sneak)
+            speed += (dx && dy) ? VITAMIN_BOOST_DIAG : VITAMIN_BOOST;
         if (dx && move_x(dx, speed) && !dy)
             nudge_sideways_for_x(dx);
         if (dy && move_y(dy, speed) && !dx)

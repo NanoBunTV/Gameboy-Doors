@@ -114,6 +114,19 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
   arranged without arpeggios, balanced, playing once with no tail (previewed as MP3s rendered from the driver
   first). Found on the way: the last full test run had failed: the AUTOTEST build overflowed bank 0 by a few
   bytes; Rush's route tables and `room_template()` moved into a bank (bank 0 92%, 1.2 KB free).
+- **2026-10-19**: **Phase 9a built** (items; the owner split Phase 9 into 9a items and 9b shops): five rounds
+  of questions and a mock-up (answers below). Gold and the eight items in drawers and on key spots from the
+  seed, the HUD's second row with the held item and gold, Select to cycle, B to use, Start to pause on the
+  inventory; the lighter and flashlight with fuel, batteries, bandages, vitamins, lockpicks and the skeleton
+  key at locked doors and Room 100's breaker door, the crucifix against every entity; the icons in the
+  Library's shape glyphs, swapped at the door, so they cost no VRAM. `items-test.py`. The suite's DMG run had
+  found two test faults first (a dropped Start, a Snare by a door), fixed.
+- **2026-10-19**: **Phase 9b built** (shops): two rounds of questions, a mock-up and the two songs as MP3s
+  (answers below; the owner asked for Elevator Jam to play once and the lift to leave, buying nothing, when it
+  ends). The save in SRAM (Knobs and statistics, checksummed), Knobs paid at a run's end and listed on the
+  Guiding Light and the results, the balance on the title, the lift before every run with its Knobs shop, Jeff's
+  Shop at room 55 (a new `shop` room kind and tileset), the owner's Elevator Jam and Jeff's Shop Jingle arranged,
+  the save's erase on the title. `shop-test.py`.
 
 ## Decisions and why
 
@@ -219,7 +232,37 @@ Reference for DOORS mechanics: the owner's Minecraft (Paper plugin) remake of th
 | The escape: you at 1.2× walking (1.5 px/frame), Figure at 0.94 of that, on a trail that starts at the breaker box | Owner (2026-10-18): "speed him up … slow me down a bit so I can only slightly outrun him"; he had walked through the breaker room's wall to a trail that began outside it |
 | The Ending Theme from the owner's second MIDI: the lead, the piano's chords as one soft note, the bass; plays once | Owner (2026-10-18): the first's background parts sounded bad and its tail rang on through the loop; picked after MP3 previews ("good enough"), one part lowered after the first ("far louder than the others") |
 | Music previews as MP3 before building | Owner (2026-10-18): render the candidate arrangements (a GBDK player ROM with hUGEDriver, recorded in PyBoy, hUGETracker's ffmpeg) to choose by ear |
-| B sneaks in Room 100 until the escape | My call (2026-10-18), following the owner's Library choice; to decide with Phase 9's items, which want B |
+| B sneaks in Room 100 until the escape | My call (2026-10-18), following the owner's Library choice; confirmed by the owner with Phase 9 (below) |
+| Phase 9 in two parts: 9a items (gold, the eight items, loot, the HUD's item and gold, Select/B/Start), 9b shops (Knobs, SRAM, the elevator shop, Jeff's Shop, their music) | Owner's choice (2026-10-18), like 8a/8b |
+| In the Library and Room 100 (until the escape) B only sneaks; items are put away there and a light goes out on entering; the crucifix still works from the bag | Owner (2026-10-18): "Items are not needed in rooms 50 and 100 and can be de-equipped automatically, other than the crucifix" |
+| Loot per drawer: gold 35%, an item 6%, a battery 4% (only once you own a flashlight), a bandage 4%, all rolled independently; loose spots hold one of gold, a battery or a bandage (never an item) | Owner (2026-10-18): the Minecraft table with the item chance doubled for one player; "Loose spots for gold/keys/bandage/battery only. Drawers for anything" |
+| Item weights: lockpick 35, vitamins 28, lighter 18, flashlight 12, crucifix 4, skeleton key 3 | Owner (2026-10-18): the Minecraft weights plus a rare skeleton key |
+| Carry limits: 3 lockpicks, 3 vitamins, 1 of the rest; what doesn't fit stays in the drawer | Owner (2026-10-18), the Minecraft limits |
+| Gold: 10–50 a find, the counter stops at 999 | Owner (2026-10-18): "DOORS-sized" over 5–15 or 1–5 |
+| The crucifix, lockpicks and skeleton key work from the bag (no need to hold them) | Owner (2026-10-18): "Both automatic" over the Minecraft hand rule |
+| The crucifix fires on the first entity hit (not Snares or Timothy) and is spent: Rush, Ambush, Screech, Eyes leave and can't come back for 1 minute; Seek and Figure freeze 10 s; Halt's hallway ends; a Dupe door does nothing | Owner (2026-10-18): the Minecraft table "but 1 minute instead of 2 minutes (since our game is shorter)" |
+| At a locked door: the room's key first, then a lockpick, then the skeleton key (5 uses). A lockpick or the skeleton key opens Room 100's breaker room too; never the Library's padlock | Owner's choices (2026-10-18) |
+| Bandages heal and batteries refill the flashlight the moment you take them (a bandage at full health stays put) | Owner (2026-10-18), the Minecraft rule |
+| Lighter 1 minute of fuel, no refill; flashlight 2 minutes a charge; B toggles the held light; it goes out when you Select away | Owner (2026-10-18), the Minecraft numbers and hand rule for lights |
+| Vitamins: 1.3× speed for 10 s and +10 HP; stacks on Seek's and the escape's speed; not on itself | Owner's pick (2026-10-18) |
+| Select cycles the lighter, flashlight and vitamins; Start pauses on a list of everything carried and the time | Owner's choice (2026-10-18; picks, the skeleton key and the crucifix are automatic, so only those three are ever "used") |
+| A on a drawer takes everything that fits; the HUD says what | Owner's choice (2026-10-18) over a contents panel |
+| The HUD: two rows, the status line as before and the held item with its meter and gold under it; 8×8 item icons; floor pickups from the pack's gold and bandage, a hand-drawn battery | Owner's picks from the mock-up (2026-10-18; `build/mockups/phase9a-hud-items.png`) |
+| A bandage heals 25 HP | My call (2026-10-19): no number was asked; to tune by play |
+| A burnt-out lighter is thrown away | My call (2026-10-19): with a carry limit of one, an empty lighter would keep a new one in its drawer |
+| The battery pickup is a copper-top cell in the key's palette, not the mock-up's blue | My call (2026-10-19): the GBC's eight sprite palettes are all used in a hotel room; the key sheet holds the pickups with one extra palette (the bandage's) |
+| The icons are the Library's shape glyphs, drawn differently outside the Library | My call (2026-10-19): the font's VRAM is full; the shapes are only ever shown in room 50, where nothing is held |
+| Knobs are paid at a run's end only: a Knob per door reached, 50 for escaping, one per 10 gold carried; listed line by line on the death screen and the results | Owner (2026-10-19): the Minecraft rule. Achievements add Knobs in Phase 11 |
+| Every run starts in the lift: a still picture of the car with the Knobs shop over it, Elevator Jam playing; its end opens the doors onto the reception | Owner's choice (2026-10-19) over a walkable lift room or a plain menu; Try again goes through it too |
+| The lift shop sells the Minecraft version's four: 2 lockpicks 50, a lighter 50, a flashlight at half charge 100, 3 vitamins 100. Offers are picked, nothing is bought until BUY | Owner (2026-10-19), the Minecraft shop |
+| Elevator Jam plays once; when it ends the lift leaves, buying nothing that wasn't confirmed | Owner (2026-10-19), on hearing the MP3 |
+| Jeff's Shop: a lit, safe room; Jeff's eyes in a dark doorway behind a counter; 4 of the 6 items on it per run, one of each, for gold (lockpick 12, vitamins 15, lighter 20, flashlight 25, skeleton key 50, crucifix 70); A shows the price, A buys, B doesn't; carry limits before the gold; Jeff's Shop Jingle | Owner (2026-10-19): the Minecraft version's shop; art from the mock-up (`build/mockups/phase9b-shops.png`) |
+| The save holds the Knobs and statistics (runs, escapes, best door, deaths by cause, Knobs earned), checksummed; a bad save starts fresh | Owner's choice (2026-10-19): statistics recorded from now so Phase 11's screen has history |
+| Holding Select and B for 3 s on the title asks to erase the save | Owner's choice (2026-10-19) |
+| The title shows the Knobs in its corner; the lift shop shows them too | Owner's choice (2026-10-19) |
+| Jeff's Shop has two small tables where the mock-up had bookshelves | My call (2026-10-19): with the shelves the shop's tileset needed 8 GBC palettes (the limit is 7) |
+| The counter is used from in front of it (A at its front, the desk under the items) | My call (2026-10-19): the counter is two metatiles deep, so its top is out of the player's reach |
+| The knob glyph takes the font's last free tile (247; the icon glyphs moved up one, to 248-255) | My call (2026-10-19) |
 | ROOM_MAX 2,560 metatiles (was 2,816); Room 100 at most 896 (28×32 by default) | My call (2026-10-18): Phase 8b's statics left the GBC ~150 bytes under the stack before it had ever been measured. Measured since: 140 bytes deep; with the change ~439 free. Can go back to 2,816 (Room 100 up to 1,024) if a bigger Room 100 is wanted |
 | Project root `F:\Gameboy Homebrew\Doors` | Owner's choice (2026-10-17), laid out like the Half-Life Wii U project |
 

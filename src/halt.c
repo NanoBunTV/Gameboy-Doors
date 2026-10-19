@@ -15,6 +15,7 @@
 #include "sprites.h"
 #include "platform.h"
 #include "room_templates.h"
+#include "items.h"
 #include "tileset_hotel.h"
 #include "sprite_halt.h"
 #include "sprite_letters.h"
@@ -111,6 +112,8 @@ static uint8_t step(void) {
         sfx_play(SFX_HALT);
     }
     if (abs(hx - px) < TOUCH_X && abs(hy - py) < TOUCH_Y) {
+        if (items_crucifix())
+            return ESCAPED;   // the hallway ends as if its door were reached (Minecraft docs 12)
         if (run_hp <= HALT_DAMAGE) {
             run_hp = 0;
             return DEATH_HALT;

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="13" height="10" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="8">
+ <properties>
+  <property name="kind" value="shop"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/shop.tsx"/>
+ <layer id="1" name="tiles" width="13" height="10">
+  <data encoding="csv">
+7,7,7,7,7,7,7,7,7,7,7,7,7,
+7,8,8,42,43,43,43,43,44,8,10,8,7,
+7,9,9,45,46,46,46,46,47,9,11,9,7,
+7,15,15,48,49,49,49,49,50,3,3,3,7,
+7,2,2,26,27,27,27,27,28,2,2,2,7,
+7,2,2,2,2,4,5,6,2,2,2,2,7,
+7,2,2,2,2,4,5,6,2,2,2,2,7,
+7,2,2,2,2,4,5,6,2,2,2,2,7,
+7,2,2,2,2,4,5,6,2,2,2,2,7,
+7,7,7,7,7,7,25,7,7,7,7,7,7
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="1" name="entry" x="96" y="144" width="16" height="16">
+   <properties>
+    <property name="wall" value="bottom"/>
+   </properties>
+  </object>
+  <object id="2" name="exit" x="160" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="3" name="stock" x="64" y="48" width="16" height="16"/>
+  <object id="4" name="stock" x="80" y="48" width="16" height="16"/>
+  <object id="5" name="stock" x="96" y="48" width="16" height="16"/>
+  <object id="6" name="stock" x="112" y="48" width="16" height="16"/>
+  <object id="7" name="jeff" x="88" y="22">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

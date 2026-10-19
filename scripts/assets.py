@@ -42,7 +42,9 @@ FONT_MAX_TILES = 64
 # Room objects (src/assets.h OBJ_*, WALL_*)
 OBJ_TYPES = {"entry": 1, "exit": 2, "drawer": 3, "keyspot": 4, "spawn": 5, "closet": 6, "bed": 7, "paper": 8,
              "figure": 9, "seek": 10, "snare": 11, "lever": 12, "breaker": 13, "breaker_door": 14,
-             "figure_door": 15, "lift": 16, "light": 17, "safe": 18}
+             "figure_door": 15, "lift": 16, "light": 17, "safe": 18, "stock": 19, "jeff": 20}
+# Jeff's Shop (room 55, src/shop.c): four places on the counter the run's stock lies on, and where his eyes are
+SHOP_STOCK = 4
 # Hiding spots and the metatiles they must cover (top, bottom)
 HIDING = {"closet": ("closet_top", "closet_bottom"), "bed": ("bed_top", "bed_bottom")}
 # Room 100's fixtures (src/electrical.c): their size and the metatiles they must cover, row by row
@@ -57,7 +59,8 @@ LIGHTS_MAX = 6         # pools of light in Room 100 (electrical.c LIGHTS_MAX) ..
 LIGHT_CELLS_MAX = 16   # ... and the cells in each (each blink queues 4 tile writes a cell)
 WALLS = {"top": 1, "bottom": 2, "left": 3, "right": 4}
 ROOM_KINDS = {"normal": 0, "start": 1, "test": 2, "halt": 3, "library": 4,
-              "seek_start": 5, "seek_4way": 6, "seek_end": 7, "courtyard": 8, "greenhouse": 9, "electrical": 10}
+              "seek_start": 5, "seek_4way": 6, "seek_end": 7, "courtyard": 8, "greenhouse": 9, "electrical": 10,
+              "shop": 11}
 # Seek's chases (src/run.c, seek.c, Minecraft docs 08): a start hallway, four-way rooms, an end hallway
 SEEK_KINDS = ("seek_start", "seek_4way", "seek_end")
 # The Courtyard (room 89) and the Greenhouse (90-99) (src/run.c, garden.c, Minecraft docs 09)
@@ -354,6 +357,9 @@ def parse_room(tmx: Path):
             spawn = (int(px), int(py))
             objects.append((OBJ_TYPES[name], int(px) // 16, int(py) // 16, 1, 1, 0))
             continue
+        if name == "jeff":   # a point: where Jeff's eyes are drawn (anywhere: he stands in the dark)
+            objects.append((OBJ_TYPES[name], int(px) // 16, int(py) // 16, 1, 1, (int(px) % 16) | (int(py) % 16) << 4))
+            continue
         if name in ("figure", "seek"):   # points: Figure's start; where Seek rises (optional)
             fx, fy = int(px) // 16, int(py) // 16
             if not (0 <= fx < w and 0 <= fy < h) or ts_props[cells[fy * w + fx]].get("solid"):
@@ -413,6 +419,10 @@ def parse_room(tmx: Path):
                                  f"them), not {ow * oh}")
         elif name == "safe":
             pass   # checked with the room (electrical)
+        elif name == "stock":
+            if (ow, oh) != (1, 1) or ts_names[cells[y * w + x]] != "counter":
+                raise AssetError(f"{where}: a stock place is one metatile on a 'counter' metatile (shop.tsx; the run "
+                                 "draws the item on it)")
         elif name in HIDING:
             if (ow, oh) != (1, 2):
                 raise AssetError(f"{where}: a {name} is 1x2 metatiles (its top and bottom halves)")
@@ -509,6 +519,16 @@ def parse_room(tmx: Path):
         books = check_electrical(tmx, w, h, cells, ts_props, objects, count, entry_wall)
     elif count("paper") or count("figure"):
         raise AssetError(f"{tmx.name}: 'paper' and 'figure' objects are for the Library (kind = library)")
+    if kind == "shop":
+        if (count("entry") != 1 or entry_wall != WALLS["bottom"] or exit_walls != [WALLS["top"]] or
+                count("stock") != SHOP_STOCK or count("jeff") != 1):
+            raise AssetError(f"{tmx.name}: Jeff's Shop needs one 'entry' on the bottom wall, one 'exit' on the top "
+                             f"wall, {SHOP_STOCK} 'stock' places on the counter and one 'jeff' point")
+        if count("drawer") + count("keyspot") + count("closet") + count("bed") + count("snare"):
+            raise AssetError(f"{tmx.name}: nothing is looted or hidden in at Jeff's Shop (no drawers, key spots, "
+                             "closets, beds or Snares)")
+    elif count("stock") or count("jeff"):
+        raise AssetError(f"{tmx.name}: 'stock' and 'jeff' objects are for Jeff's Shop (kind = shop)")
     if kind != "electrical" and any(count(n) for n in list(FIXTURES) + ["light", "safe"]):
         raise AssetError(f"{tmx.name}: lever, breaker, breaker_door, figure_door, lift, light and safe objects are "
                          "for Room 100 (kind = electrical)")
@@ -523,8 +543,12 @@ def parse_room(tmx: Path):
     if allow_lock and kind == "normal" and count("drawer") + count("keyspot") == 0:
         raise AssetError(f"{tmx.name}: allow_lock is on but there is nowhere to put the key "
                          "(add a 'drawer' or 'keyspot' object): a locked door with no key ends the run")
-    if count("drawer") > 8:
-        raise AssetError(f"{tmx.name}: at most 8 drawers per room (their state is one byte)")
+    loose = sum(1 for o in objects if o[0] == OBJ_TYPES["keyspot"] and not o[5])
+    if kind != "electrical" and loose > 2:
+        raise AssetError(f"{tmx.name}: at most 2 keyspots (not fixed) per room (game.c LOOSE_MAX: loot lies on them)")
+    if count("drawer") + (loose if kind != "electrical" else 0) > 8:
+        raise AssetError(f"{tmx.name}: at most 8 drawers and keyspots together per room (their state is one byte: "
+                         "drawers from the bottom bit, loot on keyspots from the top)")
     if count("closet") + count("bed") > 8:
         raise AssetError(f"{tmx.name}: at most 8 closets and beds together per room (Hide's bans are one byte)")
 
@@ -695,12 +719,24 @@ def convert_roomlist(out: Path, tmxs):
                 raise AssetError(f"assets/rooms: room 99 leads into Room 100 by one door on the top wall, but no "
                                  f"{'greenhouse' if all(garden.values()) else 'normal'} room entered from the "
                                  f"{names[wall]} wall has only that")
+    # Jeff's Shop (Phase 9b): at most one; room 54 leads into it by one door on top (as the Library's)
+    shops = [r for r in rooms if r["kind"] == "shop"]
+    if len(shops) > 1:
+        raise AssetError("assets/rooms: at most one room can have kind = shop")
+    for shop in shops:
+        for wall in sorted({n["entry_wall"] for n in normal}):
+            if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in normal):
+                raise AssetError(f"assets/rooms: room 54 leads into Jeff's Shop by one door on the top wall, but no "
+                                 f"normal room entered from the {names[wall]} wall has only that")
+        if not any(n["entry_wall"] == WALLS["bottom"] for n in normal):
+            raise AssetError(f"{shop['sym']}.tmx: no normal room is entered from the bottom wall to follow it")
     h = ["// Generated by scripts/assets.py from assets/rooms/*.tmx. Do not edit.",
          "#ifndef ROOM_TEMPLATES_H", "#define ROOM_TEMPLATES_H", '#include "assets.h"',
          f"#define ROOM_TEMPLATE_COUNT {len(rooms)}",
          f"#define ROOM_HAS_SEEK {1 if all(pools.values()) else 0}   // seek_start, seek_4way and seek_end rooms exist",
          f"#define ROOM_HAS_GARDEN {1 if all(garden.values()) else 0}   // courtyard and greenhouse rooms exist",
-         f"#define ROOM_HAS_ELECTRICAL {1 if electrical else 0}   // Room 100 exists (else room 100 is ordinary)"]
+         f"#define ROOM_HAS_ELECTRICAL {1 if electrical else 0}   // Room 100 exists (else room 100 is ordinary)",
+         f"#define ROOM_HAS_SHOP {1 if shops else 0}   // Jeff's Shop exists (else room 55 is ordinary)"]
     for i, r in enumerate(rooms):
         h.append(f"#define ROOM_T_{r['sym'].upper()} {i}")
     h += [f"#define ROOM_EXITS_MAX {EXITS_MAX}",
@@ -776,7 +812,16 @@ def convert_font(js: Path, out: Path):
         raise AssetError(f"{js}: {len(chars)} characters; the font has room for {FONT_MAX_TILES}")
     gbc, dmg = load_pair(js.with_name(js.stem + ".gbc.png"))
     cols = gbc.size[0] // 8
-    cells = [((i % cols) * 8, (i // cols) * 8) for i in range(len(chars))]
+    # "alt_chars": the last characters of "chars" also have a second look, in the row after the font (the
+    # Library's shapes outside the Library are the items' icons: hud.c hud_icons)
+    alt = meta.get("alt_chars", "")
+    if alt and not chars.endswith(alt):
+        raise AssetError(f"{js}: alt_chars must be the last characters of chars")
+    rows = (len(chars) + cols - 1) // cols
+    if alt and gbc.size[1] < (rows + 1) * 8:
+        raise AssetError(f"{js.stem}.gbc.png: alt_chars need a row of their own after the font")
+    cells = [((i % cols) * 8, (i // cols) * 8) for i in range(len(chars))] + \
+            [(i * 8, rows * 8) for i in range(len(alt))]
     colours = {rgb15(gbc.getpixel((x + i, y + j))) for x, y in cells for j in range(8) for i in range(8)}
     if len(colours) > 4:
         raise AssetError(f"{js.stem}.gbc.png: {len(colours)} colours; the font shares one 4-colour palette")
@@ -792,7 +837,11 @@ def convert_font(js: Path, out: Path):
         amap.append(FONT_FIRST_TILE + (chars.index(ch) if ch in chars else 0))
     h = [f"// Generated by scripts/assets.py from {js.as_posix()}. Do not edit.",
          "#ifndef FONT_H", "#define FONT_H", '#include "assets.h"', "BANKREF_EXTERN(font)",
-         "extern const font_t font;", f"#define FONT_FIRST_TILE {FONT_FIRST_TILE}", "#endif"]
+         "extern const font_t font;", f"#define FONT_FIRST_TILE {FONT_FIRST_TILE}",
+         "// The alt_chars: their tiles' first index, how many, and where both looks are in font.tiles",
+         f"#define FONT_ALT_TILE {FONT_FIRST_TILE + len(chars) - len(alt)}", f"#define FONT_ALT_COUNT {len(alt)}",
+         f"#define FONT_ALT_NORMAL {(len(chars) - len(alt)) * 16}", f"#define FONT_ALT_OTHER {len(chars) * 16}",
+         "#endif"]
     c = [f"// Generated by scripts/assets.py from {js.as_posix()}. Do not edit.",
          "#pragma bank 255", '#include "font.h"', "BANKREF(font)",
          "#ifdef CGB", f"static const uint8_t tiles[] = {{\n{c_bytes(gbc_tiles)}\n}};",

@@ -11,6 +11,7 @@
 #include "sprites.h"
 #include "platform.h"
 #include "font.h"
+#include "save.h"
 #include "image_scare_rush.h"
 #include "image_scare_ambush.h"
 #include "image_scare_screech.h"
@@ -23,6 +24,7 @@
 #define TEXT_X       1
 #define TEXT_Y       2
 #define MENU_Y       15
+#define KNOBS_Y      11      // the Knobs the run paid (Phase 9b), under the hint
 
 uint16_t death_seed;
 
@@ -149,6 +151,7 @@ static uint8_t menu(void) {
 
 uint8_t death_run(uint8_t cause) BANKED {
     game_state = GAME_DEAD;
+    save_run_end(cause);   // the Knobs, and the statistics (before anything empties the bag)
     sfx_rumble(0, RUMBLE_RUSH);
     music_play(MUSIC_NONE);
     platform_set_dim(0, TINT_NONE);
@@ -175,6 +178,7 @@ uint8_t death_run(uint8_t cause) BANKED {
                                                 lines_eyes, lines_dupe, lines_halt, lines_figure, lines_seek,
                                                 lines_fire, lines_escape };
     type_lines(lines[cause]);
+    save_print_knobs(TEXT_X, KNOBS_Y);
     uint8_t choice = menu();
     sfx_play(SFX_SELECT);
     game_fade(0, FADE_BLACK);

@@ -2,6 +2,7 @@
 #include <gb/gb.h>
 #include <string.h>
 #include "electrical.h"
+#include "items.h"
 #include "figure.h"
 #include "run.h"
 #include "room.h"
@@ -544,16 +545,17 @@ static void use_breaker(void) {
 static void use_bdoor(void) {
     if (elec_key_taken == 2 || electrical_state >= ELEC_SEALED)
         return;   // open, or shut for good until the power
-    if (!elec_key_taken) {
+    if (elec_key_taken == 1) {
+        run_key_door = 0;   // the key's spent turning it (Minecraft docs 10)
+        hud_message("UNLOCKED.", MSG_FRAMES);
+    } else if (!items_unlock()) {   // a lockpick or the skeleton key does it too (owner, Phase 9a)
         hud_message("IT'S LOCKED.", MSG_FRAMES);
         sfx_play(SFX_LOCKED);
         return;
     }
-    elec_key_taken = 2;   // the key's spent turning it (Minecraft docs 10)
-    run_key_door = 0;
+    elec_key_taken = 2;   // open (picked: its key goes, with nothing left to open)
     set_mt(bdoor, MT_ELECTRICAL_COPPER_OPEN_TOP, MT_ELECTRICAL_COPPER_OPEN_BOTTOM);
     sfx_play(SFX_UNLOCK);
-    hud_message("UNLOCKED.", MSG_FRAMES);
 }
 
 uint8_t electrical_use_at(uint8_t mx, uint8_t my) BANKED {

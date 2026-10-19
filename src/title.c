@@ -1,5 +1,6 @@
 #pragma bank 255
 #include <gb/gb.h>
+#include <string.h>
 #include "title.h"
 #include "hud.h"
 #include "bg.h"
@@ -11,8 +12,45 @@
 #include "platform.h"
 #include "font.h"
 #include "image_logo.h"
+#include "save.h"
 
 #define BLINK_FRAMES 32
+#define ERASE_HOLD   180   // Select + B held this long asks to erase the save (owner, Phase 9b)
+
+// The Knobs balance in the bottom-left corner: the knob glyph and the number
+static void show_knobs(void) {
+    char row[7];
+    memset(row, ' ', 6);
+    row[6] = 0;
+    save_num(row + 5, save_knobs);
+    uint8_t k = 0;
+    while (row[k] == ' ')
+        k++;
+    memmove(row + 1, row + k, 6 - k);   // "|95   ": the number just after the knob
+    memset(row + 7 - k, ' ', k - 1);
+    row[0] = KNOB_CHAR;
+    text_print_bg(1, 17, row);
+}
+
+// "ERASE SAVE?" over PRESS START; A erases, B keeps it
+static void erase_prompt(void) {
+    text_print_bg(4, 13, "ERASE SAVE? ");
+    text_print_bg(4, 14, "A=YES  B=NO");
+    sfx_play(SFX_SELECT);
+    while (1) {
+        game_wait_frames(1);
+        input_update();
+        if (input_pressed & J_A) {
+            save_erase();
+            sfx_play(SFX_UNLOCK);
+            break;
+        }
+        if (input_pressed & J_B)
+            break;
+    }
+    text_print_bg(4, 14, "           ");
+    show_knobs();
+}
 
 uint16_t title_run(void) BANKED {
     game_state = GAME_TITLE;
@@ -29,6 +67,7 @@ uint16_t title_run(void) BANKED {
     text_print_bg(2, 10, "HOTEL - FLOOR 1");
     text_print_bg(4, 13, "PRESS START");
     text_print_bg(17, 17, platform_name);
+    show_knobs();
     bg_set_scroll(0, 0);
     music_play(MUSIC_TITLE);
     if (lcd_on) {
@@ -42,10 +81,20 @@ uint16_t title_run(void) BANKED {
     // The seed: how long the title was shown, mixed with the divider register at the moment Start is
     // pressed. A Game Boy powers on the same way every time, so a person's timing is the only randomness.
     uint16_t frames = 0;
+    uint8_t erase = 0;
     while (1) {
         game_wait_frames(1);
         input_update();
         frames++;
+        if ((input_held & (J_SELECT | J_B)) == (J_SELECT | J_B)) {
+            if (++erase == ERASE_HOLD) {
+                erase_prompt();
+                erase = 0;
+                continue;
+            }
+        } else {
+            erase = 0;
+        }
         if ((frames & (BLINK_FRAMES - 1)) == 0)
             text_queue(0x9800u + 13 * 32 + 4, (frames & BLINK_FRAMES) ? "           " : "PRESS START");
         if (input_pressed & J_START)

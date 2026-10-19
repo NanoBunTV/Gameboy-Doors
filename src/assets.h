@@ -13,6 +13,7 @@
 #define TILESET_GARDEN 1    // the Courtyard and the Greenhouse (rooms 89-99): the hotel's metatile numbers for
                             // doors, walls and drawers (scripts/assets.py checks), its own art
 #define TILESET_ELECTRICAL 2   // Room 100's warehouse (Phase 8b), the same rule
+#define TILESET_SHOP 3   // Jeff's Shop (Phase 9b): the hotel's, less what it doesn't use, plus his doorway and counter
 
 // Metatile flags (one byte per metatile, from the Tiled tileset's properties)
 #define MTF_SOLID 0x01
@@ -58,6 +59,8 @@ typedef struct {
 #define OBJ_LIFT    16  // 2x2 on lift_*: the way out once the power's back
 #define OBJ_LIGHT   17  // a rectangle: a pool of light on the floor that blinks on its own clock
 #define OBJ_SAFE    18  // a rectangle: the breaker room, doorway included, where Figure never goes
+#define OBJ_STOCK   19  // Jeff's Shop: a place on the counter (a 'counter' metatile) the run's stock lies on
+#define OBJ_JEFF    20  // Jeff's Shop: where his eyes are; param: the pixel offset in the cell (x | y << 4)
 
 #define WALL_TOP    1
 #define WALL_BOTTOM 2
@@ -76,6 +79,7 @@ typedef struct {
 #define ROOM_KIND_COURTYARD  8   // room 89 (run.c run_kind_at): outdoors, safe, rain
 #define ROOM_KIND_GREENHOUSE 9   // rooms 90-99: dark, Snares, rain on the glass
 #define ROOM_KIND_ELECTRICAL 10  // room 100 (Phase 8b): the warehouse, the fuses, the breaker, the lift
+#define ROOM_KIND_SHOP       11  // room 55 (Phase 9b): Jeff's Shop, lit and safe
 
 typedef struct {
     uint8_t type, x, y, w, h, param;

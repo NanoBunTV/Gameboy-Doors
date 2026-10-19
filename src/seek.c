@@ -11,6 +11,7 @@
 #include "player.h"
 #include "sprites.h"
 #include "room_templates.h"
+#include "items.h"
 #include "sprite_seek.h"
 #include "sprite_puddle.h"
 #include "sprite_guide.h"
@@ -35,6 +36,7 @@ int16_t seek_x, seek_y;
 static uint8_t done;                     // bit per chase: it's over (the door slammed)
 static uint8_t chase;                    // which one (0, 1)
 static uint8_t sub, t, hold, step_t_, anim;
+static uint16_t frozen;                  // the crucifix stopped him where he stands (owner: 10 s)
 static int16_t rise_d, rise_x, rise_y;
 static int16_t trigger;                  // the player's feet passing this along `axis` start his rise
 static uint8_t axis;                     // 0 x rising, 1 x falling, 2 y rising, 3 y falling
@@ -66,6 +68,7 @@ static const uint8_t *route(uint8_t room) {
 void seek_reset(void) BANKED {
     seek_state = SEEK_OFF;
     done = 0;
+    frozen = 0;
     player_fast = 0;
 }
 
@@ -226,6 +229,16 @@ static uint16_t distance(void) {
     return d;
 }
 
+// He has you, unless the crucifix stops him where he stands for 10 s (Minecraft docs 12: he's the room, so he's
+// stopped rather than sent off)
+static uint8_t caught(void) {
+    if (items_crucifix()) {
+        frozen = FREEZE_FRAMES;
+        return 0;
+    }
+    return DEATH_SEEK;
+}
+
 uint8_t seek_update(void) BANKED {
     anim++;
     switch (seek_state) {
@@ -257,6 +270,10 @@ uint8_t seek_update(void) BANKED {
     default:
         return 0;
     }
+    if (frozen) {
+        frozen--;
+        return 0;
+    }
     if (hold)
         hold--;
     else if (seek_state == SEEK_CHASE)
@@ -264,12 +281,12 @@ uint8_t seek_update(void) BANKED {
     // Behind him is the same mistake as being caught by him (only while he moves: once stopped, the door
     // ends it, Minecraft docs 08)
     if (seek_state == SEEK_CHASE && seek_room > run_room)
-        return DEATH_SEEK;
+        return caught();
     if (seek_room == run_room) {
         place();
         int16_t dx = abs(seek_x - (player_x + 8)), dy = abs(seek_y - (player_y + PLAYER_FEET_Y));
         if (dx < REACH && dy < REACH && (uint16_t)(dx * dx) + (uint16_t)(dy * dy) < (uint16_t)REACH * REACH)
-            return DEATH_SEEK;
+            return caught();
     } else {
         placed_room = 0xFF;
     }

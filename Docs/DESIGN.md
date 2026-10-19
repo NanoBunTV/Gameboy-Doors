@@ -43,6 +43,11 @@ seconds of real time since the run started, stopping at 99:59; owner's pick), a 
 message, and while Select is held (no longer on entering a room). It covers the bottom 16 px of the play field (the window layer can't
 shrink the background). The strip must not show during Halt's and Seek's cutscenes.
 
+Phase 9a (owner's pick, layout A of `build/mockups/phase9a-hud-items.png`): a **second text row** under the
+status line, with the held item's 8×8 icon and its meter (fuel or charge as a 4-tile bar, vitamins as a count)
+and, at the right, a coin icon and the gold (up to 999). The strip is 24 px tall. It also slides in when the held
+item changes or is used and when gold is picked up.
+
 ## Health and death
 
 - **Health is a 100 HP bar**, as in DOORS, so Eyes' slow drain and Screech's 40% hit show exactly.
@@ -65,13 +70,13 @@ shrink the background). The strip must not show during Halt's and Seek's cutscen
   Exits go **up or sideways** (owner): top-wall exits lead to rooms entered from the bottom, side exits to
   rooms entered from the opposite side. No template repeats within 3 rooms.
 - **Room 0 is the reception**: door 1 is always locked and its key hangs on the wall behind the desk (DOORS'
-  tutorial). The elevator before it comes with the economy phase.
+  tutorial). Every run starts in **the lift** before it (Phase 9b, below).
 - **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
 - **Seek's chases are rooms 30–35 and 70–79** (Phase 7, below). Rooms 29 and 69 always have one door, on top.
 - **The Courtyard is room 89 and the Greenhouse 90–99** (Phase 8a, below). Room 88 always has one door, on top.
 - **Room 100 is the warehouse** (Phase 8b, below). Room 99 always has one door, on top.
-- Fixed room still to come: **Jeff's Shop (55)**. Halt's hallway is a scripted sequence of its own.
-  Jeff's Shop is at 55 as in the Minecraft version (owner's choice); DOORS has it at 52.
+- **Jeff's Shop is room 55** (Phase 9b, below), as in the Minecraft version (owner's choice); DOORS has it at 52.
+  Room 54 always has one door, on top. Halt's hallway is a scripted sequence of its own.
 - **Doors**: every door shows its number in brass on a dark header above it, open or shut (the HUD doesn't:
   owner, 2026-10-18, it gave Dupe away). An open side door looks like an open top-wall door, number kept (owner, 2026-10-18). **A**
   opens a door (owner: press A, not automatic). Walking into an open doorway goes through.
@@ -186,8 +191,8 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 10*), on **one fl
   **closets don't save you** ("NO TIME TO HIDE."). Caught: his face, then a hint about running.
 - **The lift**: walk into it. The doors shut, Figure slams into them, the car shakes and falls, a crash in
   the dark. Then **the results**: "YOU ESCAPED THE HOTEL.", the time, the damage taken over the run, the seed,
-  over the **Ending Theme** until Start, and the title. Knobs and achievements join the results in Phases 9
-  and 11.
+  over the **Ending Theme** until Start, and the title. The Knobs the run paid are listed under them (Phase 9b);
+  achievements join them in Phase 11.
 
 ## Hiding (built in Phase 3)
 
@@ -251,11 +256,56 @@ Left out (owner, 2026-10-17): Smoothie and Candle (later-floor items in DOORS).
 - **Inventory:** Select cycles the held item (its icon shows in the on-demand HUD), B uses it, Start pauses
   and opens a grid of all items to inspect and pick from. Carry limits follow *MC 12*.
 
+**Phase 9a, as decided (owner, 2026-10-18; PROJECT.md has each choice):**
+
+- **Loot.** A drawer rolls gold (35%, 10–50), an item (6%), a battery (4%, only once you own a flashlight) and
+  a bandage (4%), each on its own, so one drawer can hold several. A loose spot (where keys lie in the open)
+  holds one thing at most, never an item: a battery or bandage first, else gold. The room's key is placed
+  first and a loose spot holding it holds nothing else. Rolled from (seed, room), so a run's loot is fixed.
+- **Which item:** lockpick 35, vitamins 28, lighter 18, flashlight 12, crucifix 4, skeleton key 3.
+- **Carrying:** 3 lockpicks, 3 vitamins, 1 of each other item; gold up to 999. A on a drawer takes all that
+  fits and says what; what doesn't fit stays for later.
+- **Used at once:** a bandage heals 25 HP when taken (at full health it stays where it is); a battery refills
+  the flashlight (with no flashlight it isn't rolled).
+- **Held and used with B:** the lighter (a radius-3 circle, 1 minute of fuel, no refill), the flashlight (the
+  cone, 2 minutes a charge) and vitamins (1.3× speed for 10 s and +10 HP; added on top of Seek's or the
+  escape's speed; a second dose while one runs does nothing). B toggles a light; Select away puts it out.
+  Select cycles these three; nothing else is ever held.
+- **From the bag:** lockpicks and the skeleton key open a locked door when you have no key (a lockpick before
+  the skeleton key's 5 uses), and Room 100's breaker room; never the Library's padlock. The **crucifix** is spent
+  on the first entity hit (not a Snare or Timothy): Rush, Ambush, Screech and Eyes leave and can't come back for
+  1 minute; Seek and Figure freeze 10 s; Halt's hallway ends as if its door were reached; a Dupe door just
+  stays shut.
+- **The Library and Room 100** (until the escape): B sneaks, nothing is held, a light goes out on entering.
+- **Start** pauses on a panel listing what you carry, with the lights' meters, counts, the gold and the time.
+
+**Phase 9b, as decided (owner, 2026-10-19; PROJECT.md has each choice):**
+
+- **Knobs** are paid when a run ends, as in the Minecraft version: one per door reached (the furthest: walking
+  back doesn't cost one), 50 for escaping, one per 10 gold still carried. The Guiding Light and the results list
+  each source with its Knobs, then "NOW YOU HAVE" and the balance. The title shows the balance in its corner
+  (a knob glyph and the number). Achievements will pay Knobs too (Phase 11).
+- **The lift**: every run starts there, from the title and from Try again: a picture of the car going down (wood
+  panelling, brass-framed steel doors, a floor indicator) with the shop under it, over **Elevator Jam**, which
+  plays once. Four offers (the Minecraft version's): 2 lockpicks 50, a lighter 50, a flashlight at half charge
+  100, 3 vitamins 100. A picks or unpicks one (the knob glyph marks it; one you can't afford says "NOT ENOUGH
+  KNOBS."), and **nothing is bought until BUY**, which spends the total at once. **Start leaves buying nothing,
+  and so does the song ending** (owner). Then the doors open onto the reception and the run fades in.
+- **Jeff's Shop (room 55)**: lit and safe (nothing is planned there and anything on its way is sent off, as the
+  Courtyard). Jeff is two glowing eyes in a dark doorway behind his counter (the Minecraft pack's: they blink and
+  glance aside now and then). **Four of the six items** lie on the counter, one of each, drawn per run: lockpick
+  12, vitamins 15, lighter 20, flashlight 25 (full), skeleton key 50, crucifix 70 gold. A at the counter (from in
+  front of it) shows a panel with the item, its price and your gold: A buys, B doesn't. Too little gold says "NOT
+  ENOUGH GOLD."; a full bag says "I CAN'T CARRY MORE." before any gold is taken. **Jeff's Shop Jingle** plays
+  while you're in the room.
+
 ## Saving
 
-Only between runs: Knobs, achievements, statistics and settings are saved to SRAM when a run ends (death or
-escape) and when shopping in the elevator. **There's no mid-run continue** (owner, 2026-10-17); a run is one
-sitting, as in DOORS.
+Only between runs (owner, 2026-10-17): the save is written when a run ends (death or escape) and when the lift
+shop sells something. **There's no mid-run continue**; a run is one sitting, as in DOORS. Phase 9b saves the
+Knobs and statistics (runs, escapes, the best door, deaths by what killed you, Knobs ever earned: recorded now
+for Phase 11's statistics screen). A save that doesn't check out starts fresh. **Holding Select and B on the
+title for 3 s** asks "ERASE SAVE?" (A yes, B no).
 
 ## Controls
 
@@ -263,14 +313,14 @@ sitting, as in DOORS.
 |---|---|
 | D-pad | Walk (8 directions); the facing direction is where you look |
 | A | Interact: open a door, drawer, closet; pick up |
-| B | Use the held item. **In the Library and in Room 100 until the escape, held: sneak** (owner: items aren't needed in the Library; Room 100 follows it, to revisit with Phase 9's items) |
-| Select | Tap: cycle held item. The HUD shows while it's held |
-| Start | Pause / inventory grid. **In the Library: the notes** (no pause) |
+| B | Use the held item. **In the Library and in Room 100 until the escape, held: sneak** (owner, confirmed with Phase 9: items aren't needed there) |
+| Select | Tap: cycle held item (lighter, flashlight, vitamins). The HUD shows while it's held |
+| Start | Pause on the inventory list. **In the Library: the notes** (no pause). In the lift: leave without buying |
 
 ## Menus and extras
 
-- Title screen → elevator (pre-run shop) → run. Death → the Guiding Light; escape → the lift → results →
-  title (built in Phase 8b; the elevator shop comes with Phase 9).
+- Title screen → the lift (its shop) → run. Death → the Guiding Light → Try again (the lift again) or the
+  title; escape → the lift's fall → results → title (built in Phases 8b and 9b).
 - **Achievements**, listed from the title screen, with a small pop-up when earned; each pays Knobs once.
 - **Statistics** in SRAM: runs, deaths by entity, best door, total Knobs earned.
 - **Super Game Boy border** and SGB palette for the DMG ROM.

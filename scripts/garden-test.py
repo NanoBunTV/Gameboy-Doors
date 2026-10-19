@@ -173,9 +173,8 @@ hp = g.u8("_run_hp")
 for _ in range(GRACE_FRAMES - 40):
     quiet(g, 0)
 check(not g.u16("_snare_root") and g.u8("_run_hp") == hp, "standing on it during the grace: not caught again")
-back = {"up": "down", "down": "up", "left": "right", "right": "left"}[side[1]]
-for _ in range(14):   # a step off it (not back out through the door behind)
-    quiet(g, J[back])
+b.walk_to(side[0], check=False)   # off it, to the cell it was stepped onto from (a blind step back can leave
+                                   # the room when the Snare is by the door)
 for _ in range(600):   # (DMG drops frames: wait on the game's own count, not the emulator's)
     if not g.u8("_snare_grace"):
         break

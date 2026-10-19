@@ -10,6 +10,8 @@
 #include "death.h"
 #include "ending.h"
 #include "light.h"
+#include "save.h"
+#include "lift.h"
 
 void main(void) {
     DISPLAY_OFF;  // waits for VBlank
@@ -21,9 +23,11 @@ void main(void) {
                LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON;
     hud_init();
     light_build_shapes();   // sprite sheets: game_start (game_init)
+    save_load();
 
     uint16_t seed = title_run();
     while (1) {
+        lift_run();   // every run starts in the lift, with its shop (owner, Phase 9b)
         game_start(seed);
         while (game_state != GAME_DEAD && game_state != GAME_WON) {
             vsync();

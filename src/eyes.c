@@ -11,6 +11,7 @@
 #include "sprites.h"
 #include "bg.h"
 #include "room_templates.h"
+#include "items.h"
 #include "sprite_eyes.h"
 
 // Owner, 2026-10-18: 5 HP per 0.25 s after 0.5 s of looking (about 5 s for a full bar)
@@ -32,7 +33,7 @@ void eyes_need_sprites(void) BANKED {
 
 void eyes_room_entered(void) BANKED {
     uint8_t f = run_flags2[run_room];
-    eyes_here = (f & RF2_EYES) && !(f & RF2_EYES_GONE);
+    eyes_here = (f & RF2_EYES) && !(f & RF2_EYES_GONE) && run_seconds >= ward_eyes;   // (the crucifix's minute)
     looking = 0;
     if (!eyes_here) {
         light_set(LIGHT_EYES, LIGHT_OFF, 0, 0);
@@ -82,6 +83,11 @@ uint8_t eyes_update(void) BANKED {
     if (++looking < GRACE_FRAMES)
         return DEATH_NONE;
     looking = GRACE_FRAMES - HIT_FRAMES;   // the next hit in HIT_FRAMES, for as long as you keep looking
+    if (items_crucifix()) {   // looking at him with it: he's dismissed, and not back for a minute (Minecraft docs 12)
+        eyes_dismiss();
+        ward_eyes = run_seconds + WARD_SECONDS;
+        return DEATH_NONE;
+    }
     if (run_hp <= DAMAGE) {
         run_hp = 0;
         return DEATH_EYES;

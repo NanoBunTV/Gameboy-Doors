@@ -15,6 +15,8 @@
 #include "sprites.h"
 #include "platform.h"
 #include "font.h"
+#include "save.h"
+#include "death.h"
 #include "tileset_electrical.h"
 
 #define CLOSE_FRAMES  40      // the doors sliding shut
@@ -71,8 +73,8 @@ static void results(void) {
     bg_set_scroll(0, 0);
     music_play(MUSIC_ENDING);
     game_fade(FADE_BLACK, 0);
-    print(4, 3, "YOU ESCAPED");
-    print(4, 4, "THE HOTEL.");
+    print(4, 2, "YOU ESCAPED");
+    print(4, 3, "THE HOTEL.");
     // "TIME        12:34" (stopping at 99:59, as the HUD)
     uint16_t t = run_seconds < 5999 ? run_seconds : 5999;
     memset(line, ' ', 20);
@@ -84,7 +86,7 @@ static void results(void) {
     line[15] = '0' + (uint8_t)((t % 60) / 10);
     line[16] = '0' + (uint8_t)(t % 10);
     line[17] = 0;
-    print(2, 7, line);
+    print(2, 5, line);
     memset(line, ' ', 20);
     memcpy(line, "DAMAGE TAKEN", 12);
     uint16_t d = run_damage > 9999 ? 9999 : run_damage;
@@ -95,12 +97,13 @@ static void results(void) {
             break;
     }
     line[17] = 0;
-    print(2, 9, line);
+    print(2, 6, line);
     memset(line, ' ', 20);
     memcpy(line, "SEED", 4);
     four_hex(line + 13, run_seed);
     line[17] = 0;
-    print(2, 11, line);
+    print(2, 7, line);
+    save_print_knobs(2, 9);   // doors, escaping, gold, the balance (Phase 9b)
     print(4, 15, "PRESS START");
     uint8_t wait = 60;   // not straight past it with a held button
     while (1) {
@@ -144,6 +147,7 @@ void ending_run(void) BANKED {
     spr_begin();
     spr_end();
     game_wait_frames(BLACK_FRAMES);
+    save_run_end(DEATH_NONE);   // the Knobs (escaping pays 50), and the statistics
     results();
     player_fast = 0;
 }

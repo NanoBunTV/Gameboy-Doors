@@ -19,6 +19,7 @@ extern uint8_t screech_dir;     // where he is (DIR_*), while SCREECH_HERE
 void screech_need_sprites(void) BANKED;   // after the room is lit: his sheet, if it's dark
 void screech_reset(void) BANKED;          // a new run
 void screech_room_entered(void) BANKED;   // gone, no cooldown
+void screech_ward(void) BANKED;           // the crucifix: gone, and not back for a minute (owner)
 uint8_t screech_update(void) BANKED;      // per frame; 1 if he bit
 void screech_draw(void) BANKED;
 

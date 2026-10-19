@@ -5,15 +5,19 @@
 #include "sfx_data.h"
 
 // Songs: C written by hUGETracker's uge2source from assets/music/*.uge (Makefile)
-extern const hUGESong_t music_title, music_guiding_light, music_library, music_seek, music_electrical, music_ending;
+extern const hUGESong_t music_title, music_guiding_light, music_library, music_seek, music_electrical, music_ending,
+    music_elevator, music_jeff;
 BANKREF_EXTERN(music_title)
 BANKREF_EXTERN(music_guiding_light)
 BANKREF_EXTERN(music_library)
 BANKREF_EXTERN(music_seek)
 BANKREF_EXTERN(music_electrical)
 BANKREF_EXTERN(music_ending)
+BANKREF_EXTERN(music_elevator)
+BANKREF_EXTERN(music_jeff)
 
-static uint8_t music_id, music_bank;
+uint8_t music_id;   // MUSIC_* playing (tests read it)
+static uint8_t music_bank;
 
 // ------------------------------------------------------------------------------------------ effects
 // The scripts are in sfx_data.c (banked): BANK(sfx_data) is switched in whenever they're read.
@@ -145,6 +149,8 @@ void music_play(uint8_t id) {
     case MUSIC_SEEK:    song = &music_seek;          music_bank = BANK(music_seek); break;
     case MUSIC_ELECTRICAL: song = &music_electrical; music_bank = BANK(music_electrical); break;
     case MUSIC_ENDING:  song = &music_ending;        music_bank = BANK(music_ending); break;
+    case MUSIC_ELEVATOR: song = &music_elevator;     music_bank = BANK(music_elevator); break;
+    case MUSIC_JEFF:    song = &music_jeff;          music_bank = BANK(music_jeff); break;
     default:
         return;
     }

@@ -15,6 +15,7 @@ AUTOTEST builds replay it, so BGB (which can't press buttons) plays the same run
 --check replays an AUTOTEST ROM built with that recording and confirms it reaches the same room at the
 same input frame (the game is deterministic in its input).
 """
+import io
 import argparse
 import sys
 from collections import deque
@@ -30,6 +31,7 @@ OBJ_ENTRY, OBJ_EXIT, OBJ_DRAWER, OBJ_KEYSPOT, OBJ_CLOSET, OBJ_BED = 1, 2, 3, 4, 
 RF_LOCKED, RF_KEY_DRAWER, RF_KEY_TAKEN, RF_EXIT_OPEN, RF_FINAL, RF_KEY_FIXED = 1, 2, 4, 8, 16, 32
 RF2_DARK, RF2_EYES, RF2_DUPE, RF2_DUPE_HIT, RF2_HALT = 1, 2, 8, 0x10, 0x40
 GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD, GAME_HALT = 0, 1, 2, 3, 4
+GAME_LIFT = 6   # the lift shop before a run (Start leaves it)
 WRONG_DOOR_FROM = 12  # the first Dupe room from here: the bot opens a wrong door on purpose (40 HP)
 ENT_IDLE, ENT_WAIT, ENT_WARN, ENT_MOVE, ENT_PAUSE = 0, 1, 2, 3, 4
 REHIDE_AFTER = 540   # frames hidden before stepping out and back in (Hide throws you out at 720)
@@ -69,13 +71,16 @@ DIRS = {(0, -1): "up", (0, 1): "down", (-1, 0): "left", (1, 0): "right"}
 
 
 class Game:
-    def __init__(self, rom: Path):
+    def __init__(self, rom: Path, ram=None):
+        """ram: the cartridge's SRAM to start with (bytes; scripts/shop-test.py), else none: a fresh save"""
         self.syms = {}
         for line in rom.with_suffix(".sym").read_text().splitlines():
             p = line.split()
             if len(p) == 2 and ":" in p[0]:
                 self.syms[p[1]] = int(p[0].split(":")[1], 16)
-        self.pyboy = PyBoy(str(rom), window="null", cgb=rom.suffix == ".gbc", sound_emulated=False)
+        # Never the .ram file PyBoy would look for next to the ROM: every run starts from a known save
+        self.pyboy = PyBoy(str(rom), window="null", cgb=rom.suffix == ".gbc", sound_emulated=False,
+                           ram_file=io.BytesIO(ram if ram is not None else bytes(0x8000)))
         self.pyboy.set_emulation_speed(0)
         self.mem = self.pyboy.memory
         self.held = 0
@@ -303,7 +308,7 @@ class Bot:
         for _ in range(limit):
             if self.g.state() == GAME_PLAYING:
                 return
-            if self.g.state() == GAME_TITLE:
+            if self.g.state() in (GAME_TITLE, GAME_LIFT):
                 self.g.tick(J["start"])
                 self.g.tick(0)
             else:
@@ -539,10 +544,16 @@ class Bot:
                 raise RuntimeError("Dupe's door didn't fire")
             self.log("Dupe: HP", hp, "->", self.g.u8("_run_hp"))
 
-        # Debug and AUTOTEST builds: B cycles the light (glow, lighter, flashlight). Each new dark room gets
-        # the next one, so the recorded run lights rooms all three ways.
+        # Debug and AUTOTEST builds: with nothing held, B cycles the light (glow, lighter, flashlight). Each new
+        # dark room gets the next one, so the recorded run lights rooms all three ways. (Select puts away
+        # whatever a drawer gave it first: Phase 9a's items hold B.)
         if self.g.u8("_run_flags2", n) & RF2_DARK and "_game_light_tool" in self.g.syms and n not in self.lit_rooms:
             self.lit_rooms.add(n)
+            for _ in range(8):
+                if not self.g.u8("_inv_held"):
+                    break
+                self.g.tick(J["select"])
+                self.g.tick(0)
             self.g.tick(J["b"])
             self.g.tick(0)
 
@@ -584,25 +595,30 @@ class Bot:
 def die_and_retry(g: Game, bot: Bot):
     """Plays on until Rush or Ambush comes (or Seek rises), stands still to be caught, then gets through the Guiding Light
     (A skips the typing, A again picks Try again) into a new run"""
-    for _ in range(40):
-        if g.entity() != ENT_IDLE:
-            break
-        # play the room without hiding: Danger only interrupts, so finish rooms until something comes. In
-        # a chase's start hallway, walk up it until Seek rises (he does the rest).
-        try:
-            bot.play_room_once()
-        except (Danger, SeekRises):
-            break
-    bot.log("standing still to be caught")
-    for _ in range(4000):
-        g.tick(0)
+    for attempt in range(3):   # again if a crucifix it found took the blow (Phase 9a)
+        for _ in range(40):
+            if g.entity() != ENT_IDLE:
+                break
+            # play the room without hiding: Danger only interrupts, so finish rooms until something comes. In
+            # a chase's start hallway, walk up it until Seek rises (he does the rest).
+            try:
+                bot.play_room_once()
+            except (Danger, SeekRises):
+                break
+        bot.log("standing still to be caught")
+        for _ in range(4000):
+            g.tick(0)
+            if g.state() == GAME_DEAD or (g.entity() == ENT_IDLE and g.u8("_seek_state") == 0):
+                break
         if g.state() == GAME_DEAD:
             break
+        bot.log("saved by the crucifix: on to the next")
     else:
         raise RuntimeError("nothing came to kill the player")
     cause = g.u8("_game_death")
     for i in range(4000):
-        g.tick(J["a"] if i % 10 == 0 else 0)
+        # A through the Guiding Light, Start out of the lift (buying nothing)
+        g.tick(0 if i % 10 else J["start"] if g.state() == GAME_LIFT else J["a"])
         if g.state() == GAME_PLAYING and g.room() == 0:
             break
     else:

@@ -27,6 +27,10 @@ uint8_t run_force_timothy;   // scripts poke 1: the next drawer opened (not the 
 #endif
 static uint8_t halt_planned;   // a Halt is already armed in an earlier room
 static uint8_t planned;   // rooms 0 .. planned - 1 are planned
+// Opened drawers that still hold something (a full bag, full health, a full flashlight)
+#define LEFT_MAX 6
+static uint8_t left_room[LEFT_MAX], left_drawer[LEFT_MAX], left_what[LEFT_MAX], left_next;
+
 
 // xorshift16 (Brad Forschner's 7, 9, 8 triple), seeded per room from the run seed and the room number.
 // A generator per room, not one shared stream, so a room's plan doesn't depend on anything but (seed, n)
@@ -73,6 +77,10 @@ uint8_t run_kind_at(uint8_t n) BANKED {
 #if ROOM_HAS_ELECTRICAL
     if (n == RUN_LAST_ROOM)
         return ROOM_KIND_ELECTRICAL;
+#endif
+#if ROOM_HAS_SHOP
+    if (n == RUN_SHOP_ROOM)
+        return ROOM_KIND_SHOP;
 #endif
 #if ROOM_HAS_SEEK
     for (uint8_t c = 0; c < RUN_CHASES; c++) {
@@ -123,6 +131,7 @@ void run_start(uint16_t seed) BANKED {
     run_clock_last = sys_time;
     run_clock_frames = 0;
     halt_planned = 0;
+    memset(left_what, 0, sizeof(left_what));
     run_plan(1);
 }
 
@@ -134,12 +143,14 @@ static void plan_room(uint8_t n) {
     uint8_t chase = ROOM_KIND_IS_CHASE(kind);
     // The Courtyard and the Greenhouse (Minecraft docs 09); room 99 is safe
     uint8_t garden = kind == ROOM_KIND_COURTYARD || kind == ROOM_KIND_GREENHOUSE;
-    uint8_t safe = kind == ROOM_KIND_COURTYARD || (kind == ROOM_KIND_GREENHOUSE && n == RUN_GREENHOUSE_LAST);
-    // The room before the Library, a chase, the Courtyard or Room 100: one door, on the top wall, and no Halt
+    uint8_t safe = kind == ROOM_KIND_COURTYARD || (kind == ROOM_KIND_GREENHOUSE && n == RUN_GREENHOUSE_LAST) ||
+                   kind == ROOM_KIND_SHOP;
+    // The room before the Library, a chase, the Courtyard, Jeff's Shop or Room 100: one door, on the top wall, and
+    // no Halt
     uint8_t next = n < RUN_LAST_ROOM ? run_kind_at(n + 1) : ROOM_KIND_NORMAL;
     uint8_t before_fixed = next == ROOM_KIND_LIBRARY || next == ROOM_KIND_SEEK_START || next == ROOM_KIND_COURTYARD ||
-                           next == ROOM_KIND_ELECTRICAL;
-    if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY || kind == ROOM_KIND_ELECTRICAL) {
+                           next == ROOM_KIND_ELECTRICAL || next == ROOM_KIND_SHOP;
+    if (kind == ROOM_KIND_START || kind == ROOM_KIND_LIBRARY || kind == ROOM_KIND_ELECTRICAL || kind == ROOM_KIND_SHOP) {
         for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++)
             if (room_template_info[i][0] == kind)
                 t = i;
@@ -240,6 +251,78 @@ uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED {
         a = b >= a ? b + 1 : b;
     }
     return (uint8_t)(n + 1 + offsets[a]);
+}
+
+// Which item (Minecraft docs 12: weights rather than percentages; owner: plus a rare skeleton key)
+static const uint8_t item_weight[6] = { 35, 28, 18, 12, 4, 3 };   // LOOT_LOCKPICK .. LOOT_SKELETON
+
+void run_loot(uint8_t n, uint8_t slot, uint8_t loose, uint8_t flash, loot_t *l) BANKED {
+    rng_seed(run_seed ^ 0x6017u ^ ((uint16_t)slot << 11) ^ (loose ? 0x0480u : 0), n);
+    l->gold = l->item = l->battery = l->bandage = 0;
+    uint8_t gold = LOOT_GOLD_MIN + rnd_below(LOOT_GOLD_SPAN);   // drawn first, so it doesn't hang on the rest
+    if (loose) {
+        // One thing at most, the rarer first (Minecraft: a loose pile's rolls are a priority order), never an item
+        // (Every roll is drawn whether or not it can count, so owning a flashlight changes no other roll)
+        uint8_t battery = rnd_below(100) < LOOT_LOOSE_BATTERY, bandage = rnd_below(100) < LOOT_LOOSE_BANDAGE;
+        uint8_t g = rnd_below(100) < LOOT_LOOSE_GOLD;
+        if (flash && battery)
+            l->battery = 1;
+        else if (bandage)
+            l->bandage = 1;
+        else if (g)
+            l->gold = gold;
+        return;
+    }
+    // A drawer: every roll on its own, so one can hold all four
+    if (rnd_below(100) < LOOT_DRAWER_GOLD)
+        l->gold = gold;
+    if (rnd_below(100) < LOOT_DRAWER_ITEM) {
+        uint8_t w = rnd_below(100);   // the weights add up to 100
+        uint8_t i = 0;
+        while (w >= item_weight[i]) {
+            w -= item_weight[i];
+            i++;
+        }
+        l->item = i + 1;
+    }
+    if (rnd_below(100) < LOOT_DRAWER_BATTERY && flash)
+        l->battery = 1;
+    if (rnd_below(100) < LOOT_DRAWER_BANDAGE)
+        l->bandage = 1;
+}
+
+uint8_t run_left(uint8_t n, uint8_t drawer) BANKED {
+    for (uint8_t i = 0; i < LEFT_MAX; i++)
+        if (left_what[i] && left_room[i] == n && left_drawer[i] == drawer)
+            return left_what[i];
+    return 0;
+}
+
+void run_set_left(uint8_t n, uint8_t drawer, uint8_t left) BANKED {
+    uint8_t i = 0;
+    while (i < LEFT_MAX && !(left_what[i] && left_room[i] == n && left_drawer[i] == drawer))
+        i++;
+    if (i == LEFT_MAX) {
+        if (!left)
+            return;
+        i = left_next;   // the oldest goes
+        left_next = left_next == LEFT_MAX - 1 ? 0 : left_next + 1;
+    }
+    left_room[i] = n;
+    left_drawer[i] = drawer;
+    left_what[i] = left;
+}
+
+uint8_t run_shop_item(uint8_t k) BANKED {
+    // A shuffle of the six from (seed, 55): the first four are on the counter
+    uint8_t items[6] = { LOOT_LOCKPICK, LOOT_VITAMINS, LOOT_LIGHTER, LOOT_FLASHLIGHT, LOOT_CRUCIFIX, LOOT_SKELETON };
+    rng_seed(run_seed ^ 0x5409u, RUN_SHOP_ROOM);
+    for (uint8_t i = 5; i; i--) {
+        uint8_t j = rnd_below(i + 1), t = items[i];
+        items[i] = items[j];
+        items[j] = t;
+    }
+    return items[k];
 }
 
 uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED {

@@ -13,6 +13,7 @@
 #include "sprites.h"
 #include "platform.h"
 #include "room_templates.h"
+#include "items.h"
 #include "sprite_rush.h"
 #include "sprite_ambush.h"
 
@@ -108,8 +109,9 @@ static void fire(void) {
 
 void entity_room_entered(uint8_t first_time) BANKED {
     uint8_t kind = run_kind_at(run_room);
-    // The Courtyard promises nothing hunts you: whatever was on its way is sent off (the queued spawn stays)
-    if (kind == ROOM_KIND_COURTYARD && entity_state != ENT_IDLE) {
+    // The Courtyard and Jeff's Shop promise nothing hunts you: whatever was on its way is sent off (the queued
+    // spawn stays)
+    if ((kind == ROOM_KIND_COURTYARD || kind == ROOM_KIND_SHOP) && entity_state != ENT_IDLE) {
         entity_state = ENT_IDLE;
         sfx_rumble(0, RUMBLE_RUSH);
     }
@@ -120,10 +122,13 @@ void entity_room_entered(uint8_t first_time) BANKED {
         patience = QUEUE_PATIENCE;
     }
     if (!entity_queued || run_room == RUN_LIBRARY_ROOM || ROOM_KIND_IS_CHASE(kind) ||
-        kind == ROOM_KIND_COURTYARD || run_room == RUN_GREENHOUSE_LAST || kind == ROOM_KIND_ELECTRICAL)
+        kind == ROOM_KIND_COURTYARD || run_room == RUN_GREENHOUSE_LAST || kind == ROOM_KIND_ELECTRICAL ||
+        kind == ROOM_KIND_SHOP)
         return;   // nothing follows you into the Library, a chase, a safe room or Room 100: the spawn waits (docs 07-10)
     // Never into a dark room: the flicker is his whole warning (Minecraft docs 05). The spawn waits. The
     // Greenhouse is the exception: dark throughout, and Rush comes anyway, heard but not flickered (docs 09).
+    if (run_seconds < ward_rush)
+        return;   // the crucifix keeps him away a minute (owner); the spawn waits, its patience kept
     if (hide_free_spots() && (!light_dark || kind == ROOM_KIND_GREENHOUSE))
         fire();
     else if (!--patience)
@@ -308,6 +313,10 @@ uint8_t entity_update(void) BANKED {
     sfx_rumble(vol, entity_kind == ENTITY_AMBUSH ? RUMBLE_AMBUSH : RUMBLE_RUSH);
     if (caught()) {
         finish();
+        if (items_crucifix()) {
+            ward_rush = run_seconds + WARD_SECONDS;   // driven off, and not back for a minute (owner)
+            return 0;
+        }
         return entity_kind == ENTITY_AMBUSH ? DEATH_AMBUSH : DEATH_RUSH;
     }
     return 0;

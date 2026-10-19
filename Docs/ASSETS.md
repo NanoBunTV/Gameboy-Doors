@@ -116,6 +116,16 @@ door slots carry the copper door's art (Room 100 has no ordinary doors but its e
 | lift_tl/tr/bl/br, lift_open_tl/tr/bl/br, lift_shut_tl/tr/bl/br | The lift's two doors in a top wall, 2×2: shut behind a folding lattice gate (owner's pick from mock-ups, 2026-10-18, over a row of floor gates in front), open with the car lit (the power), and shut without the gate (the ending) |
 | slide | The sliding metal door (`slide`, solid) |
 
+**`shop.tsx`** (Jeff's Shop, Phase 9b; owner's pick from `build/mockups/phase9b-shops.png`; drawn by a script,
+edit the PNGs to change them): the hotel's metatiles at the hotel's numbers, those the shop doesn't use blank
+`unused_*` (the bookshelves too: with them the tileset needed 8 GBC palettes), plus, from 41:
+
+| Metatiles | Notes |
+|---|---|
+| back_tl, back_t, back_tr, back_l, back_m, back_r | The dark doorway behind the counter Jeff stands in: a wooden lintel along the top row, posts at the ends |
+| counter_l, counter, counter_r | The counter's top (the hotel's `desk_*` is its front, the row under it) |
+| counter_lockpick, counter_vitamins, counter_lighter, counter_flashlight, counter_skeleton, counter_crucifix | The counter's top with an item lying on it (metal in grey, the rest in the wood's brass) |
+
 ## Rooms (`assets/rooms/`)
 
 A room is a Tiled map (`.tmx`) using one tileset:
@@ -127,7 +137,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
 
   | Property | Type | Meaning |
   |---|---|---|
-  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right), `library` (always room 50; at most one; below), one of Seek's chase rooms: `seek_start`, `seek_4way`, `seek_end`, or `courtyard` (room 89) or `greenhouse` (90–99) (below) |
+  | `kind` | string | `normal` (the generator uses it), `start` (the reception, room 0; exactly one), `test` (never used in a run), `halt` (Halt's hallway, loaded by `halt.c`; at most one; entry on the left wall, exit on the right), `library` (always room 50; at most one; below), one of Seek's chase rooms: `seek_start`, `seek_4way`, `seek_end`, or `courtyard` (room 89) or `greenhouse` (90–99) (below), or `shop` (Jeff's Shop, room 55; at most one: one `entry` on the bottom wall, one `exit` on top, four `stock` places and a `jeff` point; no drawers, key spots or hiding spots) |
   | `allow_lock` | bool | The room may lock its exit (18% chance) and hide the key inside it. Needs at least one drawer or key spot |
 
 - **Objects** on an object layer, named:
@@ -137,7 +147,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `entry` | rectangle on the door, property `wall` = bottom, left or right | The door you come in by. Exactly one in a normal room |
   | `exit` | rectangle on the door, property `wall` = top, left or right | The door to the next room. One, or 2–3 for a **Dupe room**: the run picks the real one, the others are wrong doors (Dupe's, or numberless fakes) |
   | `drawer` | 1×1 rectangle on a `dresser` metatile | Can be searched with A; may hold the key. At most 8 per room |
-  | `keyspot` | point (or 1×1 rectangle) | A place a key can lie in the open. Property `fixed` = true marks the start room's key (always there) |
+  | `keyspot` | point (or 1×1 rectangle) | A place a key can lie in the open, and since Phase 9a loot (gold, a battery or a bandage) when the key isn't there. Property `fixed` = true marks the start room's key (always there). At most 2 non-fixed per room (Room 100 aside), and at most 8 with the drawers |
   | `spawn` | point | Start and test rooms: where the player starts (top left of the 16×16 sprite) |
   | `closet` | 1×2 rectangle on `closet_top` + `closet_bottom` | A hiding spot (A to get in, A or B to get out) |
   | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
@@ -152,6 +162,8 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `lift` | 2×2 on `lift_tl`, `lift_tr`, `lift_bl`, `lift_br` | Room 100: the lift (its gate is in its art) |
   | `safe` | rectangle | Room 100: the breaker room, where Figure never goes: its floor and the breaker door's two cells, not the cell below the door |
   | `light` | rectangle, at most 16 cells | Room 100: a pool of light (its `floor` cells blink); at most 6 |
+  | `stock` | 1×1 on a `counter` metatile | Jeff's Shop: a place on the counter; the run lays an item on each of the four (in object order). A from the cell in front of the counter's front works |
+  | `jeff` | point | Jeff's Shop: the top left of his eyes' 16×16 sprite (anywhere: he stands in the dark) |
 
   Rectangles must line up with the 16×16 grid (hold Ctrl while drawing in Tiled). Door sizes: top wall 1×2
   (rows 1–2), left/right wall 1×2 in the first/last column, bottom wall 1×1 in the last row. Put the matching
@@ -262,7 +274,10 @@ Rules:
   has two sprite palettes; the converter picks one per half.
 
 Sheets: `player` (`down_idle`, `down_a`, `down_b`, `up_idle`, `up_a`, `up_b`, `left_idle`, `left_a`,
-`left_b`; right-facing is the left frames mirrored; walk cycle idle → a → idle → b), `key` (one frame), and
+`left_b`; right-facing is the left frames mirrored; walk cycle idle → a → idle → b), `key` (`key`, and since
+Phase 9a the floor pickups `gold` (the pack's `coin3.png`, in the key's gold), `bandage` (the pack's, tan: the
+sheet's second GBC palette) and `battery` (hand-drawn: a copper-top cell in the key's palette, because a hotel
+room's sprite palettes are all spoken for; the mock-up had it blue)), and
 `rush` and `ambush` (32×32, frames `f0` and `f1`, alternated every 4 frames: the second is the first with
 its smoky edge jittered). Phase 5 (owner's picks from mock-ups, 2026-10-18): `halt` (32×32 frames, the
 24×32 ghost in the left part so the right column is empty; `f0`/`f1`, the hem rippling) reduced from the
@@ -297,9 +312,16 @@ body (invisible in the dark, as it should be), white eyes, a white-and-pink grin
 `font.json`. One palette for the whole font (light text on black). Lower case is shown as upper case; any
 character not in the font shows as a space. Special characters: `=` the HUD's top border, `~` the key icon,
 `@` the heart, `*` `+` `{` `}` `#` the health bar's tiles (empty, 2, 4, 6, 8 px filled), `>` the menu cursor,
-`_` the HUD's top border (it was `=` until Phase 6), `=` an equals sign, and the Library's shapes: `%` circle,
-`[` square, `&` heart, `$` star, `(` X, `)` cross, `^` triangle (also the padlock's cursor), `]` diamond.
-At most 64 characters (63 used).
+`_` the HUD's top border (it was `=` until Phase 6), `=` an equals sign, `|` the knob (Phase 9b: the Knobs on
+the title, the lift and the death and results screens; the lift's mark for a picked offer), and the Library's
+shapes: `%` circle, `[` square, `&` heart, `$` star, `(` X, `)` cross, `^` triangle (also the padlock's cursor),
+`]` diamond. At most 64 characters (all 64 used since Phase 9b).
+
+**`alt_chars`** (Phase 9a): the last characters of `chars` can have a second look, drawn in a row of its own
+after the font (row 9 of the PNG), which the game shows instead outside the Library. The Library's eight
+shapes are the items' icons (owner's picks from `build/mockups/phase9a-hud-items.png`): `%` lighter, `[`
+flashlight, `&` vitamins, `$` lockpick, `(` skeleton key, `)` crucifix, `^` gold coin, `]` bandage (`hud.h`
+`ICON_*`). They use the font's three colours.
 
 ## Title picture (`assets/title/`)
 
@@ -307,6 +329,12 @@ At most 64 characters (63 used).
 colours per 8×8 tile, up to 7 palettes; at most 184 different tiles. It was made (2026-10-17) by reducing the
 official logo the owner pointed to (`upload.wikimedia.org/wikipedia/commons/2/2f/DOORS_Logo.webp`) to 4
 colours with a 1 px outline. The logo is LSPLASH's; this is a fan project.
+
+`lift.gbc.png`, `lift.dmg.png` (Phase 9b, owner's pick from `build/mockups/phase9b-shops.png`; drawn by a script):
+the lift before a run, 160×144 in two halves of 160×72: the car with its doors shut (wood panelling, a brass
+handrail, brass-framed steel doors, a floor indicator with an amber arrow), and the same with them open onto the
+reception's wallpaper and floor. The game shows one half at a time over the top of the screen (the shop's panel
+is under it). 52 GBC tiles in 6 palettes.
 
 ## Jumpscares (`assets/scares/`)
 
@@ -333,12 +361,14 @@ rebuild. The build converts each with `uge2source` into `music_<name>`. Songs mu
 | `seek.uge` | Seek's chases, from his rise to the door slamming | The owner's `midi/Here I Come (Seek Chase).mid` (Phase 7) |
 | `electrical.uge` | Room 100, from 2 s after the lever to the lift | The owner's `midi/Unhinged II (Electrical Theme).mid`: CH1 the piano's top line (both guitars double it), CH2 the muted guitar's ostinato, CH3 the strings' bass. CH4 is left free for Figure's footsteps. 100 bpm = 9 ticks a row |
 | `ending.uge` | The results after the lift, once | The owner's second `midi/Ending Theme.mid` (2026-10-18; the first is `Ending Theme_old.mid`): CH1 the Scifi lead (the jazz guitar doubles it), CH2 the piano's chords as one soft note each, CH3 the piano's bass. No arpeggios (owner: the first arrangement's background parts didn't sound good). Volumes balanced by measuring each channel alone (lead 7, piano 8, bass wave 25%). Every note cut where it ends, and **the last order is silent and jumps to itself** (`Bxx` at row 1: hUGEDriver jumps to order xx − 1), so it plays once with no tail. 75 bpm = 12 ticks a row |
+| `elevator.uge` | The lift before a run, **once** (owner: when it ends the lift leaves) | The owner's `midi/Elevator Jam.mid` (Phase 9b): CH1 the synth pluck's melody, and the vibraphone chords' top note where it rests; CH2 the vibraphone; CH3 the jazz guitar's bass (wave, 50%). 140 bpm: rows of 6 and 7 ticks (6 7 6 7 6 7 6, F06/F07 on CH4). The notes end after 1,954 frames (`lift.c` `SONG_FRAMES`: change both together); then a silent order that jumps to itself |
+| `jeff.uge` | Jeff's Shop (room 55), looping | The owner's `midi/Jeff's Shop Jingle.mid` (Phase 9b): CH1 the triangle melody (from bar 17; the pad chords' top note softly before it), CH2 the synth pluck's arpeggio, CH3 the pad's root (the sawtooth bass doubles it), CH4 the 808 kick, snare and hats. 88 bpm: rows of 10 ticks, every 6th 11. A pattern break ends the last pattern where the MIDI does, so the loop is seamless |
 | `guiding_light.uge` | The death screen | `midi/Guiding Light (Death Theme).mid`: CH1 the vibraphone melody, CH2 the piano's right-hand arpeggio, CH3 the piano bass. The piano's chord stabs are left out. 75 bpm = 12 ticks a row |
 
 In both a row is a 16th note and a pattern is 4 bars. The rooms have no music: the hotel ambience
 (`hotel.uge`) was removed at the owner's request (2026-10-18). Sound effects borrow CH1, CH2 and CH4 (CH4 for
-the whole of a Rush or Ambush pass), so any song that plays during a run must leave them light. The other MIDI files (Elevator
-Jam, Jeff's Shop Jingle) are for Phase 9 and get arranged then.
+the whole of a Rush or Ambush pass), so any song that plays during a run must leave them light. Every MIDI
+file the owner supplied is arranged as of Phase 9b.
 
 Sound effects aren't files: they're register scripts in `src/sfx_data.c` (`s_door`, `s_flicker`, …), one table
 of steps each. The rain in the Courtyard and the Greenhouse (Phase 8a, owner) isn't a file either: `audio.c` plays soft

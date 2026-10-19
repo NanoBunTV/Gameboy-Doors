@@ -69,6 +69,12 @@ if ($Test) {
         if ($LASTEXITCODE) { $failed = $true }
         & .\tools\venv\Scripts\python.exe scripts\electrical-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
         if ($LASTEXITCODE) { $failed = $true }
+        # Phase 9a: loot, the item row, the lights, vitamins, lock tools, the crucifix, the pause
+        & .\tools\venv\Scripts\python.exe scripts\items-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
+        # Phase 9b: the save and Knobs, the lift shop, Jeff's Shop, erasing the save
+        & .\tools\venv\Scripts\python.exe scripts\shop-test.py $r 2>&1 | Select-String -NotMatch 'UserWarning|warnings.warn'
+        if ($LASTEXITCODE) { $failed = $true }
     }
     if ($failed) { Write-Host 'TESTS FAILED'; exit 1 }
     Write-Host 'All tests passed'

@@ -183,12 +183,31 @@ static const step_t s_crash[] = {
     { 90, 0, 0, ENV(15, 6), 0x81, 0x80 },
     END };
 
+// Phase 9a: the crucifix's chime (a bright rising pair over a long ring), a light's click, coins, a gulp
+static const step_t s_crucifix[] = {
+    { 6, 0, DUTY(2), ENV(15, 1), LO(1046), HI(1046) },
+    { 6, 0, DUTY(2), ENV(15, 1), LO(1568), HI(1568) },
+    { 40, 0, DUTY(2), ENV(13, 5), LO(2093), HI(2093) },
+    END };
+static const step_t s_light[] = {
+    { 3, 0, 0, ENV(8, 1), 0x11, 0x80 },
+    END };
+static const step_t s_gold[] = {
+    { 3, 0, DUTY(1), ENV(9, 1), LO(2637), HI(2637) },
+    { 8, 0, DUTY(1), ENV(9, 2), LO(3136), HI(3136) },
+    END };
+static const step_t s_gulp[] = {
+    { 6, 0, 0, ENV(9, 1), 0x66, 0x80 },
+    REST(4),
+    { 6, 0, 0, ENV(8, 1), 0x67, 0x80 },
+    END };
+
 const step_t *const sfx_steps[SFX_COUNT] = {
     0, s_door, s_drawer, s_key, s_locked, s_unlock, s_hide, s_heartbeat, s_get_out, s_hurt,
     s_flicker, s_ambush, s_scream, s_type, s_select, s_dark, s_psst, s_screech_gone, s_eyes, s_eyes_hit,
     s_halt, s_timothy, s_figure_step, s_figure_hear, s_wheel, s_book, s_seek_step, s_seek_rise, s_slam,
     s_fire, s_snare, s_lever, s_slide, s_fuse, s_fuse_in, s_switch, s_breaker_on, s_breaker_off, s_power,
-    s_crash,
+    s_crash, s_crucifix, s_light, s_gold, s_gulp,
 };
 const uint8_t sfx_chan[SFX_COUNT] = { 0, 3, 3, 1, 3, 3, 3, 0, 0, 0, 1, 0, 3, 1, 1, 3, 3, 0, 0, 1, 0, 3, 3, 0, 1, 3,
-                                      3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 1, 1, 0, 3 };
+                                      3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 1, 1, 0, 3, 0, 3, 0, 3 };

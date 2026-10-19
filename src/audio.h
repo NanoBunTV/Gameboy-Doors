@@ -16,6 +16,8 @@
 #define MUSIC_SEEK    5   // the owner's Here I Come (Seek Chase), from his rise to the door slamming
 #define MUSIC_ELECTRICAL 6 // the owner's Unhinged II (Electrical Theme), Room 100 from the lever to the lift
 #define MUSIC_ENDING  7   // the owner's Ending Theme, on the results after the lift
+#define MUSIC_ELEVATOR 8  // the owner's Elevator Jam, once, in the lift before a run (its end opens the doors)
+#define MUSIC_JEFF    9   // the owner's Jeff's Shop Jingle, in room 55
 
 #define SFX_DOOR       1
 #define SFX_DRAWER     2
@@ -57,7 +59,11 @@
 #define SFX_BREAKER_OFF 37 // ... or off (the pattern can be learned by ear: Minecraft docs 10)
 #define SFX_POWER      38  // the power's back
 #define SFX_CRASH      39  // the lift hits the bottom
-#define SFX_COUNT      40
+#define SFX_CRUCIFIX   40  // the crucifix takes a blow (Phase 9a)
+#define SFX_LIGHT      41  // a lighter or flashlight on or off
+#define SFX_GOLD       42  // gold, or a battery, taken
+#define SFX_GULP       43  // vitamins, or a bandage
+#define SFX_COUNT      44
 
 #define RUMBLE_RUSH   0
 #define RUMBLE_AMBUSH 1

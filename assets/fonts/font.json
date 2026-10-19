@@ -1,3 +1,4 @@
 {
-  "chars": " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=%[&$()^]"
+  "chars": " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]",
+  "alt_chars": "%[&$()^]"
 }

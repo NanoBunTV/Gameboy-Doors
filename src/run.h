@@ -65,6 +65,16 @@
 #define RUN_COURTYARD_ROOM 89
 #define RUN_GREENHOUSE_LAST 99
 
+// Jeff's Shop (Minecraft docs 12, owner: at 55 as there): lit and safe (nothing is planned there and anything on
+// its way is sent off, as the Courtyard), four of the six items on the counter for gold. Room 54 has one door, on
+// top. Only when the converter found it (ROOM_HAS_SHOP); else an ordinary room. Its stock's taken bits are
+// run_drawers[55] (it has no drawers).
+#define RUN_SHOP_ROOM 55
+#define SHOP_STOCK 4
+// Which item (LOOT_*) lies on stock place k (0-3): four of the six, drawn per run (Minecraft: a crucifix that
+// might not be there is worth the walk)
+uint8_t run_shop_item(uint8_t k) BANKED;
+
 #define MAX_HP 100
 
 // run_flags[n]
@@ -118,6 +128,40 @@ uint8_t run_fake_number(uint8_t n, uint8_t k) BANKED;
 // Is Timothy in room n's drawer d? (Once a run, 1 in TIMOTHY_ODDS, never the key's drawer.) From the seed,
 // so a replay meets him in the same drawer.
 uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED;
+
+// Loot (Phase 9a, owner 2026-10-18): a drawer rolls gold, an item, a battery and a bandage, each on its own; a
+// loose spot (a key spot the key isn't on) one of a battery, a bandage or gold, never an item. From (seed, room,
+// slot), so a run's loot is fixed; `flash`: the player has a flashlight (no battery is rolled before).
+#define LOOT_DRAWER_GOLD     35   // the Minecraft table, the item chance doubled for one player (owner)
+#define LOOT_DRAWER_ITEM     6
+#define LOOT_DRAWER_BATTERY  4
+#define LOOT_DRAWER_BANDAGE  4
+#define LOOT_LOOSE_GOLD      20
+#define LOOT_LOOSE_BATTERY   3
+#define LOOT_LOOSE_BANDAGE   3
+#define LOOT_GOLD_MIN        10   // owner: DOORS-sized, 10-50 a find
+#define LOOT_GOLD_SPAN       41
+#define LOOT_LOCKPICK   1         // loot_t.item (weights in run.c: 35, 28, 18, 12, 4, 3)
+#define LOOT_VITAMINS   2
+#define LOOT_LIGHTER    3
+#define LOOT_FLASHLIGHT 4
+#define LOOT_CRUCIFIX   5
+#define LOOT_SKELETON   6
+typedef struct {
+    uint8_t gold;      // 0 or 10-50
+    uint8_t item;      // 0 or LOOT_*
+    uint8_t battery, bandage;
+} loot_t;
+void run_loot(uint8_t n, uint8_t slot, uint8_t loose, uint8_t flash, loot_t *l) BANKED;
+
+// Loose spot k's loot taken: a bit of run_drawers from the top (drawers use it from the bottom; the converter
+// checks a room has at most 8 of both)
+#define RUN_LOOSE_BIT(k) (0x80u >> (k))
+
+// What an opened drawer still holds because it didn't fit (LOOT_LEFT_* bits, items.h): a few remembered, the
+// oldest forgotten (a full bag is rare)
+uint8_t run_left(uint8_t n, uint8_t drawer) BANKED;
+void run_set_left(uint8_t n, uint8_t drawer, uint8_t left) BANKED;
 
 // The kind of room the plan puts at n (ROOM_KIND_*: the start room, the Library, a chase room, the Courtyard,
 // the Greenhouse, else normal)

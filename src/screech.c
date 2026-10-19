@@ -59,6 +59,11 @@ void screech_room_entered(void) BANKED {
     screech_state = SCREECH_IDLE;
 }
 
+void screech_ward(void) BANKED {
+    screech_state = SCREECH_IDLE;
+    cooldown = 3600;
+}
+
 static void done(void) {
     screech_state = SCREECH_IDLE;
     cooldown = COOLDOWN;
