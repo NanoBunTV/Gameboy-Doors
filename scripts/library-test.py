@@ -26,6 +26,18 @@ FIG_OFF, FIG_FILL, FIG_WALK, FIG_PAUSE = 0, 1, 2, 3
 
 rom = Path(sys.argv[1])
 tag = "gbc" if rom.suffix == ".gbc" else "dmg"
+SHAPE_TILE = 152 if tag == "gbc" else 151   # library.c SHAPE_TILE: the hotel tileset's tile count (build/gen)
+GOLD_ICON_TILE = 248 + 6                    # build/gen/font.h FONT_ALT_TILE, and '^' is the 7th alt char
+CHARS = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]"
+
+
+def char_of(t):
+    """A window tile as a character: the font's, or a shape in its spare tileset tiles (as SHAPES' character)"""
+    if 192 <= t < 192 + len(CHARS):
+        return CHARS[t - 192]
+    if SHAPE_TILE <= t < SHAPE_TILE + 8:
+        return SHAPES[t - SHAPE_TILE]
+    return "?"
 failures = []
 
 
@@ -54,14 +66,11 @@ def shot(g, name):
 
 def hud_text(g):
     """The HUD's text row (window row 1), as characters"""
-    tiles = [g.mem[0x9C20 + i] for i in range(20)]
-    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]"
-    return "".join(chars[t - 192] if 192 <= t < 192 + len(chars) else "?" for t in tiles).strip()
+    return "".join(char_of(g.mem[0x9C20 + i]) for i in range(20)).strip()
 
 
 def win_row(g, y):
-    chars = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,!?-:'/_~@*+{}#>=|%[&$()^]"
-    return "".join(chars[g.mem[0x9C00 + y * 32 + i] - 192] for i in range(20)).rstrip()
+    return "".join(char_of(g.mem[0x9C00 + y * 32 + i]) for i in range(20)).rstrip()
 
 
 def face_and_a(b, face):
@@ -78,6 +87,15 @@ print(f"{rom}: puzzle")
 g, b = boot()
 check(g.room() == LIBRARY and g.state() == GAME_PLAYING, f"in room {LIBRARY}")
 check(g.u8("_figure_state") != FIG_OFF, "Figure is there")
+
+
+def tile_bytes(t):
+    return bytes(g.mem[0x8000 + t * 16 + i] for i in range(16))   # tiles 128-255 at 0x8800-0x8FFF
+
+
+# Owner, 2026-10-20: the coin was the triangle in here (the shapes and the icons shared the font's tiles)
+check(g.mem[0x9C00 + 64 + 16] == GOLD_ICON_TILE and tile_bytes(GOLD_ICON_TILE) != tile_bytes(SHAPE_TILE + 6)
+      and any(tile_bytes(SHAPE_TILE + 6)), "the gold keeps its coin, and the triangle has its own tile")
 shot(g, "enter")
 g.mem[g.syms["_figure_state"]] = FIG_OFF
 books = [(g.u8("_lib_book_x", i), g.u8("_lib_book_y", i)) for i in range(8)]

@@ -56,7 +56,8 @@ FIXTURES = {"lever": ((1, 2), ("lever_top", "lever_bottom")),
             "lift": ((2, 2), ("lift_tl", "lift_tr", "lift_bl", "lift_br"))}
 ELECTRICAL_ONE_EACH = ("lever", "breaker", "breaker_door", "figure_door", "lift", "figure", "safe")
 FUSES = 10             # src/electrical.h FUSES
-LIGHTS_MAX = 6         # pools of light in Room 100 (electrical.c LIGHTS_MAX) ...
+LOOSE_MAX = 4          # key spots (not fixed) per room: loot lies on them (game.c LOOSE_MAX)
+LIGHTS_MAX = 9         # pools of light in Room 100 (electrical.c LIGHTS_MAX) ...
 LIGHT_CELLS_MAX = 16   # ... and the cells in each (each blink queues 4 tile writes a cell)
 WALLS = {"top": 1, "bottom": 2, "left": 3, "right": 4}
 ROOM_KINDS = {"normal": 0, "start": 1, "test": 2, "halt": 3, "library": 4,
@@ -75,7 +76,7 @@ SHARED_METATILES = ("void", "floor", "door_top", "door_bottom", "door_open_top",
 SNARES_PER_ROOM = 3
 # The Library (src/library.c, figure.c): Figure's route search uses the room map's unused tail, one byte a
 # cell plus a 512-byte queue (figure.c QUEUE_BYTES), so a library may use at most this much of ROOM_MAX
-ROOM_MAX = 2560        # src/room.h
+ROOM_MAX = 3584        # src/room.h
 LIBRARY_MAX_CELLS = (ROOM_MAX - 512) // 2
 # Room 100: the same, less 256 bytes for electrical.c's own scratch after the route search's queue
 ELECTRICAL_MAX_CELLS = (ROOM_MAX - 512 - 256) // 2
@@ -516,6 +517,7 @@ def parse_room(tmx: Path):
         # A book can be on any bookcase metatile with floor below it (where the player stands to read it)
         books = sum(1 for i, m in enumerate(cells) if ts_props[m].get("bookcase") and i + w < len(cells)
                     and not ts_props[cells[i + w]].get("solid"))
+        check_figure_fill(tmx, w, h, cells, ts_props)
         if not LIBRARY_BOOKS <= books <= 255:
             raise AssetError(f"{tmx.name}: {books} bookcase metatiles with floor below; the books need "
                              f"{LIBRARY_BOOKS} to 255")
@@ -548,8 +550,9 @@ def parse_room(tmx: Path):
         raise AssetError(f"{tmx.name}: allow_lock is on but there is nowhere to put the key "
                          "(add a 'drawer' or 'keyspot' object): a locked door with no key ends the run")
     loose = sum(1 for o in objects if o[0] == OBJ_TYPES["keyspot"] and not o[5])
-    if kind != "electrical" and loose > 2:
-        raise AssetError(f"{tmx.name}: at most 2 keyspots (not fixed) per room (game.c LOOSE_MAX: loot lies on them)")
+    if kind != "electrical" and loose > LOOSE_MAX:
+        raise AssetError(f"{tmx.name}: at most {LOOSE_MAX} keyspots (not fixed) per room (game.c LOOSE_MAX: loot lies "
+                         "on them)")
     if count("drawer") + (loose if kind != "electrical" else 0) > 8:
         raise AssetError(f"{tmx.name}: at most 8 drawers and keyspots together per room (their state is one byte: "
                          "drawers from the bottom bit, loot on keyspots from the top)")
@@ -577,6 +580,39 @@ def parse_room(tmx: Path):
                 exit_walls=exit_walls,
                 drawers=count("drawer"), keyspots=sum(1 for o in objects if o[0] == OBJ_TYPES["keyspot"] and not o[5]),
                 hiding=count("closet") + count("bed"), routes=routes, books=books, snare_cells=len(snare_cells))
+
+
+def check_figure_fill(tmx, w, h, cells, ts_props, nogo=None):
+    """figure.c's route search keeps each cell's distance in a byte (253 steps at most: 254 and 255 are marks) and
+    its frontier in a ring of 255 cells. A flood fill from every floor cell, as the game's, must stay within both.
+    Gates and the sliding door count as floor (they open); `nogo` (x, y, w, h) is never entered."""
+    from collections import deque
+
+    def walkable(i):
+        p = ts_props[cells[i]]
+        x, y = i % w, i // w
+        if nogo and nogo[0] <= x < nogo[0] + nogo[2] and nogo[1] <= y < nogo[1] + nogo[3]:
+            return False
+        return not p.get("solid") or p.get("gate") or p.get("slide")
+    floor = [i for i in range(w * h) if walkable(i)]
+    longest = widest = 0
+    for start in floor:
+        dist = {start: 0}
+        q = deque([start])
+        while q:
+            widest = max(widest, len(q))
+            c = q.popleft()
+            for n in (c - 1, c + 1, c - w, c + w):
+                if 0 <= n < w * h and n not in dist and walkable(n):
+                    dist[n] = dist[c] + 1
+                    q.append(n)
+        longest = max(longest, max(dist.values()))
+    if longest > 253:
+        raise AssetError(f"{tmx.name}: Figure's longest route is {longest} steps; his route search counts at most 253 "
+                         "(figure.c): shorten the longest walk between two floor cells")
+    if widest > 255:
+        raise AssetError(f"{tmx.name}: Figure's route search would need {widest} cells in its ring at once, more than "
+                         "255 (figure.c QUEUE_BYTES): break up the widest open floor")
 
 
 def check_electrical(tmx, w, h, cells, ts_props, objects, count, entry_wall):
@@ -620,6 +656,7 @@ def check_electrical(tmx, w, h, cells, ts_props, objects, count, entry_wall):
     # Fuses go on 'shelf' metatiles with floor below them, where the player stands to take one
     shelves = sum(1 for i, m in enumerate(cells) if ts_props[m].get("shelf") and i + w < len(cells)
                   and not ts_props[cells[i + w]].get("solid") and not in_safe(i % w, i // w))
+    check_figure_fill(tmx, w, h, cells, ts_props, safe[1:5])
     if not FUSES <= shelves <= 255:
         raise AssetError(f"{tmx.name}: {shelves} 'shelf' metatiles with floor below (outside the breaker room); the "
                          f"fuses need {FUSES} to 255")
@@ -651,14 +688,28 @@ def convert_roomlist(out: Path, tmxs):
     if len(starts) != 1:
         raise AssetError(f"assets/rooms: exactly one room must have kind = start, found {len(starts)}")
     normal = [r for r in rooms if r["kind"] == "normal"]
-    # Every exit must lead somewhere: an exit on the top wall needs a room entered from the bottom, etc.
+    # Every exit must lead somewhere: an exit on the top wall needs a room entered from the bottom, a side exit one
+    # entered from the far side, or else (src/run.c's fallback, owner 2026-10-20) one entered from the bottom
     needed = {WALLS["top"]: WALLS["bottom"], WALLS["left"]: WALLS["right"], WALLS["right"]: WALLS["left"]}
     names = {v: k for k, v in WALLS.items()}
+
+    def leads_into(wall, pool):
+        return any(n["entry_wall"] in (needed[wall], WALLS["bottom"]) for n in pool)
+
+    def one_top_door_after(pool):
+        """The room before a fixed room has one door, on top: for every wall a room can be entered from, one such
+        room entered from it, or (the fallback) one entered from the bottom. Returns a wall that has neither."""
+        one_top = [n for n in pool if n["exit_walls"] == [WALLS["top"]]]
+        if any(n["entry_wall"] == WALLS["bottom"] for n in one_top):
+            return None
+        return next((w for w in sorted({n["entry_wall"] for n in pool})
+                     if not any(n["entry_wall"] == w for n in one_top)), None)
+
     for r in starts + normal:
         for wall in r["exit_walls"]:
-            if not any(n["entry_wall"] == needed[wall] for n in normal):
+            if not leads_into(wall, normal):
                 raise AssetError(f"{r['sym']}.tmx exits through the {names[wall]} wall, but no normal room "
-                                 f"is entered from the {names[needed[wall]]} wall")
+                                 f"is entered from the {names[needed[wall]]} wall or the bottom")
     if sum(1 for r in rooms if r["kind"] == "halt") > 1:
         raise AssetError("assets/rooms: at most one room can have kind = halt")
     libraries = [r for r in rooms if r["kind"] == "library"]
@@ -667,12 +718,11 @@ def convert_roomlist(out: Path, tmxs):
     for lib in libraries:
         # Room 49 (src/run.c) must lead into it: for every wall a room can be entered from, a normal room with
         # one exit, on the wall the Library is entered through's opposite
-        want = {WALLS["bottom"]: WALLS["top"]}[lib["entry_wall"]]
-        for wall in sorted({n["entry_wall"] for n in normal}):
-            if not any(n["entry_wall"] == wall and n["exit_walls"] == [want] for n in normal):
-                raise AssetError(f"assets/rooms: the room before the Library needs one door, on the top wall, but no "
-                                 f"normal room entered from the {names[wall]} wall has only that")
-        if not any(n["entry_wall"] == needed[lib["exit_walls"][0]] for n in normal):
+        wall = one_top_door_after(normal)
+        if wall:
+            raise AssetError(f"assets/rooms: the room before the Library needs one door, on the top wall, but no "
+                             f"normal room entered from the {names[wall]} wall or the bottom has only that")
+        if not leads_into(lib["exit_walls"][0], normal):
             raise AssetError(f"{lib['sym']}.tmx: no normal room is entered from the bottom wall to follow it")
     # Seek's chases: all three kinds or none (Minecraft docs 08: a chase with no end hallway is worse than none)
     pools = {k: [r for r in rooms if r["kind"] == k] for k in SEEK_KINDS}
@@ -683,9 +733,9 @@ def convert_roomlist(out: Path, tmxs):
         def follows(after, into, what):
             for r in after:
                 for wall in r["exit_walls"]:
-                    if not any(n["entry_wall"] == needed[wall] for n in into):
+                    if not leads_into(wall, into):
                         raise AssetError(f"{r['sym']}.tmx exits through the {names[wall]} wall, but no {what} is "
-                                         f"entered from the {names[needed[wall]]} wall")
+                                         f"entered from the {names[needed[wall]]} wall or the bottom")
         follows(pools["seek_start"], pools["seek_4way"], "seek_4way room")
         follows(pools["seek_4way"], pools["seek_4way"], "seek_4way room")
         follows(pools["seek_4way"], pools["seek_end"], "seek_end room")
@@ -699,18 +749,19 @@ def convert_roomlist(out: Path, tmxs):
         def leads(after, into, what):
             for r in after:
                 for wall in r["exit_walls"]:
-                    if not any(n["entry_wall"] == needed[wall] for n in into):
+                    if not leads_into(wall, into):
                         raise AssetError(f"{r['sym']}.tmx exits through the {names[wall]} wall, but no {what} is "
-                                         f"entered from the {names[needed[wall]]} wall")
+                                         f"entered from the {names[needed[wall]]} wall or the bottom")
         leads(garden["courtyard"], garden["greenhouse"], "greenhouse room")
         leads(garden["greenhouse"], garden["greenhouse"], "greenhouse room")
         leads(garden["greenhouse"], normal, "normal room (room 100)")
     if all(pools.values()) or all(garden.values()):
         # The room before a chase's start hallway and before the Courtyard: one door, on top (as the Library's)
-        for wall in sorted({n["entry_wall"] for n in normal}):
-            if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in normal):
-                raise AssetError(f"assets/rooms: the room before a chase or the Courtyard needs one door, on the "
-                                 f"top wall, but no normal room entered from the {names[wall]} wall has only that")
+        wall = one_top_door_after(normal)
+        if wall:
+            raise AssetError(f"assets/rooms: the room before a chase or the Courtyard needs one door, on the "
+                             f"top wall, but no normal room entered from the {names[wall]} wall or the bottom has "
+                             "only that")
     # Room 100 (Phase 8b): at most one; room 99 (a Greenhouse room, or a normal one without them) has one door,
     # on top, into it, so for every wall room 99 can be entered from there must be such a room
     electrical = [r for r in rooms if r["kind"] == "electrical"]
@@ -718,20 +769,20 @@ def convert_roomlist(out: Path, tmxs):
         raise AssetError("assets/rooms: at most one room can have kind = electrical")
     if electrical:
         before = garden["greenhouse"] if all(garden.values()) else normal
-        for wall in sorted({n["entry_wall"] for n in before}):
-            if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in before):
-                raise AssetError(f"assets/rooms: room 99 leads into Room 100 by one door on the top wall, but no "
-                                 f"{'greenhouse' if all(garden.values()) else 'normal'} room entered from the "
-                                 f"{names[wall]} wall has only that")
+        wall = one_top_door_after(before)
+        if wall:
+            raise AssetError(f"assets/rooms: room 99 leads into Room 100 by one door on the top wall, but no "
+                             f"{'greenhouse' if all(garden.values()) else 'normal'} room entered from the "
+                             f"{names[wall]} wall or the bottom has only that")
     # Jeff's Shop (Phase 9b): at most one; room 54 leads into it by one door on top (as the Library's)
     shops = [r for r in rooms if r["kind"] == "shop"]
     if len(shops) > 1:
         raise AssetError("assets/rooms: at most one room can have kind = shop")
     for shop in shops:
-        for wall in sorted({n["entry_wall"] for n in normal}):
-            if not any(n["entry_wall"] == wall and n["exit_walls"] == [WALLS["top"]] for n in normal):
-                raise AssetError(f"assets/rooms: room 54 leads into Jeff's Shop by one door on the top wall, but no "
-                                 f"normal room entered from the {names[wall]} wall has only that")
+        wall = one_top_door_after(normal)
+        if wall:
+            raise AssetError(f"assets/rooms: room 54 leads into Jeff's Shop by one door on the top wall, but no "
+                             f"normal room entered from the {names[wall]} wall or the bottom has only that")
         if not any(n["entry_wall"] == WALLS["bottom"] for n in normal):
             raise AssetError(f"{shop['sym']}.tmx: no normal room is entered from the bottom wall to follow it")
     h = ["// Generated by scripts/assets.py from assets/rooms/*.tmx. Do not edit.",

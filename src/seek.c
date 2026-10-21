@@ -17,7 +17,9 @@
 #include "sprite_guide.h"
 
 // The Minecraft numbers, scaled to the screen (one block = 16 px):
-#define SPEED        0x0150   // 0.75 of the player's chase speed (player.c CHASE_SPEED 0x01C0): 1.31 px/frame
+#define SPEED        0x0166   // 0.80 of the player's chase speed (player.c CHASE_SPEED 0x01C0): 1.40 px/frame
+                              // (owner, 2026-10-20: 0.75, 1.31, was too easy to survive; 0.85 made the owner's
+                              // fire zigzag in seek_end nearly a dead heat)
 #define REACH        24       // he catches within this (the Minecraft 2-block radius, less: the camera shows
                               // only 72 px behind you)
 #define STOP_SHORT   32       // he stops two blocks short of the end hallway's door
@@ -313,8 +315,15 @@ void seek_draw(void) BANKED {
             return;
         }
     }
-    if (glow && seek_chasing())
-        spr_draw(&guide, (anim & 8) ? SPR_GUIDE_SMALL : SPR_GUIDE_GLOW, glow_x - 8 - cam_x, glow_y - 8 - cam_y, 0);
+    if (glow && seek_chasing()) {
+        // Off screen it waits at the screen's edge nearest the door, so a big room still shows the way (owner,
+        // 2026-10-20); kept above the HUD's rows, as Figure's edge arrow is
+        int16_t gx = glow_x - 8 - cam_x, gy = glow_y - 8 - cam_y;
+        int16_t bottom = (spr_clip_y < 144 ? (int16_t)spr_clip_y : 128) - 16;
+        gx = gx < 0 ? 0 : gx > 160 - 16 ? 160 - 16 : gx;
+        gy = gy < 0 ? 0 : gy > bottom ? bottom : gy;
+        spr_draw(&guide, (anim & 8) ? SPR_GUIDE_SMALL : SPR_GUIDE_GLOW, gx, gy, 0);
+    }
     if (!seek_chasing() || seek_room != run_room)
         return;
     uint8_t f = face & 0x7F;

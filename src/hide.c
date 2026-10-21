@@ -9,11 +9,11 @@
 #include "death.h"
 
 // Minecraft config `hide`
-#define HIDE_LIMIT      720    // limit-seconds 12
-#define HEARTBEAT_FROM  420    // heartbeat-from-seconds 7
+#define HIDE_LIMIT      480    // 8 s (owner, 2026-10-20; the Minecraft limit-seconds 12 until then)
+#define HEARTBEAT_FROM  180    // 3 s (owner, 2026-10-20; heartbeat-from-seconds 7 until then)
 #define HIDE_DAMAGE     40     // damage-fraction 0.4 of 100 HP
-#define BEAT_SLOW       60     // frames between beats at 7 s ...
-#define BEAT_FAST       15     // ... and at 12 s
+#define BEAT_SLOW       60     // frames between beats at 3 s ...
+#define BEAT_FAST       15     // ... and at 8 s
 #define PULSE_FRAMES    6      // the screen darkens a step on each beat (the warning without sound)
 
 uint8_t hide_hidden;

@@ -122,6 +122,10 @@ try:
         check(g.flags() & 8, f"room {g.room()}: the real door opened by itself")
         b.go_through(exit_)
         rooms.append(g.room())
+        if g.u8("_seek_room") + 1 >= g.room():   # held a room behind: back to the start of the room just left
+            g.mem[g.syms["_seek_room"]] = g.room() - 1
+            g.mem[g.syms["_seek_d"]] = 0
+            g.mem[g.syms["_seek_d"] + 1] = 0
 except RuntimeError as e:
     check(False, f"the chase: {e}")
 check(rooms == list(range(START, END + 2)), f"through rooms {rooms}")

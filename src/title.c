@@ -66,7 +66,6 @@ uint16_t title_run(void) BANKED {
     image_show(BANK(image_logo), &image_logo, 1, 3);
     text_print_bg(2, 10, "HOTEL - FLOOR 1");
     text_print_bg(4, 13, "PRESS START");
-    text_print_bg(17, 17, platform_name);
     show_knobs();
     bg_set_scroll(0, 0);
     music_play(MUSIC_TITLE);

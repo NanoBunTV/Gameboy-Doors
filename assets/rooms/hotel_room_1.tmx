@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="19" height="14" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="21">
+ <properties>
+  <property name="allow_lock" type="bool" value="true"/>
+  <property name="kind" value="normal"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/hotel.tsx"/>
+ <layer id="1" name="tiles" width="19" height="14">
+  <data encoding="csv">
+7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+7,8,8,8,10,8,8,8,8,8,8,8,7,8,8,8,8,8,7,
+7,9,43,9,11,9,43,9,9,9,9,9,7,32,9,9,9,33,7,
+7,3,44,3,3,3,44,3,15,15,15,3,8,35,15,14,15,36,7,
+7,2,2,2,2,2,2,2,2,2,2,2,9,2,2,2,2,2,7,
+7,2,4,5,5,5,5,5,5,5,6,2,3,2,2,2,45,46,7,
+7,2,4,5,5,5,5,5,5,5,6,2,2,2,2,2,47,48,7,
+7,2,4,5,5,5,5,5,5,5,6,2,7,2,2,2,2,2,7,
+7,2,2,2,2,2,2,2,2,2,2,2,7,2,2,2,2,12,7,
+7,42,2,2,2,2,2,2,2,7,7,7,7,2,2,2,2,13,7,
+7,2,2,2,2,2,2,2,2,7,0,0,7,2,2,2,2,2,7,
+7,42,2,2,30,30,2,2,12,7,0,0,7,43,2,2,2,2,7,
+7,2,2,2,31,31,2,2,13,7,0,0,7,44,2,2,2,15,7,
+7,7,7,7,7,7,7,7,7,7,0,0,7,7,7,25,7,7,7
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="1" name="entry" x="240" y="208" width="16" height="16">
+   <properties>
+    <property name="wall" value="bottom"/>
+   </properties>
+  </object>
+  <object id="2" name="exit" x="64" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="8" name="closet" x="128" y="176" width="16" height="32"/>
+  <object id="11" name="drawer" x="240" y="48" width="16" height="16"/>
+  <object id="15" name="keyspot" x="144" y="48">
+   <point/>
+  </object>
+  <object id="17" name="bed" x="80" y="176" width="16" height="32"/>
+  <object id="18" name="bed" x="64" y="176" width="16" height="32"/>
+  <object id="19" name="closet" x="272" y="128" width="16" height="32"/>
+  <object id="20" name="keyspot" x="272" y="192">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

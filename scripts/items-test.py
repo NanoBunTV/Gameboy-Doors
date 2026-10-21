@@ -4,8 +4,8 @@
     tools/venv/Scripts/python.exe scripts/items-test.py build/dmg-debug/doors.gb
 
 Needs a DEBUG build (game_warp and the inventory, which the script pokes). Each part from a fresh boot:
-  hud      three rows: the item row has the gold's coin; the icons are in the shape glyphs' tiles outside the
-           Library and the shapes are back in it
+  hud      three rows: the item row has the gold's coin; the icons stay in their tiles in the
+           Library too, and its shapes are in tiles of their own (library.c SHAPE_TILE)
   loot     a seed (poked after the plan, so only the loot changes) whose rooms 1-8 hold gold, an item and a
            bandage; every drawer's take matches scripts/plan.py's copy of run_loot; an item that doesn't fit
            stays and is taken later; a bandage heals 25; loot on a key spot is drawn and taken
@@ -147,10 +147,13 @@ check(g.mem[0x9C00 + 64 + 16] == FONT_ALT_TILE + 6 and win_row(g, 2).endswith("^
 shot(g, "hud")
 icons = bytes(g.mem[0x8F80 + i] for i in range(128))   # tiles 248-255 (bg.c bg_tile_addr)
 warp(g, LIBRARY)
-shapes = bytes(g.mem[0x8F80 + i] for i in range(128))
+inside = bytes(g.mem[0x8F80 + i] for i in range(128))
+shape_tile = 152 if rom.suffix == ".gbc" else 151      # library.c SHAPE_TILE: the hotel tileset's tile count
+shapes = bytes(g.mem[0x8000 + shape_tile * 16 + i] for i in range(128))
 warp(g, LIBRARY + 1)
 again = bytes(g.mem[0x8F80 + i] for i in range(128))
-check(icons != shapes and again == icons, "the shape glyphs are the icons outside the Library and shapes in it")
+check(icons == inside == again and shapes != icons and any(shapes),
+      "the icons stay in their tiles everywhere; the Library's shapes are in tiles of their own")
 g.pyboy.stop(save=False)
 
 # ------------------------------------------------------------------------------------------ loot

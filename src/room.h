@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include "assets.h"
 
-#define ROOM_MAX 2560           // metatiles (2.5 KB of WRAM; 3,072 until Phase 6, 2,816 until Phase 8b: the GBC's stack
-                                // needed the room); scripts/assets.py checks
+#define ROOM_MAX 3584           // metatiles (3.5 KB of WRAM; 3,072 until Phase 6, 2,816 until Phase 8b, 2,560 until
+                                // 2026-10-20: the owner's 36x39 Room 100, paid by the memory pass); scripts/assets.py checks
 #define ROOM_OBJ_MAX 24
 #define ROOM_SIDE_MAX 127        // metatiles per side (scripts/assets.py checks)
 #define METATILE_MAX 128

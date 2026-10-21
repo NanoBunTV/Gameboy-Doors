@@ -110,7 +110,7 @@ door slots carry the copper door's art (Room 100 has no ordinary doors but its e
 |---|---|
 | floor, floor_shadow, floor_lit | A dark speckled concrete floor; `floor_lit` is a light pool's floor while it's on (sand-coloured) |
 | wall_top, wallpaper, wainscot, wallpaper_shadow | Concrete-block walls with a pipe along the wainscot |
-| closet_top, closet_bottom | The hotel's closets, redrawn in the room's wood palette |
+| closet_top, closet_bottom | The hotel's closets, the same art and colours as the hotel and the Greenhouse (owner, 2026-10-20; until then redrawn in a lighter wood, a palette only they used: the hotel's wood replaces it) |
 | shelf_top, shelf_bottom, shelf_fuse | Grey steel shelving with cardboard boxes (yellow tape), 1×2 like the bookcases; `shelf_fuse` is the bottom with a big bright yellow fuse on it (owner: brighter and bigger than the mock-up). `shelf_bottom` has `shelf` |
 | gate | Bars over a dark ground (`gate`, solid) |
 | lever_top, lever_bottom, lever_pulled | The lever's plate on a wall (handle up / down) |
@@ -135,7 +135,8 @@ edit the PNGs to change them): the hotel's metatiles at the hotel's numbers, tho
 A room is a Tiled map (`.tmx`) using one tileset:
 
 - One tile layer, saved as **CSV** (Map → Map Properties → Tile Layer Format). Don't flip or rotate tiles.
-- Size: up to 127 metatiles per side and 2,560 in total (WRAM limit, `ROOM_MAX` in `src/room.h`; 3,072 until
+- Size: up to 127 metatiles per side and 3,584 in total (WRAM limit, `ROOM_MAX` in `src/room.h`; 2,560 until
+  2026-10-20, 3,072 until
   Phase 6 and 2,816 until Phase 8b needed the WRAM).
 - **Map properties** (Map → Map Properties → Custom Properties):
 
@@ -151,7 +152,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `entry` | rectangle on the door, property `wall` = bottom, left or right | The door you come in by. Exactly one in a normal room |
   | `exit` | rectangle on the door, property `wall` = top, left or right | The door to the next room. One, or 2–3 for a **Dupe room**: the run picks the real one, the others are wrong doors (Dupe's, or numberless fakes) |
   | `drawer` | 1×1 rectangle on a `dresser` metatile | Can be searched with A; may hold the key. At most 8 per room |
-  | `keyspot` | point (or 1×1 rectangle) | A place a key can lie in the open, and since Phase 9a loot (gold, a battery or a bandage) when the key isn't there. Property `fixed` = true marks the start room's key (always there). At most 2 non-fixed per room (Room 100 aside), and at most 8 with the drawers |
+  | `keyspot` | point (or 1×1 rectangle) | A place a key can lie in the open, and since Phase 9a loot (gold, a battery or a bandage) when the key isn't there. Property `fixed` = true marks the start room's key (always there). At most 4 non-fixed per room (2 until 2026-10-20; Room 100 aside), and at most 8 with the drawers |
   | `spawn` | point | Start and test rooms: where the player starts (top left of the 16×16 sprite) |
   | `closet` | 1×2 rectangle on `closet_top` + `closet_bottom` | A hiding spot (A to get in, A or B to get out) |
   | `bed` | 1×2 rectangle on `bed_top` + `bed_bottom` | A hiding spot, under the bed |
@@ -166,7 +167,7 @@ A room is a Tiled map (`.tmx`) using one tileset:
   | `figure_door` | 1×2 on `copper_top` + `copper_bottom` | Room 100: the door Figure comes out of after the power, in the breaker room's wall |
   | `lift` | 2×2 on `lift_tl`, `lift_tr`, `lift_bl`, `lift_br` | Room 100: the lift (its gate is in its art) |
   | `safe` | rectangle | Room 100: the breaker room, where Figure never goes: its floor and the breaker door's two cells, not the cell below the door |
-  | `light` | rectangle, at most 16 cells | Room 100: a pool of light (its `floor` cells blink); at most 6 |
+  | `light` | rectangle, at most 16 cells | Room 100: a pool of light (its `floor` cells blink); at most 9 (6 until 2026-10-20) |
   | `stock` | 1×1 on a `counter` metatile | Jeff's Shop: a place on the counter; the run lays an item on each of the four (in object order). A from the cell in front of the counter's front works |
   | `jeff` | point | Jeff's Shop: the top left of his eyes' 16×16 sprite (anywhere: he stands in the dark) |
 
@@ -186,6 +187,12 @@ A room is a Tiled map (`.tmx`) using one tileset:
 - **Which way rooms connect** (owner, 2026-10-17): exits go up or sideways, never down. A room entered from
   the bottom follows a room that left through the top; entered from the left follows one that left through
   the right, and so on. The converter checks that every exit wall has at least one room that can follow it.
+  **The fallback** (owner, 2026-10-20): when no room of the kind needed is entered from the opposite wall (or
+  none that also fits, such as the one-door-on-top room before the Library), the run takes one entered from the
+  **bottom** instead: a side door then leads into a bottom entry, slightly disorienting but always possible. So
+  one room entered from the bottom covers every wall, for any kind: a single `seek_end` (entered from the
+  bottom) follows four-ways leaving by any wall, and the converter accepts that. When a matching room exists
+  it's always preferred, so the fallback only changes runs where nothing else fits.
 
 **3/4 view convention**: the top edge of a wall is `wall_top`. A wall the player faces from below shows its
 face under it: `wallpaper`, then `wainscot`, then a row of `floor_shadow`. Side walls and the bottom wall are
@@ -208,7 +215,7 @@ Phase 6: `library` (kind `library`, 30×27): entry at the bottom middle, the pad
 middle, six rows of bookcases either side of a carpet (120 bookcase bottoms with an aisle below: where books
 can be), the desk with the paper, three closets, Figure on the carpet. The converter checks a library has
 one bottom entry, one top exit, a `paper` and a `figure`, 8–255 places for books, a solid edge (Figure's
-route search relies on it), and at most 1,152 metatiles (`(ROOM_MAX - 512) / 2`: the search uses the rest
+route search relies on it), and at most 1,536 metatiles (`(ROOM_MAX - 512) / 2`: the search uses the rest
 of the room map). It also checks that every wall a room can be entered by has a normal room with only a
 top door, for room 49.
 
@@ -220,7 +227,7 @@ no-repeat rule: a chase is the same rooms over and over). No drawers, key spots,
   rise comes well before the door. Default: `seek_start` (9×30, a carpet up the middle).
 - `seek_4way`: one entry, **2–3 exits**; the run makes one real (numbered, glowing, opens itself) and the
   others fake. For every wall a four-way's exit can be on, a four-way (and an end hallway) must exist
-  entered from the opposite wall; the converter checks. Defaults: `seek_4way_s` (entered from the bottom;
+  entered from the opposite wall, or from the bottom (the fallback); the converter checks. Defaults: `seek_4way_s` (entered from the bottom;
   exits left, top, right), `seek_4way_w` / `seek_4way_e` (entered from the left / right; two top exits and
   the far side), all 15×12.
 - `seek_end`: one entry, one exit (the door that slams), and the **fire**. Defaults: `seek_end_s` (9×28, two
@@ -236,7 +243,7 @@ They use the `garden` tileset:
   Default: `courtyard` (21×24): red-brick walls, a path up the middle, ten trees.
 - `greenhouse` (90–99): one entry, 1–3 exits (more than one: the run picks the real one and **always** puts
   Dupe behind the others, except in room 99), `snare` rectangles. For every wall a Courtyard or Greenhouse
-  exit is on, a Greenhouse room must be entered from the opposite wall, and for every Greenhouse exit a normal
+  exit is on, a Greenhouse room must be entered from the opposite wall (or the bottom: the fallback), and for every Greenhouse exit a normal
   room (room 100); the converter checks. Give them plenty of closets (Rush comes with no flicker here) and
   room to step round three Snares: a corridor one cell wide can be closed by them. Defaults:
   `greenhouse_hall_s` (9×22, bottom → top), `greenhouse_hall_w` / `_e` (22×10, side → far side), six closets
@@ -249,8 +256,8 @@ Phase 8b, **Room 100** (kind `electrical`, at most one; without it room 100 is a
 and `safe`; at least one non-fixed `keyspot` (the run picks one for the breaker key: put them in far corners);
 the breaker door's two cells inside `safe` and the cell below it outside; a floor cell inside `safe` in front
 of the box and of Figure's door; Figure's start and the key spots outside `safe`; 10–255 `shelf` cells with
-floor below, outside `safe`; at most 6 `light`s; a solid edge (Figure's search); at most 896 metatiles
-(`(ROOM_MAX − 768) / 2`: the search and `electrical.c`'s scratch use the rest of the room map); at most 24
+floor below, outside `safe`; at most 9 `light`s; a solid edge (Figure's search); at most 1,408 metatiles
+(`(ROOM_MAX − 768) / 2`; 896 until 2026-10-20: the search and `electrical.c`'s scratch use the rest of the room map); at most 24
 objects. For every wall room 99 can be entered from, a Greenhouse room with one door, on top, must exist
 (`greenhouse_turn_w` / `_e`, 12×11, were added for that). Default: `electrical` (28×32, made by a script):
 the lift at the top, the storage's shelving behind a line of gates, Figure's cage on the left

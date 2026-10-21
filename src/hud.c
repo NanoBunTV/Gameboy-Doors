@@ -16,13 +16,15 @@ char hud_want[21];
 char hud_shown2[21];
 char hud_want2[21];
 uint8_t hud_rebuild;
-static uint8_t icons_on;   // the shape glyphs show the item icons
 uint8_t hud_timer, hud_msg_timer, hud_msg_new;
 uint8_t hud_panel;
 
-// Read from the font's ROM table (a WRAM copy cost 96 bytes of the GBC's stack until Phase 8)
+// Read from the font's ROM table (a WRAM copy cost 96 bytes of the GBC's stack until Phase 8). A character from
+// 128 up is that background tile itself (the Library's shapes: hud_shapes).
 uint8_t hud_tile_for(char c) {
     uint8_t code = (uint8_t)c;
+    if (code >= 128)
+        return code;
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(font));
     uint8_t t = font.ascii[(code >= 32 && code < 128) ? code - 32 : 0];
@@ -34,11 +36,11 @@ void hud_init(void) {
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(font));
     set_bkg_data(FONT_FIRST_TILE, font.tile_count, font.tiles);
+    set_bkg_data(FONT_ALT_TILE, FONT_ALT_COUNT, font.tiles + FONT_ALT_OTHER);   // the item icons, everywhere
 #ifdef CGB
     platform_set_bkg_palettes(PAL_TEXT, font.palette, 1);
 #endif
     SWITCH_ROM(saved);
-    icons_on = 0;
 
     // Window map: row 0 a border line, row 1 the status line, row 2 the item row, rows 2 and down a panel
     // (hud_panel_set)
@@ -105,13 +107,10 @@ void text_print_win(uint8_t x, uint8_t y, const char *text) {
     print_at(WIN_MAP, x, y, text);
 }
 
-void hud_icons(uint8_t on) {
-    if (on == icons_on)
-        return;
-    icons_on = on;
+void hud_shapes(uint8_t tile) {
     uint8_t saved = CURRENT_BANK;
     SWITCH_ROM(BANK(font));
-    vram_write(bg_tile_addr(FONT_ALT_TILE), font.tiles + (on ? FONT_ALT_OTHER : FONT_ALT_NORMAL), FONT_ALT_COUNT * 16);
+    vram_write(bg_tile_addr(tile), font.tiles + FONT_ALT_NORMAL, FONT_ALT_COUNT * 16);
     SWITCH_ROM(saved);
 }
 

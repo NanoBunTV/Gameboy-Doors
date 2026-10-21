@@ -26,9 +26,10 @@
 // Scaled to the screen: the Minecraft distances (11-13 blocks) would start him three screens away, and
 // even 1.5 px/frame with a 1 s allowance kept him just off the screen's edge for a player who turns at once.
 #define WALK        0x0140   // player.c WALK_SPEED, 1.25 px/frame
-#define SPEED       0x0168   // 1.4 px/frame (Minecraft: 1.3 times walking; slower here, see GRACE)
-#define GRACE       40       // how late you may turn (2/3 s): with SPEED, legs start him 73-82 px away,
-                             // at the screen's edge (it shows 80 px either side of you)
+#define SPEED       0x0155   // 1.33 px/frame (Minecraft: 1.3 times walking; slower here, see GRACE; 1.4 until the
+                             // owner found him too unforgiving, 2026-10-20)
+#define GRACE       55       // how late you may turn (0.92 s; 40 until 2026-10-20): with SPEED, legs start him
+                             // 81-85 px away, just past the screen's edge (it shows 80 px either side of you)
 #define LEG_BACK    150      // frames walking back toward the entry
 #define LEG_FORWARD 203      // 35% longer (halt.forward-extra): the difference is all your progress
 #define LEG_START(leg) ((int16_t)(((uint32_t)SPEED * GRACE + (uint32_t)((leg) - GRACE) * (SPEED - WALK)) >> 8))

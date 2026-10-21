@@ -34,7 +34,7 @@ GAME_TITLE, GAME_PLAYING, GAME_TRANSITION, GAME_DEAD, GAME_HALT = 0, 1, 2, 3, 4
 GAME_LIFT = 6   # the lift shop before a run (Start leaves it)
 WRONG_DOOR_FROM = 12  # the first Dupe room from here: the bot opens a wrong door on purpose (40 HP)
 ENT_IDLE, ENT_WAIT, ENT_WARN, ENT_MOVE, ENT_PAUSE = 0, 1, 2, 3, 4
-REHIDE_AFTER = 540   # frames hidden before stepping out and back in (Hide throws you out at 720)
+REHIDE_AFTER = 360   # frames hidden before stepping out and back in (Hide throws you out at 480: hide.c HIDE_LIMIT)
 
 
 # player.h DIR_* (clockwise from down) as button masks, and a 4-way step's DIR_*
@@ -277,8 +277,19 @@ class Bot:
         spot = min(free, key=distance)
         cellpos, face = self.approach(spot)
         self.log("hiding in", spot, "entity state", self.g.entity())
-        if not self.walk_to(cellpos, check=False):
-            raise RuntimeError(f"stuck walking to hiding spot {spot}")
+        room = self.g.room()
+        for _ in range(4):
+            if not self.walk_to(cellpos, check=False):
+                raise RuntimeError(f"stuck walking to hiding spot {spot}")
+            # Interrupted on the way (Screech's bite plays a scare; a Snare holds you, and A does nothing until
+            # it lets go): wait until play goes on, then walk the rest
+            for _ in range(600):
+                held = "_snare_root" in self.g.syms and self.g.u16("_snare_root")
+                if self.g.state() == GAME_PLAYING and not held:
+                    break
+                self.g.tick(0)
+            if self.g.state() != GAME_PLAYING or self.g.room() != room or self.g.cell() == cellpos:
+                break
         for _ in range(3):
             self.g.tick(J[face])
         self.g.tick(0)
@@ -289,8 +300,10 @@ class Bot:
                 raise RuntimeError(f"died while hidden (cause {self.g.u8('_game_death')})")
             if not self.g.hidden():
                 raise RuntimeError("thrown out of hiding")
-            # Ambush waiting at the rear: step out and back in, which restarts Hide's clock
-            if self.g.u16("_hide_frames") > REHIDE_AFTER and self.g.entity() in (ENT_PAUSE, ENT_WAIT, ENT_WARN):
+            # Ambush waiting at the rear, or Rush / Ambush still two rooms or more away: step out and back in, which
+            # restarts Hide's clock (8 s since 2026-10-20: a long approach outlasts it)
+            far = self.g.entity() == ENT_MOVE and self.g.u8("_entity_room") + 1 < self.g.room()
+            if self.g.u16("_hide_frames") > REHIDE_AFTER and (far or self.g.entity() in (ENT_PAUSE, ENT_WAIT, ENT_WARN)):
                 self.log("out and back in")
                 if not self.press_a_until(lambda: not self.g.hidden()) or                         not self.press_a_until(lambda: self.g.hidden()):
                     raise RuntimeError("couldn't get back into hiding")

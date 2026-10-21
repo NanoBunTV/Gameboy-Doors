@@ -50,6 +50,9 @@ void items_frame(uint8_t mode) BANKED;
 
 // The light the held item makes (LIGHT_LIGHTER, LIGHT_FLASH + facing), or LIGHT_GLOW
 uint8_t items_light(void) BANKED;
+// A room that isn't dark was entered: a lit lighter or flashlight goes out, so it wastes no fuel or charge
+// (owner, 2026-10-20). Its click plays if it was on.
+void items_room_lit(void) BANKED;
 
 // Takes what a drawer (loose 0) or a loose spot (loose 1) holds, as much as fits, and says what. Returns what's
 // left behind: LOOT_LEFT_* bits.

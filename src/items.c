@@ -110,6 +110,10 @@ static void light_out(void) {
     }
 }
 
+void items_room_lit(void) BANKED {
+    light_out();
+}
+
 static void use_held(void) {
     switch (inv_held) {
     case HELD_LIGHTER:

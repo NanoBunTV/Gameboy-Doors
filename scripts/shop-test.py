@@ -192,6 +192,7 @@ tap(g, "a", lambda: g.u8("_lift_picked") & 1)                       # two lockpi
 tap(g, "down", lambda: g.u8("_lift_cursor") == 1)
 tap(g, "down", lambda: g.u8("_lift_cursor") == 2)
 tap(g, "a", lambda: g.u8("_lift_picked") & 4)                       # the flashlight
+until(g, lambda: bg_row(g, 16).endswith("|150"), 30)                # the panel is redrawn the frame after
 check(g.u8("_lift_picked") == 5 and bg_row(g, 11)[1] == "|" and bg_row(g, 13)[1] == "|", "two offers picked, marked")
 check(bg_row(g, 16).endswith("|150"), f"BUY shows the total: {bg_row(g, 16)!r}")
 shot(g, "lift")
@@ -223,75 +224,78 @@ check(g.u16("_save_knobs") == 250 and g.u8("_inv_lockpicks") == 0, "... buying n
 g.pyboy.stop(save=False)
 
 # ------------------------------------------------------------------------------------------ Jeff's Shop
-print(f"{rom}: jeff")
-g = Game(rom)
-b = Bot(g)
-b.wait_playing()
-poke(g, "_game_warp", SHOP)
-until(g, lambda: g.room() == SHOP and g.state() == GAME_PLAYING, 200)
-for _ in range(30):
-    g.tick(0)
-seed = g.u16("_run_seed")
-want = plan.shop_items(seed)
-stock = [o for o in g.objects() if o[0] == OBJ_STOCK]
-w = g.u8("_room_w")
-on_counter = [g.mem[g.syms["_room_map"] + o[2] * w + o[1]] for o in stock]
-check(on_counter == [COUNTER_MT[i] for i in want], f"the counter holds the run's four ({want})")
-check(g.u8("_music_id") == MUSIC_JEFF, "Jeff's Shop Jingle")
-check(any(g.mem[0xFE00 + i * 4] for i in range(40)) and g.u8("_shop_in"), "his eyes are drawn")
-shot(g, "jeff")
+if not plan.HAS_SHOP:
+    print(f"{rom}: jeff: skipped (no Jeff's Shop in assets/rooms)")
+else:
+    print(f"{rom}: jeff")
+    g = Game(rom)
+    b = Bot(g)
+    b.wait_playing()
+    poke(g, "_game_warp", SHOP)
+    until(g, lambda: g.room() == SHOP and g.state() == GAME_PLAYING, 200)
+    for _ in range(30):
+        g.tick(0)
+    seed = g.u16("_run_seed")
+    want = plan.shop_items(seed)
+    stock = [o for o in g.objects() if o[0] == OBJ_STOCK]
+    w = g.u8("_room_w")
+    on_counter = [g.mem[g.syms["_room_map"] + o[2] * w + o[1]] for o in stock]
+    check(on_counter == [COUNTER_MT[i] for i in want], f"the counter holds the run's four ({want})")
+    check(g.u8("_music_id") == MUSIC_JEFF, "Jeff's Shop Jingle")
+    check(any(g.mem[0xFE00 + i * 4] for i in range(40)) and g.u8("_shop_in"), "his eyes are drawn")
+    shot(g, "jeff")
 
 
-def at_stock(k):
-    o = stock[k]
-    cellpos, face = b.approach((o[0], o[1], o[2] + 1, 1, 1, 0))   # its front: the desk under the counter
+    def at_stock(k):
+        o = stock[k]
+        cellpos, face = b.approach((o[0], o[1], o[2] + 1, 1, 1, 0))   # its front: the desk under the counter
+        b.walk_to(cellpos)
+        for _ in range(3):
+            b.step(J[face])
+        b.step(0)
+
+
+    def ask(k):
+        at_stock(k)
+        return tap(g, "a", lambda: g.u8("_hud_panel") > 0)
+
+
+    item = want[0]
+    check(ask(0) and win_row(g, 2).endswith("^" + str(PRICE[item])), f"A: the price panel ({win_row(g, 2)!r})")
+    shot(g, "price")
+    tap(g, "a", lambda: g.u8("_hud_panel") == 0)
+    until(g, lambda: g.u8("_hud_msg_timer"), 20)
+    check(win_row(g, 1).strip() == "NOT ENOUGH GOLD." and g.u8(INV[item]) == 0, "no gold: refused")
+    poke16(g, "_inv_gold", 200)
+    ask(0)
+    tap(g, "b", lambda: g.u8("_hud_panel") == 0)
+    check(g.u16("_inv_gold") == 200 and g.u8(INV[item]) == 0, "B: nothing bought")
+    ask(0)
+    tap(g, "a", lambda: g.u8("_hud_panel") == 0)
+    for _ in range(5):
+        g.tick(0)
+    check(g.u16("_inv_gold") == 200 - PRICE[item] and g.u8(INV[item]) > 0, f"bought item {item} for {PRICE[item]} gold")
+    check(g.mem[g.syms["_room_map"] + stock[0][2] * w + stock[0][1]] == mt["MT_SHOP_COUNTER"]
+          and g.mem[g.syms["_run_drawers"] + SHOP] & 1, "its place on the counter is empty")
+    # A full bag is refused before the gold is taken
+    item = want[1]
+    poke(g, INV[item], {1: 3, 2: 3, 6: 5}.get(item, 1))
+    gold = g.u16("_inv_gold")
+    ask(1)
+    tap(g, "a", lambda: g.u8("_hud_panel") == 0)
+    until(g, lambda: g.u8("_hud_msg_timer"), 20)
+    check(win_row(g, 1).strip() == "I CAN'T CARRY MORE." and g.u16("_inv_gold") == gold, "a full bag: refused, gold kept")
+    # Out through his door: the music stops
+    exit_obj = next(o for o in g.objects() if o[0] == OBJ_EXIT)
+    cellpos, face = b.approach(exit_obj)
     b.walk_to(cellpos)
     for _ in range(3):
         b.step(J[face])
-    b.step(0)
-
-
-def ask(k):
-    at_stock(k)
-    return tap(g, "a", lambda: g.u8("_hud_panel") > 0)
-
-
-item = want[0]
-check(ask(0) and win_row(g, 2).endswith("^" + str(PRICE[item])), f"A: the price panel ({win_row(g, 2)!r})")
-shot(g, "price")
-tap(g, "a", lambda: g.u8("_hud_panel") == 0)
-until(g, lambda: g.u8("_hud_msg_timer"), 20)
-check(win_row(g, 1).strip() == "NOT ENOUGH GOLD." and g.u8(INV[item]) == 0, "no gold: refused")
-poke16(g, "_inv_gold", 200)
-ask(0)
-tap(g, "b", lambda: g.u8("_hud_panel") == 0)
-check(g.u16("_inv_gold") == 200 and g.u8(INV[item]) == 0, "B: nothing bought")
-ask(0)
-tap(g, "a", lambda: g.u8("_hud_panel") == 0)
-for _ in range(5):
-    g.tick(0)
-check(g.u16("_inv_gold") == 200 - PRICE[item] and g.u8(INV[item]) > 0, f"bought item {item} for {PRICE[item]} gold")
-check(g.mem[g.syms["_room_map"] + stock[0][2] * w + stock[0][1]] == mt["MT_SHOP_COUNTER"]
-      and g.mem[g.syms["_run_drawers"] + SHOP] & 1, "its place on the counter is empty")
-# A full bag is refused before the gold is taken
-item = want[1]
-poke(g, INV[item], {1: 3, 2: 3, 6: 5}.get(item, 1))
-gold = g.u16("_inv_gold")
-ask(1)
-tap(g, "a", lambda: g.u8("_hud_panel") == 0)
-until(g, lambda: g.u8("_hud_msg_timer"), 20)
-check(win_row(g, 1).strip() == "I CAN'T CARRY MORE." and g.u16("_inv_gold") == gold, "a full bag: refused, gold kept")
-# Out through his door: the music stops
-exit_obj = next(o for o in g.objects() if o[0] == OBJ_EXIT)
-cellpos, face = b.approach(exit_obj)
-b.walk_to(cellpos)
-for _ in range(3):
-    b.step(J[face])
-tap(g, "a", lambda: g.mem[g.syms["_run_flags"] + SHOP] & 0x08)
-b.walk_to((exit_obj[1], exit_obj[2] + 1))
-until(g, lambda: g.room() == SHOP + 1 and g.state() == GAME_PLAYING, 200, J["up"])
-check(g.room() == SHOP + 1 and g.u8("_music_id") == 0, "through door 56: the music stops")
-g.pyboy.stop(save=False)
+    tap(g, "a", lambda: g.mem[g.syms["_run_flags"] + SHOP] & 0x08)
+    b.walk_to((exit_obj[1], exit_obj[2] + 1))
+    until(g, lambda: g.room() == SHOP + 1 and g.state() == GAME_PLAYING, 200, J["up"])
+    check(g.room() == SHOP + 1 and g.u8("_music_id") == 0, "through door 56: the music stops")
+    g.pyboy.stop(save=False)
 
 # ------------------------------------------------------------------------------------------ the desk bell
 # PyBoy runs without sound (its registers read 0): audio.c's sfx_last says which effect started last
@@ -301,15 +305,24 @@ g = Game(rom)
 to_lift(g)
 tap(g, "start", lambda: g.state() != GAME_LIFT)
 to_room0(g)
-for _ in range(60):   # from the spawn (column 7) straight up to the counter, the bell in front
-    g.tick(J["up"])
-poke(g, "_sfx_last", 0)
-check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A at the counter rings the bell")
-for _ in range(12):   # mid-ring
-    g.tick(0)
-poke(g, "_sfx_last", 0)
-check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A again mid-ring rings it again")
-shot(g, "bell")
+OBJ_BELL = 21   # assets.h
+bell = next((o for o in g.objects() if o[0] == OBJ_BELL), None)
+if bell is None:
+    print("  skipped: the reception has no bell")
+else:
+    b = Bot(g)   # walk up to it, wherever the reception has it
+    cellpos, face = b.approach(bell)
+    check(b.walk_to(cellpos), f"walked to the bell at {bell[1:3]}")
+    for _ in range(3):
+        b.step(J[face])
+    b.step(0)
+    poke(g, "_sfx_last", 0)
+    check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A at the counter rings the bell")
+    for _ in range(12):   # mid-ring
+        g.tick(0)
+    poke(g, "_sfx_last", 0)
+    check(tap(g, "a", lambda: g.u8("_sfx_last") == SFX_BELL_HI), "A again mid-ring rings it again")
+    shot(g, "bell")
 g.pyboy.stop(save=False)
 
 # ------------------------------------------------------------------------------------------ erase

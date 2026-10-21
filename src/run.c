@@ -160,20 +160,25 @@ static void plan_room(uint8_t n) {
         uint8_t candidates[ROOM_TEMPLATE_COUNT], count = 0;
         // Twice: the second pass drops the no-repeat rule, in case the pool is too small for it. Chase rooms
         // don't have it: a chase is the same rooms over and over (Minecraft docs 08).
-        for (uint8_t pass = 0; pass < 2 && !count; pass++)
+        // Then, if no room of the kind can be entered from that wall, a room entered from the bottom (owner,
+        // 2026-10-20: a side door may lead into a bottom entry, slightly disorienting; e.g. one seek_end room).
+        for (uint8_t pass = 0; pass < 4 && !count; pass++) {
+            if (pass == 2)
+                need = WALL_BOTTOM;
             for (uint8_t i = 0; i < ROOM_TEMPLATE_COUNT; i++) {
                 if (room_template_info[i][0] != kind || room_template_info[i][1] != need)
                     continue;
                 if (before_fixed && (room_template_exits[i][0] != WALL_TOP || room_template_exits[i][1]))
-                    continue;   // (scripts/assets.py checks one exists for every entry wall)
+                    continue;   // (scripts/assets.py checks one exists for every entry wall, or entered from the bottom)
                 uint8_t recent = 0;
-                for (uint8_t back = 1; pass == 0 && !chase && back <= NO_REPEAT_WINDOW && back <= n; back++)
+                for (uint8_t back = 1; !(pass & 1) && !chase && back <= NO_REPEAT_WINDOW && back <= n; back++)
                     if (run_template[n - back] == i)
                         recent = 1;
                 if (!recent)
                     candidates[count++] = i;
             }
-        t = candidates[rnd_below(count)];  // the converter guarantees every exit has a matching entry
+        }
+        t = candidates[rnd_below(count)];  // the converter guarantees every exit a matching or a bottom entry
     }
     run_template[n] = t;
 

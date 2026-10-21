@@ -69,7 +69,7 @@ static uint8_t exit_count;
 static const room_obj_t *key_spot;   // where the key lies in the open, or 0
 // Loot lying in the open (Phase 9a) on the key spots the key isn't on: what each holds (rolled at the door, so
 // finding a flashlight meanwhile doesn't change what's lying there) and its frame, or 0xFF
-#define LOOSE_MAX 2
+#define LOOSE_MAX 4   // key spots with loot per room (scripts/assets.py LOOSE_MAX; 2 until the owner's rooms, 2026-10-20)
 static const room_obj_t *loose[LOOSE_MAX];
 static loot_t loose_loot[LOOSE_MAX];
 static uint8_t loose_frame[LOOSE_MAX];
@@ -493,7 +493,13 @@ static void light_up_room(void) {
 static void load_room_sprites(void) {
     spr_room_begin();
     entity_need_sprites();
-    if (key_spot || loose[0] || loose[1])
+    // The key and the loose loot share the key's sheet: any of the LOOSE_MAX spots holding something needs it (until
+    // 2026-10-20 only spots 0 and 1 were asked, so loot on a third or fourth spot drew from another sheet)
+    uint8_t want_key = key_spot != 0;
+    for (uint8_t k = 0; k < LOOSE_MAX; k++)
+        if (loose[k])
+            want_key = 1;
+    if (want_key)
         spr_need(&key_sheet, BANK(sprite_key), &sprite_key);
     eyes_need_sprites();
     screech_need_sprites();
@@ -536,7 +542,6 @@ static void enter_room(uint8_t n, uint8_t via) {
         shop_exit();         // Jeff's jingle stays in his shop
     run_room = n;
     in_electrical = run_kind_at(n) == ROOM_KIND_ELECTRICAL;
-    hud_icons(!IN_LIBRARY);   // the Library's shapes are the items' icons everywhere else
     uint8_t first_time = n > run_max_room;
     if (first_time)
         run_max_room = n;
@@ -555,6 +560,8 @@ static void enter_room(uint8_t n, uint8_t via) {
     seek_room_entered();
     walleyes_room_entered();
     garden_room_entered();
+    if (!(run_flags2[run_room] & RF2_DARK))
+        items_room_lit();   // out of the dark: the light goes out by itself (owner)
     light_up_room();
     // The darkness cue marks the lights going out, so a run of dark rooms announces once (Minecraft docs 05)
     if (light_dark && !was_dark)

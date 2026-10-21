@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="19" height="19" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="20">
+ <properties>
+  <property name="allow_lock" type="bool" value="true"/>
+  <property name="kind" value="normal"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/hotel.tsx"/>
+ <layer id="1" name="tiles" width="19" height="19">
+  <data encoding="csv">
+0,0,0,0,0,0,7,7,7,7,7,7,7,0,0,0,0,0,0,
+0,0,0,0,0,7,8,8,8,10,8,8,8,7,0,0,0,0,0,
+0,0,0,0,7,8,9,9,9,11,9,9,9,8,7,0,0,0,0,
+0,0,0,7,8,9,14,3,3,3,3,3,14,9,8,7,0,0,0,
+0,0,7,8,9,3,2,2,2,2,2,2,2,3,9,8,7,0,0,
+0,7,8,9,3,2,2,2,2,2,2,2,2,2,3,9,8,7,0,
+7,8,9,3,2,2,2,2,15,15,15,2,2,2,2,3,9,8,7,
+7,9,3,2,2,2,2,7,7,7,7,7,2,2,2,2,3,9,7,
+7,3,2,2,2,2,7,0,0,0,0,0,7,2,2,2,2,3,7,
+10,2,2,2,2,12,7,0,0,0,0,0,7,12,2,2,2,2,10,
+11,2,2,2,2,13,7,0,0,0,0,0,7,13,2,2,2,2,11,
+7,2,2,2,2,2,8,7,7,7,7,7,8,2,2,2,2,2,7,
+7,2,2,2,2,2,9,8,8,8,8,8,9,2,2,2,2,2,7,
+0,7,2,2,2,2,3,9,32,33,34,9,3,2,2,2,2,7,0,
+0,0,7,2,2,2,2,3,35,36,37,3,2,2,2,2,7,0,0,
+0,0,0,7,2,2,2,2,2,2,2,2,2,2,2,7,0,0,0,
+0,0,0,0,7,2,2,2,2,2,2,2,2,2,7,0,0,0,0,
+0,0,0,0,0,7,2,2,2,2,2,2,2,7,0,0,0,0,0,
+0,0,0,0,0,0,7,7,7,7,7,7,7,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="10" name="keyspot" x="144" y="96">
+   <point/>
+  </object>
+  <object id="11" name="exit" x="144" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="12" name="exit" x="0" y="144" width="16" height="32">
+   <properties>
+    <property name="wall" value="left"/>
+   </properties>
+  </object>
+  <object id="15" name="drawer" x="96" y="48" width="16" height="16"/>
+  <object id="16" name="drawer" x="192" y="48" width="16" height="16"/>
+  <object id="17" name="closet" x="80" y="144" width="16" height="32"/>
+  <object id="18" name="closet" x="208" y="144" width="16" height="32"/>
+  <object id="19" name="entry" x="288" y="144" width="16" height="32">
+   <properties>
+    <property name="wall" value="right"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

@@ -36,8 +36,9 @@ void hud_panel_set(uint8_t rows) BANKED;
 // Window Y of the panel's first row when it's open (sprites below it are hidden: spr_clip_y)
 #define HUD_PANEL_ROW_Y(rows) (144 - ((rows) + 2) * 8)
 
-// The item icons (Phase 9a) are the Library's eight shape glyphs drawn differently: everywhere but the Library
-// those characters show the icons (hud_icons(1)), in the Library the shapes (font.json alt_chars)
+// The item icons (Phase 9a): the font's last eight characters (font.json alt_chars). Their other look, the
+// Library's eight shapes, has no room in the font: hud_shapes copies it into spare tileset tiles (owner,
+// 2026-10-20: sharing the tiles turned the gold's coin into a triangle in the Library)
 #define ICON_LIGHTER    '%'
 #define ICON_FLASHLIGHT '['
 #define ICON_VITAMINS   '&'
@@ -46,7 +47,7 @@ void hud_panel_set(uint8_t rows) BANKED;
 #define ICON_CRUCIFIX   ')'
 #define ICON_GOLD       '^'
 #define ICON_BANDAGE    ']'
-void hud_icons(uint8_t on);   // STAT-safe; does nothing if they're already so
+void hud_shapes(uint8_t tile);   // STAT-safe: the eight shapes into background tiles tile.. (print them as (char)tile..)
 
 // Puts the font's own palette back in GBC BG palette 7 (after the Guiding Light's blue)
 void hud_font_palette(void);

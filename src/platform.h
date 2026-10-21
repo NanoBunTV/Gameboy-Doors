@@ -14,8 +14,6 @@
 // Each platform's fade, dim and flash maths are banked (platform_*_fx.c, 2026-10-19: bank 0 was 95% full);
 // what stays in bank 0 is what bank-0 code calls with another bank in (the palette setters copy from the
 // caller's asset bank) and the VBlank copy.
-// Short name of the build, shown on screen
-extern const char platform_name[];
 
 // Once at boot, with the LCD off: CPU speed, default palettes
 void platform_init(void);

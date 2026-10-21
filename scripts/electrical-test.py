@@ -254,7 +254,7 @@ try:
           mt_at(g, lift[1], lift[2]) == MT["lift_open_tl"], f"the power's back: the lift open, running (state "
           f"{g.u8('_electrical_state')}, fast {g.u8('_player_fast')}, lift {mt_at(g, lift[1], lift[2])})")
     shot(g, "power")
-    for _ in range(200):
+    for _ in range(600):   # 180 of the game's frames (FIGURE_AFTER): DMG drops frames, so more of the emulator's
         g.tick(0)
         if g.u8("_electrical_state") == ELEC_ESCAPE:
             break

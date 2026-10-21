@@ -4,8 +4,6 @@
 
 // Bank 0: the VBlank copy. Fading, dimming and the flash are banked, in platform_dmg_fx.c (as on the GBC).
 
-const char platform_name[] = "DMG";
-
 uint8_t platform_fade;
 uint8_t platform_dim;
 uint8_t platform_flash;

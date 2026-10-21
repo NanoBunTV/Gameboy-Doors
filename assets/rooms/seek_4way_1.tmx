@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="19" height="19" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="19">
+ <properties>
+  <property name="kind" value="seek_4way"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/hotel.tsx"/>
+ <layer id="1" name="tiles" width="19" height="19">
+  <data encoding="csv">
+0,0,0,0,0,0,7,7,7,7,7,7,7,0,0,0,0,0,0,
+0,0,0,0,0,7,8,8,8,10,8,8,8,7,0,0,0,0,0,
+0,0,0,0,7,8,33,9,9,11,9,9,34,8,7,0,0,0,0,
+0,0,0,7,8,9,36,3,3,3,3,3,37,9,8,7,0,0,0,
+0,0,7,8,9,3,2,2,2,2,2,2,2,3,9,8,7,0,0,
+0,7,8,9,3,2,2,2,2,2,2,2,2,2,3,9,8,7,0,
+7,8,9,3,2,2,2,2,2,2,2,2,2,2,2,3,9,8,7,
+7,9,3,2,2,2,2,7,7,7,7,7,2,2,2,2,3,9,7,
+7,3,2,2,2,2,7,0,0,0,0,0,7,2,2,2,2,3,7,
+10,2,2,2,2,32,7,0,0,0,0,0,7,33,2,2,2,2,10,
+11,2,2,2,2,35,7,0,0,0,0,0,7,36,2,2,2,2,11,
+7,2,2,2,2,2,8,7,7,7,7,7,8,2,2,2,2,2,7,
+7,2,2,2,2,2,9,8,8,8,8,8,9,2,2,2,2,2,7,
+0,7,2,2,2,2,3,9,32,33,34,9,3,2,2,2,2,7,0,
+0,0,7,2,2,2,2,3,35,36,37,3,2,2,2,2,7,0,0,
+0,0,0,7,2,2,2,2,2,2,2,2,2,2,2,7,0,0,0,
+0,0,0,0,7,2,2,2,2,2,2,2,2,2,7,0,0,0,0,
+0,0,0,0,0,7,2,2,2,2,2,2,2,7,0,0,0,0,0,
+0,0,0,0,0,0,7,7,7,25,7,7,7,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="11" name="exit" x="144" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="12" name="exit" x="0" y="144" width="16" height="32">
+   <properties>
+    <property name="wall" value="left"/>
+   </properties>
+  </object>
+  <object id="13" name="exit" x="288" y="144" width="16" height="32">
+   <properties>
+    <property name="wall" value="right"/>
+   </properties>
+  </object>
+  <object id="14" name="entry" x="144" y="288" width="16" height="16">
+   <properties>
+    <property name="wall" value="bottom"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

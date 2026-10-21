@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="35" height="11" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="30">
+ <properties>
+  <property name="allow_lock" type="bool" value="true"/>
+  <property name="kind" value="normal"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/hotel.tsx"/>
+ <layer id="1" name="tiles" width="35" height="11">
+  <data encoding="csv">
+7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+7,8,8,10,8,8,8,10,8,8,8,10,8,8,8,10,8,8,8,10,8,8,8,10,8,8,8,10,8,8,8,10,8,8,7,
+7,43,9,11,9,9,9,11,9,43,9,11,9,12,9,11,9,43,9,11,9,9,9,11,9,43,9,11,9,9,9,11,9,43,7,
+7,44,3,3,3,42,3,3,3,44,3,3,3,13,3,3,3,44,3,3,3,14,3,3,3,44,3,3,3,42,3,3,3,44,7,
+7,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,7,
+7,2,2,2,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,2,45,46,7,
+7,2,2,2,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,2,47,48,7,
+7,45,46,2,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,2,2,2,7,
+7,47,48,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,45,46,2,7,
+7,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,47,48,2,7,
+7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,25,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="19" name="entry" x="304" y="160" width="16" height="16">
+   <properties>
+    <property name="wall" value="bottom"/>
+   </properties>
+  </object>
+  <object id="20" name="exit" x="496" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="21" name="exit" x="432" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="22" name="exit" x="368" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="23" name="exit" x="304" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="24" name="exit" x="240" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="25" name="exit" x="176" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="26" name="exit" x="112" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="27" name="exit" x="48" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="28" name="closet" x="208" y="32" width="16" height="32"/>
+  <object id="29" name="drawer" x="336" y="48" width="16" height="16"/>
+ </objectgroup>
+</map>

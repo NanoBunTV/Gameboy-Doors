@@ -68,7 +68,9 @@ item changes or is used and when gold is picked up.
 - A run is generated from a seed: each room's template, lock and key place are decided from (seed, room
   number), in order, because a room must be entered through the wall opposite the previous room's exit.
   Exits go **up or sideways** (owner): top-wall exits lead to rooms entered from the bottom, side exits to
-  rooms entered from the opposite side. No template repeats within 3 rooms.
+  rooms entered from the opposite side. When no such room exists, one entered from the bottom follows instead
+  (owner, 2026-10-20: slightly disorienting, but a kind can then have a single room). No template repeats within
+  3 rooms.
 - **Room 0 is the reception**: door 1 is always locked and its key hangs on the wall behind the desk (DOORS'
   tutorial). Every run starts in **the lift** before it (Phase 9b, below).
 - **The Library is room 50** (Phase 6, below). Room 49 always has one door, on its top wall.
@@ -106,7 +108,7 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 07*, *MC 10*):
   **walking is heard anywhere in the room; holding B sneaks** (half speed, silent); standing still and
   hiding are silent. He walks at a noise and finishes what he started (*MC 10*); **hunting he outruns you**
   (wandering he's slower than walking, faster than sneaking), so once he's coming, a closet is the answer.
-  He never finds a hidden player (Hide's 12 s still applies). **Touching him is death**: his full-screen
+  He never finds a hidden player (Hide's 8 s still applies). **Touching him is death**: his full-screen
   face (from the owner's reference frame), then the Guiding Light.
 - The only tutorial in the game, as in *MC 07*: on entering, "IT CAN'T SEE YOU." then "HOLD B TO SNEAK.",
   with 3 s before he can hear you.
@@ -126,10 +128,11 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 08*):
   stops, a black puddle spreads behind them and Seek rises out of it (about 3 s). Then his music, *Here I
   Come* (the owner's MIDI, arranged), and the chase.
 - **Running**: the player runs at **1.4 times walking** for the whole chase; Seek follows the door-to-door
-  line Rush takes at **0.75 of that**. He can't catch someone who keeps running: a wrong door, the fire or
+  line Rush takes at **0.80 of that** (0.75 until 2026-10-20: owner, too easy; 0.85 tried, too tight in the owner's end hallway). He can't catch someone who keeps running: a wrong door, the fire or
   stopping is what gets you caught. You hear his footsteps, louder as he closes in (no arrow, owner's
   choice).
-- **Four-way rooms**: three doors, only one real, with its number and a **blue glow** in front of it; the
+- **Four-way rooms**: three doors, only one real, with its number and a **blue glow** in front of it (off screen, the glow waits at the
+  screen edge nearest the door: owner, 2026-10-20, for big rooms); the
   others are numberless fakes ("IT'S FAKE."). **The real door opens by itself** as you reach it.
 - **Caught**: within his reach (1.5 metatiles), or anywhere in a room behind him (you got round him and he
   went on). Instant death: **his eye full-screen**, then the Guiding Light.
@@ -223,10 +226,10 @@ Owner's choices (2026-10-18), after the Minecraft version (*MC 10*), on **one fl
 | Rush | **Built (Phase 3).** A 32×32 sprite racing along the door-to-door path (*MC 04*: straight lines, door to door) from about 3 s behind the player to the furthest door reached. Lights flicker first (2 s, with a buzz), then a rumble that grows as he nears. Hide in a closet or under a bed. In the Greenhouse: no flicker, the rumble from the start (Phase 8a) | Kills anyone not hidden he can see: a straight line to them crossing no wall, at any distance in the room (owner, 2026-10-18; it was *MC 04*'s 6-block radius through walls, which left far corners safe). Spawn 18% per room from room 3, waiting for a room with a hiding spot |
 | Ambush | **Built (Phase 3).** Like Rush, faster (1.6×), green; his own howl and a green-tinted flicker (4 s; owner's choice, as in DOORS); passes back and forth 3–5 times with 5 s pauses at the rear | Kills by line of sight like Rush (it was 8 blocks, 128 px). A tenth of spawns. Hide's 12 s forces stepping out between passes |
 | Screech | **Built (Phase 4).** Dark rooms only: a "psst", and a 16×16 grin hangs just outside your glow, in a direction you're not facing. Walk his way (facing him) for 0.3 s and he leaves with a squeak; after 3 s (owner) he bites for 40 HP with a full-screen face. The chance rises the longer you stay in the dark (~45% for 8 s in a room) | Hiding dismisses him silently (*MC 11*). 20 s cooldown. He picks a spot on screen |
-| Eyes | **Built (Phase 4).** 5% of rooms from room 8: a 32×32 cluster of eyes at the room's middle, glowing in the dark. Facing exactly his direction (one of 8, ±22.5°; owner) drains 5 HP every 0.25 s after 0.5 s. Look away, walk round. Gone when the exit door opens; never blocks a door | Hidden, he can't hurt you. Independent of Rush and Ambush |
+| Eyes | **Built (Phase 4).** 5% of rooms from room 8: a 32×32 cluster of eyes halfway between the doors (or on the walkable cell nearest it: owner, 2026-10-20), glowing in the dark. Facing exactly his direction (one of 8, ±22.5°; owner) drains 5 HP every 0.25 s after 0.5 s. Look away, walk round. Gone when the exit door opens; never blocks a door | Hidden, he can't hurt you. Independent of Rush and Ambush |
 | Halt | **Phase 5.** 3% per room arms the next (plain) door, once a run. It leads into a sideways, blue-lit hallway (owner) about 8 turn-arounds long; Halt walks at you, and when the screen flashes and big "TURN AROUND" text shows, he's in front of you instead: walk the other way. Forward legs are 35% longer. The far door returns you to the corridor at the door that started it | 60 HP a hit; he goes back to the leg's start. Nothing else (Rush, Screech, Eyes) runs while he does (*MC 06*) |
 | Dupe | **Phase 5.** New rooms with 2–3 doors (top plus sides); which is real is picked per run. 35% per such room from room 6: the wrong doors show wrong numbers (one below or up to two above), and opening one is a full-screen jumpscare and 40 HP, then the door shows a garbled number. On a miss the wrong doors have no number and say "IT'S FAKE." | Ignores the lock, spends no key (*MC 06*) |
-| Hide | **Built (Phase 3, moved from 5 by the owner).** 12 s in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
+| Hide | **Built (Phase 3, moved from 5 by the owner).** 8 s (owner, 2026-10-20: the heartbeat from 3 s; 12 s and 7 s before) in a closet or under a bed and he throws you out ("GET OUT!") for 40 HP and bars that spot for the run. The warning is a heartbeat from 7 s that speeds up, with the screen pulsing darker on each beat; no meter (*MC 04*) | Re-hiding in a spot you left yourself is fine (the Hotel's rule) |
 | Seek | **Phase 7** (above): eyes on the walls before; the rise; a chase through four-way rooms (one real, glowing door) to an end hallway with fire; caught by touch or by being behind him | Speed boost during the chase (*MC 08*, *MC 11*); he runs at 0.75 of it |
 | Figure | **Phase 6 in the Library** and **Phase 8b in Room 100** (above), where he also chases you to the lift. Blind, hears footsteps: walking makes noise; sneaking (B), hiding and standing still don't. Hunting he's faster than you walk; touching him kills | He finishes a hunt before taking a new noise (*MC 10*); a noise in the cell he's heading for just moves the goal |
 | Snare | **Phase 8a** (above): three floor traps per Greenhouse room, seen only in your light; 20 HP (never below 10) and held 5 s | The 4 s grace starts when the hold ends, so it can't catch you again as you step off (*MC 09*) |
@@ -258,7 +261,7 @@ Left out (owner, 2026-10-17): Smoothie and Candle (later-floor items in DOORS).
 
 **Phase 9a, as decided (owner, 2026-10-18; PROJECT.md has each choice):**
 
-- **Loot.** A drawer rolls gold (35%, 10–50), an item (6%), a battery (4%, only once you own a flashlight) and
+- **Loot.** A drawer rolls gold (14%, 5–15 a find; 35% and 10–50 until the owner made gold rarer and smaller, 2026-10-20: ~600 gold by Jeff's shop when searching everything, ~200 now), an item (6%), a battery (4%, only once you own a flashlight) and
   a bandage (4%), each on its own, so one drawer can hold several. A loose spot (where keys lie in the open)
   holds one thing at most, never an item: a battery or bandage first, else gold. The room's key is placed
   first and a loose spot holding it holds nothing else. Rolled from (seed, room), so a run's loot is fixed.

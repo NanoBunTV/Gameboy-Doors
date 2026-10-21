@@ -55,6 +55,10 @@ def warp(g, n):
     g.mem[g.syms["_game_warp"]] = n
     for _ in range(90):
         g.tick()
+    for _ in range(600):   # a big room's load and fade can take the DMG longer: until it's playing in room n
+        if g.state() == GAME_PLAYING and g.room() == n:
+            break
+        g.tick()
 
 
 def shot(g, name):
@@ -148,10 +152,17 @@ print(f"{rom}: snare")
 g, b = boot()
 warp(g, 90)
 w, h, solid = g.grid()
-sx, sy = snares(g)[0]
+all_snares = snares(g)
+sx, sy = all_snares[0]
 side = next(((sx + dx, sy + dy), d) for (dx, dy), d in (((0, 1), "up"), ((0, -1), "down"), ((1, 0), "left"), ((-1, 0), "right"))
-            if not solid[sy + dy][sx + dx])
+            if not solid[sy + dy][sx + dx] and (sx + dx, sy + dy) not in all_snares)
 b.walk_to(side[0], check=False)
+for _ in range(1200):   # a Snare crossed on the way: wait out its hold and its grace (in the game's frames)
+    if not g.u16("_snare_root") and not g.u8("_snare_grace"):
+        break
+    quiet(g, 0)
+b.walk_to(side[0], check=False)
+g.mem[g.syms["_run_hp"]] = 100
 hp = g.u8("_run_hp")
 for i in range(40):
     quiet(g, J[side[1]])

@@ -44,9 +44,14 @@ SPR_CHECK((SPR_MARKS_FRAME_COUNT + SPR_FIGURE_FRAME_COUNT) * 4 <= SPR_FRAME_POOL
 #define PANEL_NOTES 1
 #define PANEL_LOCK  2
 
-// The shapes' characters in the font (assets/fonts/font.json): circle, square, heart, star, X, cross,
-// triangle, diamond
-static const char shape_char[LIB_BOOKS] = { '%', '[', '&', '$', '(', ')', '^', ']' };
+// The shapes: circle, square, heart, star, X, cross, triangle, diamond (the font's alt_chars' other look,
+// assets/fonts/font.json), in the hotel tileset's spare tiles while you're here (hud_shapes: they're Rush's and
+// Ambush's in other rooms, and neither comes in here). A character from 128 up prints that tile.
+#define SHAPE_TILE TILESET_HOTEL_TILES
+SPR_CHECK(SHAPE_TILE >= 128 && SHAPE_TILE + LIB_BOOKS <= 184, library_shapes_need_spare_tileset_tiles);
+static const char shape_char[LIB_BOOKS] = {
+    SHAPE_TILE, SHAPE_TILE + 1, SHAPE_TILE + 2, SHAPE_TILE + 3, SHAPE_TILE + 4, SHAPE_TILE + 5, SHAPE_TILE + 6,
+    SHAPE_TILE + 7 };
 
 uint8_t library_left;
 static uint8_t planned, hint_t;
@@ -145,6 +150,8 @@ void library_enter(void) BANKED {
     }
     panel = PANEL_NONE;
     spr_clip_y = 255;
+    hud_shapes(SHAPE_TILE);
+    spr_forget();   // over the high sprites' tiles: the next room loads its sheets again
     if (library_left)
         return;   // you've been through: he and the music are gone
     for (uint8_t i = 0; i < room_obj_count; i++)

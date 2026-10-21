@@ -103,7 +103,6 @@ void lift_run(void) BANKED {
     hud_hide_now();
     spr_begin();
     spr_end();
-    hud_icons(1);   // the offers' icons (a Library death leaves its shapes in)
     screen_fill(FONT_FIRST_TILE, PAL_TEXT);   // the font's space
     image_show_rows(BANK(image_lift), &image_lift, 0, 0, 0, PICTURE_ROWS);
     bg_set_scroll(0, 0);

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="19" height="19" tilewidth="16" tileheight="16" infinite="0" nextlayerid="3" nextobjectid="49">
+ <properties>
+  <property name="allow_lock" type="bool" value="true"/>
+  <property name="kind" value="normal"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/hotel.tsx"/>
+ <layer id="1" name="tiles" width="19" height="19">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,7,7,7,7,7,7,7,7,7,
+0,0,0,0,0,0,0,0,0,0,7,8,8,8,10,8,8,8,7,
+0,0,0,0,0,0,0,0,0,0,7,43,9,9,11,9,9,43,7,
+0,0,0,0,0,0,0,0,0,0,7,44,3,3,3,3,3,44,7,
+0,0,0,0,0,0,0,0,0,0,7,2,2,2,2,2,2,2,7,
+0,0,0,0,0,0,0,0,0,0,7,2,2,2,2,2,2,2,7,
+0,0,0,0,0,0,0,0,0,0,7,14,2,2,2,2,2,15,7,
+0,0,0,0,0,0,0,0,0,0,7,2,2,2,2,2,2,15,7,
+0,0,0,0,0,0,0,0,0,0,7,2,2,2,2,2,2,15,7,
+0,0,0,0,0,0,0,0,0,0,7,42,2,2,2,2,2,2,7,
+7,7,7,7,7,7,7,7,7,7,7,2,2,2,2,2,2,2,7,
+7,8,8,8,8,8,8,8,8,8,8,2,2,2,2,2,2,2,7,
+7,9,9,9,32,33,9,9,12,9,9,2,2,2,2,2,2,2,7,
+7,3,3,3,35,36,3,3,13,3,3,2,2,2,2,2,2,14,7,
+7,15,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,7,
+7,15,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,7,
+7,15,2,2,2,2,2,2,2,2,2,2,2,2,2,45,46,2,7,
+7,2,2,2,2,2,2,2,42,42,42,2,2,14,2,47,48,2,7,
+7,7,7,7,7,25,7,7,7,7,7,7,7,7,7,7,7,7,7
+</data>
+ </layer>
+ <objectgroup id="2" name="objects">
+  <object id="41" name="exit" x="224" y="16" width="16" height="32">
+   <properties>
+    <property name="wall" value="top"/>
+   </properties>
+  </object>
+  <object id="42" name="entry" x="80" y="288" width="16" height="16">
+   <properties>
+    <property name="wall" value="bottom"/>
+   </properties>
+  </object>
+  <object id="43" name="closet" x="128" y="192" width="16" height="32"/>
+  <object id="44" name="drawer" x="176" y="96" width="16" height="16"/>
+  <object id="45" name="drawer" x="272" y="208" width="16" height="16"/>
+  <object id="46" name="drawer" x="208" y="272" width="16" height="16"/>
+  <object id="47" name="keyspot" x="16" y="240">
+   <point/>
+  </object>
+  <object id="48" name="keyspot" x="272" y="112">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

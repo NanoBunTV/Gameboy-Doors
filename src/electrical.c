@@ -34,7 +34,7 @@
                                // more than Figure's route search takes for the room (32 cells a frame)
 #define MUSIC_AFTER    120     // the song starts this long after the lever (Minecraft: 5 s, the gate's moment)
 #define FIGURE_AFTER   180     // the power's back: he comes out this long after (Minecraft: 3 s)
-#define LIGHTS_MAX     6       // scripts/assets.py LIGHTS_MAX
+#define LIGHTS_MAX     9       // scripts/assets.py LIGHTS_MAX (6 until the owner's Room 100, 2026-10-20)
 #define PANEL_ROWS     7
 #define MSG_FRAMES     120
 // The Circuit Breaker (Minecraft docs 10): one number at a time, on or off, through all ten in a random

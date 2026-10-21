@@ -135,15 +135,16 @@ uint8_t run_timothy_in(uint8_t n, uint8_t d) BANKED;
 // Loot (Phase 9a, owner 2026-10-18): a drawer rolls gold, an item, a battery and a bandage, each on its own; a
 // loose spot (a key spot the key isn't on) one of a battery, a bandage or gold, never an item. From (seed, room,
 // slot), so a run's loot is fixed; `flash`: the player has a flashlight (no battery is rolled before).
-#define LOOT_DRAWER_GOLD     35   // the Minecraft table, the item chance doubled for one player (owner)
+#define LOOT_DRAWER_GOLD     14   // the Minecraft table, the item chance doubled for one player (owner); gold 60% rarer
+                                  // (owner, 2026-10-20: 35 and 20 before)
 #define LOOT_DRAWER_ITEM     6
 #define LOOT_DRAWER_BATTERY  4
 #define LOOT_DRAWER_BANDAGE  4
-#define LOOT_LOOSE_GOLD      20
+#define LOOT_LOOSE_GOLD      8
 #define LOOT_LOOSE_BATTERY   3
 #define LOOT_LOOSE_BANDAGE   3
-#define LOOT_GOLD_MIN        10   // owner: DOORS-sized, 10-50 a find
-#define LOOT_GOLD_SPAN       41
+#define LOOT_GOLD_MIN        5    // owner, 2026-10-20: 5-15 a find (10-50 before: ~600 gold by Jeff's shop)
+#define LOOT_GOLD_SPAN       11
 #define LOOT_LOCKPICK   1         // loot_t.item (weights in run.c: 35, 28, 18, 12, 4, 3)
 #define LOOT_VITAMINS   2
 #define LOOT_LIGHTER    3

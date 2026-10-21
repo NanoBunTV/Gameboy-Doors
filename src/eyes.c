@@ -11,6 +11,7 @@
 #include "sprites.h"
 #include "bg.h"
 #include "room_templates.h"
+#include "room.h"
 #include "items.h"
 #include "sprite_eyes.h"
 
@@ -45,6 +46,23 @@ void eyes_room_entered(void) BANKED {
     room_template_route(run_template[run_room], run_exit[run_room], r);
     eyes_x = ((int16_t)r[0] + r[2]) << 2;
     eyes_y = ((int16_t)r[1] + r[3]) << 2;
+    // ... unless that's outside the room (an L-shaped or ring room's void) or in a wall: then the walkable cell
+    // nearest it, ring by ring (owner, 2026-10-20: he only appears over walkable floor)
+    int16_t cx = eyes_x >> 4, cy = eyes_y >> 4;
+    if (mt_flags[room_metatile(cx, cy)] & MTF_SOLID) {
+        for (int16_t d = 1; d < 128; d++) {
+            for (int16_t y = cy - d; y <= cy + d; y++)
+                for (int16_t x = cx - d; x <= cx + d; x++) {
+                    if ((y != cy - d && y != cy + d && x != cx - d && x != cx + d) || x < 0 || y < 0 ||
+                        x >= room_w || y >= room_h || (mt_flags[room_metatile(x, y)] & MTF_SOLID))
+                        continue;
+                    eyes_x = (x << 4) + 8;
+                    eyes_y = (y << 4) + 8;
+                    goto placed;
+                }
+        }
+    }
+placed:
     light_set(LIGHT_EYES, LIGHT_LIGHTER, eyes_x >> 3, eyes_y >> 3);
     sfx_play(SFX_EYES);
 }

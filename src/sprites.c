@@ -98,8 +98,11 @@ void spr_begin(void) {
 // cost ~3 DMG scanlines a sprite (Phase 5, Halt's hallway)
 void spr_draw(const spr_sheet_t *sheet, uint8_t frame, int16_t sx, int16_t sy, uint8_t flags) {
     // On screen: -16 < sy < 144 and, per column, -8 < x < 160, as one unsigned compare each
+    // ... and above the window: a panel's clip line, or the HUD's top while it's up (owner, 2026-10-20: the
+    // player stood over the popup in the reception)
     uint16_t oy = (uint16_t)(sy + 16);
-    if (oy - 1 >= 159 || sy + 8 >= (int16_t)spr_clip_y)
+    uint8_t clip = bg_wy < spr_clip_y ? bg_wy : spr_clip_y;
+    if (oy - 1 >= 159 || sy + 8 >= (int16_t)clip)
         return;
     const uint8_t *f = sheet->frames + (frame << 2);
     uint8_t t0, a0, t1, a1;

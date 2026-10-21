@@ -84,12 +84,12 @@ anything in the main loop must fit a DMG frame.
 | ROM bank 0 | Engine code that must stay put (no `#pragma bank`): everything that switches banks to read assets (`room.c`, `image.c`, `hud.c`, `sprites.c`, `audio.c`), streaming and what it asks of the light (`bg.c`, `light.c`), input, platform; GBDK library; hUGEDriver (1.9 KB); the room template table's kinds and exit walls (`room_templates.c`, which `run.c` scans; the routes, their lengths and `room_template()` are banked in `room_routes.c` since Phase 8b, read through `room_template_route`/`_length`, which switch to them). **85% full on GBC (2,495 bytes left), 78% on DMG (3,578)** after the memory pass of 2026-10-19 (the platforms' fade/dim maths and the door plates moved into banks: ~1.7 KB); 95% (770 bytes) and 83% after Phase 9b; 93% (1,156 bytes) and 80% after Phase 9a (`items.c` is banked; bank 0 got `hud_icons`); 92% (1,256 bytes; 1,152 in the AUTOTEST build) after Phase 8b, once Rush's route tables and `room_template()` moved into a bank (`room_routes.c`: the AUTOTEST build had overflowed bank 0 by a few bytes, which BGB caught). Before that 97% / 85% (96% / 84% after Phase 8a; 90% / 77% after Phase 6; 88% / 76% after Phase 5; 84% / 73% just before it, after `hud_status.c` and `sfx_data.c` moved out).  |
 | ROM banks 1+ | Banked code (`game`, `run`, `title`, `entity`, `hide`, `death`, `player`, `screech`, `eyes`, `halt`, `timothy`, `library`, `figure`, `seek`, `walleyes`, `garden`, `light_move`, `light_shapes`, `hud_status`, `sfx_data`, `room_plate`, `platform_*_fx`, and the later phases' modules: `#pragma bank 255` and `BANKED` functions), generated asset data, songs, the AUTOTEST recording, all placed by GBDK's autobanking. The ROM is 256 KB since Phase 8b (128 KB from Phase 6, 64 KB before). Banked code must never `SWITCH_ROM` (it would switch itself out), and may pass pointers to its own constants (strings) only to bank-0 functions, which read them while the caller's bank is still in |
 | VRAM 0x8000–0x8FFF | Sprite tiles: the player 0–35 always; from 36, only the sheets the current room can show, packed in the order asked for (Sprites, below: at most 124 tiles in a hotel room, 118 in a chase room, 120 in a Courtyard or Greenhouse room, 72 in the Library, 68 in Halt's hallway). Tiles 128 and up are the same memory as background tiles 128 and up, which the title and a jumpscare picture of more than 128 tiles overwrite, so `game_init` (from `game_start` and the room after Screech's bite) makes every sheet load again. Sprites must stay below 184 (the door numbers and the font), and below 128 if the tileset ever passes 128 tiles (checked at build time) |
-| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile; 247 the knob (Phase 9b); tiles 248–255, the Library's eight shapes, hold the items' icons everywhere but the Library: `hud_icons`, Phase 9a) |
+| VRAM 0x8800–0x97FF | Background tiles 0–255 (LCDC bit 4 clear: tiles 0–127 at 0x9000, 128–255 at 0x8800): **tileset 0–183** (the title logo and the jumpscares borrow them), **door numbers 184–191** (2 tiles each, made at runtime: slots 0–2 a room's exits, 3 its entry (an open side entry shows its number too; Halt's hallway: its shut door)), **font 192–255** (its space, all black, is darkness's tile; 247 the knob (Phase 9b); tiles 248–255 the items' icons (Phase 9a); in room 50 the Library's eight shapes sit in the tileset's spare tiles after its last: `hud_shapes`) |
 | VRAM 0x9800 | Background map (32×32), streamed as below. GBC: attributes in VRAM bank 1 at the same address |
 | VRAM 0x9C00 | Window map: the HUD (row 0 border, row 1 the status line, row 2 the held item and gold since Phase 9a), rows 2–13 a panel over the item row: the Library's (notes, padlock), Room 100's (the Circuit Breaker), the pause. GBC: attributes all palette 7 |
 | GBC BG palettes | 0–6 the tileset (or the title logo / a jumpscare), 7 the font/HUD (blue on the Guiding Light) |
 | GBC sprite palettes | 0 the player; from 1, one per sheet the room asked for, in the same order as the tiles (at most 7 in use: 1 free, in a hotel room just before a chase) |
-| WRAM | Room map (`room_map`, up to 2,560 metatiles (3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), the light shapes (360 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. The run's seven per-room arrays (707 bytes) and the GBC's dim cache (448 bytes) moved to SRAM bank 1 on 2026-10-19: DMG now has 2.4 KB left under the stack, and the GBC's WRAM bank 1 **1,409 bytes**; before that DMG used ~6.3 of 8 KB (1.7 KB left) and the GBC had 254 bytes after Phase 9b (the stack measured 144 bytes deep: 107 never touched), 307 after Phase 9a (the inventory, the item row's 42 bytes, the loose loot, the leftovers table, the message queue: ~130 bytes), about 439 after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
+| WRAM | Room map (`room_map`, up to 3,584 metatiles since 2026-10-20 (the owner's 36×39 Room 100, paid by the memory pass; 2,560 before, 3,072 until Phase 6, 2,816 until Phase 8b: both times the 256 bytes went to the GBC's WRAM bank 1, the stack's); `room_row`, each row's offset; in the Library and Room 100 its unused tail holds Figure's route search, and in Room 100 after it 256 bytes of `electrical.c`'s scratch) and objects, metatile tables (`mt_tiles`, `mt_flags`, `mt_attrs`: 128 metatiles, 120–127 made at runtime), the light shapes (360 bytes), hUGEDriver's variables, the tile write queue (128 entries), frame tables, GBDK's shadow OAM at 0xC000, the stack from 0xE000 down. The run's seven per-room arrays (707 bytes) and the GBC's dim cache (448 bytes) moved to SRAM bank 1 on 2026-10-19: DMG now has 2.4 KB left under the stack, and the GBC's WRAM bank 1 **1,409 bytes**; before that DMG used ~6.3 of 8 KB (1.7 KB left) and the GBC had 254 bytes after Phase 9b (the stack measured 144 bytes deep: 107 never touched), 307 after Phase 9a (the inventory, the item row's 42 bytes, the loose loot, the leftovers table, the message queue: ~130 bytes), about 439 after Phase 8b (283 after Phase 8a; Phase 8b's ~140 bytes of statics, then 256 from the smaller room map; 237 after Phase 6, 224 after Phase 7; STATUS.md). The data ends at `s__HEAP` (after `_DATA` comes `_INITIALIZED`, 11 bytes). **Measured**: the stack's deepest point in a whole Room 100 run is 140 bytes on GBC, 103 on DMG (`electrical-test.py`, a canary pattern) |
 | SRAM | Enabled from boot, bank 1 switched in (`sram.h`, 2026-10-19). Bank 0 at 0xA000: the save (`save.c`, Phase 9b), 42 bytes: "DOOR", a version, the Knobs, runs, escapes, the best door, Knobs ever earned, deaths by cause, a checksum; switched in only while read or written. Bank 1: play buffers at fixed addresses (`__at`, so they're in the `.sym`): `run_template`, `run_flags`, `run_flags2`, `run_key_slot`, `run_drawers`, `run_banned`, `run_exit` from 0xA000 (101 bytes each), the GBC's `dim_cache` at 0xA300 (448 bytes). Not zeroed at boot: `run_start` clears or `plan_room` sets each array, and a dim level is read only once made. Banks 2–3 are free |
 
 LCDC: `LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_WIN9C00 | LCDCF_WINON | LCDCF_OBJ16 | LCDCF_OBJON | LCDCF_BGON`
@@ -230,7 +230,9 @@ a slot per exit). Only those two tiles are copied, so
   the digits must end above pixel row 8 (a compile-time check; until 2026-10-18 their bottom row ran past
   the buffer, which was the "cut-off" digit).
 - **Dupe rooms** (Phase 5): a template with 2–3 exits. `run_plan` picks the real one per run (`run_exit`;
-  the next room must be entered from the opposite wall of *that* door), then rolls Dupe (35% from room 6).
+  the next room must be entered from the opposite wall of *that* door, or else from the bottom: `plan_room`'s
+  fallback, owner 2026-10-20, tried only once the wall's own rooms, with and without the no-repeat rule, gave
+  none; `scripts/plan.py` mirrors it), then rolls Dupe (35% from room 6).
   The others are **wrong doors**: shut, padlocked when the real one is, and numbered by `run_fake_number`
   (one below or up to two above, no repeats, from the seed) when Dupe is there, numberless (`PLATE_BLANK`)
   when not. A at one (`use_fake`), in order: "IT WON'T BUDGE." while Rush is out; "IT'S FAKE." without Dupe;
@@ -241,8 +243,9 @@ a slot per exit). Only those two tiles are copied, so
   3%: `RF2_HALT`). Walking through it runs `halt_run()` before the next room: its own loop (vsync, flush,
   input, player, Halt, HUD, camera, sprites, audio; `GAME_HALT`), in the `halt` template with the entry shut
   (a blank plate) and the exit open. Each leg Halt is placed on the side the player walks away from, at
-  `d = speed × grace + (leg − grace) × (speed − walk)` (Minecraft docs 06's sum; here 1.4 px/frame, 40
-  frames, legs of 150 back and 203 forward, so d is 73–82 px: at the screen's edge). He moves at the player
+  `d = speed × grace + (leg − grace) × (speed − walk)` (Minecraft docs 06's sum; here 1.33 px/frame, 55
+  frames, legs of 150 back and 203 forward, so d is 81–85 px: just past the screen's edge; 1.4 and 40 frames,
+  73–82 px, until the owner found him too unforgiving, 2026-10-20). He moves at the player
   across at his speed, up and down at half a pixel. At a leg's end: `halt_dir` flips, he's placed on the
   other side, TURN AROUND (sprite letters) shows for 60 frames, the background flashes white for 4. Contact
   (10 px across, 14 up and down): 60 HP and he's put back at the leg's start, or death (`DEATH_HALT`, no
@@ -272,7 +275,9 @@ a slot per exit). Only those two tiles are copied, so
 - **Figure** (`figure.c`): his feet move along the middles of metatiles, downhill on a distance map: a flood
   fill from his goal over the floor (four neighbours, one byte a cell, 255 unreached) in the room map's tail
   (`room_map + w·h`), its queue (256 cells as x, y) after it. The converter allows a library of at most
-  (ROOM_MAX − 512) / 2 metatiles and requires a solid edge (the fill doesn't check bounds). The fill runs 32
+  (ROOM_MAX − 512) / 2 metatiles and requires a solid edge (the fill doesn't check bounds). The converter also
+  floods every Figure room from every floor cell: the longest route must be at most 253 steps (a byte, less the
+  two marks) and the fill's frontier at most 255 cells (its ring), or the room is refused (2026-10-20). The fill runs 32
   cells a frame while he stands (about half a second for the Library; 40 a frame lagged the DMG). A walking,
   unhidden, not-sneaking player makes a noise at their feet at once and every 8 frames: wandering or pausing,
   he takes it (hunting, 1.44 px/frame); hunting, only a noise in his goal's own cell moves the goal (he
@@ -296,7 +301,7 @@ a slot per exit). Only those two tiles are copied, so
     `player_update`), the puddle small then large, his top half (`spr_draw_big` 2×1) then all of him. Then
     `SEEK_CHASE`: `player_fast` (1.4×, player.c), *Here I Come*, and he holds 45 frames.
   - *The chase*: his position is a room and a distance along its route (Rush's scheme, `entity.c`), placed
-    once per room with two divisions and stepped after; 0x0150 (1.31 px/frame, 0.75 of the player's run). He
+    once per room with two divisions and stepped after; 0x0166 (1.40 px/frame, 0.80 of the player's run; 0x0150, 0.75, until 2026-10-20). He
     draws back, side (mirrored to the right) or front frames by the route's direction. Caught: within 24 px of
     the feet (a circle), or, while moving, being in a room before his (`seek_room > run_room`: you got round
     him). In the end hallway he stops `STOP_SHORT` (32 px) before its door's middle (`SEEK_STOP`, still
@@ -306,6 +311,8 @@ a slot per exit). Only those two tiles are copied, so
     a bottom doorway becomes wall, a side door shuts), so you can't go back. Entering the room after the end
     hallway: `slam()`: Seek off, the chase marked done, music off, walking speed, `SFX_SLAM`.
   - *The glow*: in a four-way, the `guide` sprite twinkles 20 px into the room from the real door's middle.
+    Off screen it's drawn clamped to the screen's edge (above the HUD's rows, like Figure's edge arrow), so it
+    always points the way (owner, 2026-10-20).
   - *Fire*: any `fire` metatile (MTF_FIRE) under the feet or the body's middle kills (`on_fire`, every frame
     after `player_update`): `DEATH_FIRE`, his eye, a hint about going round. It flickers (owner,
     2026-10-18): every 12 frames each `fire_a` / `fire_b` on screen becomes the other (`fire_flicker`, only
@@ -389,7 +396,7 @@ a slot per exit). Only those two tiles are copied, so
   whether it can count or not (a battery before you own a flashlight), so owning one changes no other roll.
   `scripts/plan.py`'s `loot()` is a copy the tests check the ROM against. Nothing is stored for it: a drawer's
   bit in `run_drawers` says it was opened, and a key spot's loot taken is a bit of the same byte from the top
-  (`RUN_LOOSE_BIT`; the converter keeps drawers plus key spots to 8, key spots to 2). What didn't fit (a full
+  (`RUN_LOOSE_BIT`; the converter keeps drawers plus key spots to 8, key spots to 4 (2 until 2026-10-20)). What didn't fit (a full
   bag, full health for a bandage, a full flashlight) is remembered in `run.c`'s six-entry table (`run_left`),
   the oldest forgotten; A on the opened drawer takes it then. Loose loot is rolled when the room loads (so a
   flashlight found meanwhile doesn't change what's lying there) and drawn from the key sheet.
@@ -440,8 +447,8 @@ Numbers come from the Minecraft config (`entities`, `rush`, `ambush`, `hide`), o
 - **Dark rooms**: never fired into (Darkness, above), except the Greenhouse's (Rooms, above).
 - **Rumble**: continuous CH4 noise whose volume follows his distance along the route, from 768 px.
 - **Hiding**: A at a closet or bed hides (the player sprite goes, the room dims to level 2); A or B leaves.
-  Hide: from 7 s a heartbeat that speeds up (with a darker pulse on each beat, the warning without sound),
-  at 12 s out with 40 HP gone, that spot banned for the run (`run_banned`, a bit per spot). Damage at 40 HP or
+  Hide: from 3 s a heartbeat that speeds up (with a darker pulse on each beat, the warning without sound),
+  at 8 s out with 40 HP gone (7 s and 12 s until 2026-10-20), that spot banned for the run (`run_banned`, a bit per spot). Damage at 40 HP or
   less kills (Hide's Guiding Light).
 
 ## Screech and Eyes (`screech.c`, `eyes.c`)
@@ -508,10 +515,13 @@ above): a border line, 20 characters of status line and 20 of item row, sliding 
 WY 144 to 120 while shown. The item row (`hud_status.c`, `item_line`): the held item's icon at column 1, its
 4-tile meter (the lights; 2 px steps, a sliver until empty) or `X2` (vitamins), and the coin icon and the gold
 at columns 16–19; rebuilt only when one of those changes, never while a panel is open, and written whole again
-when a panel closes (`hud_rebuild`). The icons are the font's last eight characters (`%[&$()^]`, the
-Library's shapes) drawn differently: `font.json`'s `alt_chars` puts their second look after the font, and
-`hud_icons(1)` copies it over tiles 248–255 (247–254 until Phase 9b, when the knob glyph took 247) on every door outside the Library (`hud_icons(0)` the shapes in it),
-STAT-safe, so the icons cost no VRAM. It shows the status line (the run's time `12:34`, a heart and an 8-tile health bar
+when a panel closes (`hud_rebuild`). The icons are the font's last eight characters (`%[&$()^]`), tiles
+248–255: `font.json`'s `alt_chars` puts their second look (the Library's shapes) after the font. `hud_init`
+copies the icons over those tiles, and `library_enter` copies the shapes into the hotel tileset's spare tiles
+from its tile count on (152–159 on GBC, 151–158 on DMG: Rush's and Ambush's in other rooms, and neither comes
+into room 50; `spr_forget` after), STAT-safe (`hud_shapes`). A character from 128 up prints that tile itself
+(`hud_tile_for`), which is how `library.c` prints a shape. Until 2026-10-20 the shapes and the icons shared
+248–255 (`hud_icons`, swapped at each door), so in the Library the gold's coin was the triangle (owner). It shows the status line (the run's time `12:34`, a heart and an 8-tile health bar
 in 2 px steps from font glyphs, the key icon) when health changes and while Select is held, or a centred
 message ("IT'S LOCKED.", "GOT THE KEY.", "GET OUT!"). No door number since Phase 8a (owner: it gave Dupe
 away). The time is `run_seconds`, counted in `hud_update` from GBDK's VBlank counter `sys_time` (real time:
@@ -640,7 +650,7 @@ Runs from the Makefile; writes `build/gen/<kind>_<name>.c/.h`. The `.c` holds th
   entry and exit walls, `allow_lock`, drawer, key-spot and hiding-spot counts (what `run.c` plans with,
   without switching banks), and accessors for the banked `room_routes.c` (Phase 8b): Rush's route (door
   centres, in 8 px units) and its length per exit, and `room_template(id, &bank)` (BANKED). Checks there's exactly one start room and that every exit wall has a
-  room that can follow it, and the same for the Library, the chase rooms and the Courtyard and Greenhouse
+  room that can follow it (entered from the opposite wall or, the fallback, the bottom), and the same for the Library, the chase rooms and the Courtyard and Greenhouse
   (`ROOM_HAS_SEEK`, `ROOM_HAS_GARDEN`), including room 100 after a Greenhouse exit.
 - **Sprite sheet** (`.json` + both PNGs): frames in a grid, named in the JSON; 16×16, or multiples of 16
   stored as 16×16 parts (`SPR_<SHEET>_<FRAME>` is the first part). GBC: each 8×16 column

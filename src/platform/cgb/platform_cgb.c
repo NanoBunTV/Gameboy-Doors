@@ -7,8 +7,6 @@
 // Bank 0: the palette setters (their colours are in the caller's bank, switched in) and the VBlank copy. The
 // fading, dimming and tints are banked, in platform_cgb_fx.c.
 
-const char platform_name[] = "GBC";
-
 uint8_t platform_fade;
 uint8_t platform_dim;
 uint8_t platform_tint;   // not static: scripts/scroll-test.py skips green (Ambush) frames

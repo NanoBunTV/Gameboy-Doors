@@ -99,13 +99,15 @@ class Plan:
         else:
             need = OPP[exits[self.t[n - 1]][self.exit[n - 1]]]
             cands = []
-            for p in range(2):
+            for p in range(4):   # run.c: twice for the wall, then twice for a bottom entry (the fallback)
+                if p == 2:
+                    need = BOTTOM
                 for i, x in enumerate(info):
                     if x[0] != kind or x[1] != need:
                         continue
                     if before_fixed and (exits[i][0] != TOP or exits[i][1]):
                         continue
-                    recent = p == 0 and not chase and any(self.t[n - b] == i for b in range(1, 4) if b <= n)
+                    recent = p % 2 == 0 and not chase and any(self.t[n - b] == i for b in range(1, 4) if b <= n)
                     if not recent:
                         cands.append(i)
                 if cands:
@@ -166,15 +168,15 @@ def loot(seed, n, slot, loose, flash):
     scripts/items-test.py checks the ROM against it."""
     p = Plan(seed)
     p.seed_rng((seed ^ 0x6017 ^ ((slot << 11) & M) ^ (0x0480 if loose else 0)) & M, n)
-    gold = 10 + p.below(41)
+    gold = 5 + p.below(11)   # run.h LOOT_GOLD_MIN, LOOT_GOLD_SPAN
     if loose:
-        battery, bandage, g = p.below(100) < 3, p.below(100) < 3, p.below(100) < 20
+        battery, bandage, g = p.below(100) < 3, p.below(100) < 3, p.below(100) < 8   # run.h LOOT_LOOSE_*
         if flash and battery:
             return 0, 0, 1, 0
         if bandage:
             return 0, 0, 0, 1
         return (gold if g else 0), 0, 0, 0
-    out_gold = gold if p.below(100) < 35 else 0
+    out_gold = gold if p.below(100) < 14 else 0   # run.h LOOT_DRAWER_GOLD
     item = 0
     if p.below(100) < 6:
         w = p.below(100)
